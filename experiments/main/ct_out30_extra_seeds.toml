@@ -1,0 +1,15 @@
+# The two additional 30 % CO2 + temperature runs of lhs_driver.R lines 68-91, needed
+# because fewer than 10 000 simulations pass at this threshold. Combine their accepted
+# samples with those of grid.toml (tag ct_out30) in the analysis.
+
+name        = "main_ct_out30_extra"
+description = "Additional seeds for the 30 % CO2 + temperature experiment"
+n_sample     = 20_000_000
+n_per_chunk  = 10_000
+n_accept_min = 10_000
+output_dir   = "results/main"
+
+[grid]
+constraint = ["both"]
+threshold  = [0.30]
+seeds      = [11, 2020]

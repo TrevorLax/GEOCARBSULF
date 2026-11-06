@@ -1,0 +1,136 @@
+# Configuration of the timing benchmark (see benchmark/timing/README.md and
+# TIMING_BENCHMARK_PLAN.md). Values here are defaults; command-line options of
+# run_timing.jl override the most common ones (--suite, --reps, --only, --out, ...).
+
+[general]
+# Where results go. Empty = %LOCALAPPDATA%\GeocarbTiming on Windows, ~/.cache/GeocarbTiming
+# elsewhere. It must NOT be inside a cloud-synced folder (Proton Drive, OneDrive, ...):
+# the sync client locks and uploads files while they are being written (plan §6.1).
+results_root = ""
+# O3 only: a folder INSIDE your synced area, used once to measure the effect of the sync
+# client on saving results. Empty = O3 is skipped.
+synced_dir = ""
+# Refuse any run whose projected peak memory exceeds this fraction of installed RAM.
+memory_guard = 0.70
+# Seed for everything random in the harness (inputs, interleaving order, ensembles).
+seed = 2026
+# Fortran library variants built for M6 / R1 / H0 (always built with R CMD SHLIB, so
+# with the gfortran that R uses; "shipped" is the library already in legacy/fortran).
+#   r_default : R's own FFLAGS (what run_legacy.R builds)
+#   O0        : no optimisation, i.e. what legacy/fortran/Makefile produces (finding F-22)
+#   O3        : -O3
+#   O3_native : -O3 -march=native (may change results in the last bits, e.g. through FMA)
+fortran_variants = ["r_default", "O0", "O3", "O3_native"]
+# Variant used for "R1" (R + optimised Fortran).
+r1_variant = "O3"
+# Realistic stopping runs (E3) and X1 stop after n_accept accepted samples; their
+# n_sample is n_accept / realistic_min_rate. The R engine draws one Latin hypercube over
+# all n_sample up front (finding F-11), so a huge cap would exhaust memory; the cap is
+# the same for both implementations.
+realistic_min_rate = 0.002
+
+# ------------------------------------------------------------------------------------
+# Suites. Every family listed runs for both implementations where both exist.
+# Sizes are total samples; "chunk" is the chunk size of the precalibration engines
+# (the R engine needs at least two chunks, finding F-12).
+# ------------------------------------------------------------------------------------
+
+[suite.smoke]
+# Every family once with tiny sizes: checks that the harness works on this machine
+# (about 10-15 minutes). The numbers are not meant to be interpreted.
+families = ["startup", "model", "sampling", "constraints", "engine", "io", "analysis", "endtoend"]
+reps = 1
+cold_reps = 1
+model_inputs = 201
+supp_inputs = 50
+fortran_variants = true
+precompile = true
+lhs_sizes = [10_000]
+sampler_n = 100
+covariance_n = [200]
+rng_draws = 1_000_000
+engine_sizes = [1_000]
+engine_chunk = 500
+engine_threshold = 0.30
+engine_verify_n = 1_000
+realistic = [[0.50, 3]]
+thread_counts = [1, 2]
+memory_sizes = [20_000, 40_000]
+analysis_n = 3_400               # at least 3334 (see README)
+endtoend = true
+endtoend_threshold = 0.50
+endtoend_accept = 3
+endtoend_chunk = 500
+io_n = 200
+
+[suite.quick]
+families = ["startup", "model", "sampling", "constraints", "engine"]
+reps = 3                     # in-process repetitions (each in a fresh process, interleaved R/Julia)
+cold_reps = 5                # fresh processes for the cold-start measurements
+model_inputs = 1001          # 1000 legacy samples + prior-mean run
+supp_inputs = 200            # per supplemental configuration
+fortran_variants = false     # build and time the Fortran variants (M6, R1)
+lhs_sizes = [10_000, 100_000]
+sampler_n = 500              # samples for the per-stage sampler timings (P3)
+covariance_n = [1_000]       # P4
+rng_draws = 10_000_000       # P5
+engine_sizes = [2_000]       # E2 fixed work
+engine_chunk = 1_000
+engine_threshold = 0.30
+engine_verify_n = 2_000      # identical() check of the instrumented R copy (B3)
+realistic = []               # E3: [threshold, n_accept_min] pairs, empty = skip
+thread_counts = []           # E4 (Julia only), empty = skip
+memory_sizes = []            # E5, empty = skip
+analysis_n = 0               # A/G: accepted samples in the shared ensemble, 0 = skip
+endtoend = false             # X1
+
+[suite.standard]
+families = ["startup", "model", "sampling", "constraints", "engine", "io", "analysis", "endtoend"]
+reps = 5
+cold_reps = 5
+model_inputs = 1001
+supp_inputs = 200
+fortran_variants = true
+lhs_sizes = [10_000, 100_000, 1_000_000]
+sampler_n = 2_000
+covariance_n = [1_000, 10_000]
+rng_draws = 10_000_000
+engine_sizes = [10_000, 100_000]
+engine_chunk = 10_000
+engine_threshold = 0.30
+engine_verify_n = 2_000
+realistic = [[0.50, 10], [0.50, 100]]
+thread_counts = [1, 2, 4, 0]           # 0 = all logical cores
+memory_sizes = [100_000, 1_000_000]
+analysis_n = 10_000                    # ensemble size = num_samples of analysis_and_plots.R
+endtoend = true
+endtoend_threshold = 0.50
+endtoend_accept = 100
+endtoend_chunk = 2_000
+io_n = 2_000
+
+[suite.full]
+families = ["startup", "model", "sampling", "constraints", "engine", "io", "analysis", "endtoend"]
+reps = 5
+cold_reps = 7
+model_inputs = 1001
+supp_inputs = 200
+fortran_variants = true
+precompile = true                      # S1b: one-off Julia precompilation into a fresh depot
+lhs_sizes = [10_000, 100_000, 1_000_000]
+sampler_n = 5_000
+covariance_n = [1_000, 10_000]
+rng_draws = 10_000_000
+engine_sizes = [10_000, 100_000, 1_000_000]
+engine_chunk = 10_000
+engine_threshold = 0.30
+engine_verify_n = 2_000
+realistic = [[0.50, 10], [0.50, 100], [0.50, 1000]]
+thread_counts = [1, 2, 4, 8, 0]
+memory_sizes = [100_000, 1_000_000, 2_000_000]
+analysis_n = 10_000
+endtoend = true
+endtoend_threshold = 0.50
+endtoend_accept = 100
+endtoend_chunk = 2_000
+io_n = 10_000

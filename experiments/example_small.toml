@@ -1,0 +1,12 @@
+# A small experiment that finishes in about a minute: a quick way to check an
+# installation or to try out options. Increase n_sample for real results.
+
+name        = "example_small"
+description = "Small CO2 + temperature precalibration at 50 % outbound"
+constraint  = "both"
+threshold   = 0.5
+seed        = 42
+n_sample     = 20_000
+n_per_chunk  = 2_000
+n_accept_min = 1_000
+output_dir   = "results/example"

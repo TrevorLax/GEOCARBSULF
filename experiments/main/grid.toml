@@ -1,0 +1,28 @@
+# Main-text experiments of Wong et al. (2021): lhs_driver.R lines 40-66.
+# 5 thresholds x {CO2 only, temperature only, CO2 + temperature} = 15 experiments.
+# Seeds follow the R rule set.seed(1234 * idx_experiment), with idx_experiment counting
+# constraints in the order co2, temp, both and thresholds within each, so the
+# 30 % CO2 + temperature experiment has index 11 and seed 13574.
+# (Julia's random streams differ from R's, so the samples are not the same as in R.)
+
+name        = "main"
+description = "Main-text precalibration experiments (Wong et al. 2021)"
+param_choice = "all"
+data_choice  = "F2017"
+fsr_choice   = "DT2019"
+
+n_sample     = 20_000_000
+n_per_chunk  = 10_000
+n_accept_min = 10_000
+
+constant_design = "chunked_lhs"
+time_sampler    = "inverse_wishart"
+output_dir      = "results/main"
+
+[grid]
+constraint      = ["co2", "temp", "both"]
+threshold       = [0.30, 0.35, 0.40, 0.45, 0.50]
+seed_multiplier = 1234
+
+[model]
+# empty: the model of fortran/src/run_geocarb.f90

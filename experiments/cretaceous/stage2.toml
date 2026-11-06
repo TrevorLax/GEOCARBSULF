@@ -1,0 +1,18 @@
+# Cretaceous temperature-matching experiment, stage 2 (lhs_driver_cret.R with
+# use_cret_means = TRUE): the forcing centres are the mean accepted series of stage 1.
+# Run stage1.toml first. The R version read these centres from a CSV with an extra
+# row-name column, which shifted every forcing by one column (finding F-27).
+
+name        = "cretaceous_stage2"
+description = "Cretaceous temperature matching, stage 2 (centres from stage 1)"
+tag_suffix  = "cret"
+constraint  = "both"
+threshold   = 0.3
+seed        = 3702
+cretaceous_age      = 90.0
+run_on_time_centers = true
+time_center_from    = "results/cretaceous/ct_out50_cret/result.jld2"
+n_sample     = 10_000_000
+n_per_chunk  = 10_000
+n_accept_min = 10_000
+output_dir   = "results/cretaceous"

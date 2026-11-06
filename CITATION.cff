@@ -1,0 +1,27 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite the article below and the software."
+title: "GeocarbPrecalibration.jl: a Julia port of GEOCARB-precalibration"
+type: software
+license: GPL-3.0-or-later
+version: 0.1.0
+authors:
+  - family-names: Wong
+    given-names: Tony E.
+  - family-names: Cui
+    given-names: Ying
+preferred-citation:
+  type: article
+  title: "A tighter constraint on Earth-system sensitivity from long-term temperature and carbon-cycle observations"
+  authors:
+    - family-names: Wong
+      given-names: Tony E.
+    - family-names: Cui
+      given-names: Ying
+    - family-names: Royer
+      given-names: Dana L.
+    - family-names: Keller
+      given-names: Klaus
+  journal: "Nature Communications"
+  volume: 12
+  start: 3173
+  year: 2021

@@ -1,0 +1,23 @@
+# Cretaceous temperature-matching experiment, stage 1 (lhs_driver_cret.R with
+# use_cret_means = FALSE; analysed in cretaceous_experiment.R as
+# lhs_cret_param_ct_out50_cret.RData).
+#
+# Parity settings (decision D2/D3 of the rewrite plan):
+#  - cretaceous_age = 90: the R code used step index 49, which is 90 Ma on the
+#    570:-10:0 grid, although comments say "~100 Ma" (finding F-03);
+#  - run_on_time_centers = true: the R code ran the model on the forcing centres while
+#    saving the sampled series (finding F-02). Set it to false to let the sampled
+#    series drive the model.
+
+name        = "cretaceous_stage1"
+description = "Cretaceous temperature matching, stage 1"
+tag_suffix  = "cret"
+constraint  = "both"
+threshold   = 0.5
+seed        = 3702
+cretaceous_age      = 90.0
+run_on_time_centers = true
+n_sample     = 10_000_000
+n_per_chunk  = 10_000
+n_accept_min = 10_000
+output_dir   = "results/cretaceous"

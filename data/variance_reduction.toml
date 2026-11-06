@@ -1,0 +1,22 @@
+# Variance-reduction factors f for the inverse-Wishart prior on the covariance of each
+# time-varying forcing (R: time_series_df.R:12). The degrees of freedom are
+#     nu = n_time + 3 + ceil(2 * max(sigma^2) / (1 - f)),
+# chosen so that sampled variances are in line with the reduced-variance experiments of
+# Royer et al. (2014, American Journal of Science).
+#
+# The R code stored these as a positional vector in the order of the prior CSV file
+# (Sr, d13C, d34S, fR, fL, fA, fD, fAw_fA, RT, GEOG, fSR, fC); here they are by name.
+
+[variance_reduction]
+Sr = 0.0
+d13C = 0.82
+d34S = 0.80
+fR = 0.84
+fL = 0.20
+fA = 0.55
+fD = 0.55
+fAw_fA = 0.60
+RT = 0.0
+GEOG = 0.75
+fSR = 0.65
+fC = 0.55

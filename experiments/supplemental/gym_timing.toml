@@ -1,0 +1,20 @@
+# Supplemental experiment "gym+timing" (lhs_driver_supp.R): R parameters
+# supp_experiment_parameters = c(beg, end, gym_fac, dT2X_fac) map to the [model] table.
+# Only the CO2 + temperature experiment at 50 % outbound was run (idx_experiment = 3,
+# seed 1234 * 3).
+
+name        = "supplemental_gym_timing"
+description = "Supplemental experiment: gym+timing"
+tag_suffix  = "gym+timing"
+constraint  = "both"
+threshold   = 0.5
+seed        = 3702
+n_sample     = 20_000_000
+n_per_chunk  = 10_000
+n_accept_min = 10_000
+output_dir   = "results/supplemental"
+
+[model]
+gym_angio_transition = [110, 60]
+gym_factor           = 0.25
+dT2X_ramp            = false

@@ -1,0 +1,14 @@
+/Manifest.toml
+/docs/Manifest.toml
+/benchmark/timing/Manifest.toml
+/docs/build/
+/results/
+/test/legacy_comparison/output/
+*.jld2
+*.o
+*.so
+*.dll
+*.dylib
+.DS_Store
+*.Rhistory
+/logs/
