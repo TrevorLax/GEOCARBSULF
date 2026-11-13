@@ -99,7 +99,7 @@ repos:
       - id: docs-build
         name: documentation build with doctests
         language: system
-        entry: julia --startup-file=no --project=docs docs/make.jl
+        entry: julia --startup-file=no --project=docs scripts/dev/docs.jl
         stages: [pre-push]
         pass_filenames: false
         files: ^(docs/src/|docs/make\.jl|src/|AI_USAGE\.md|README\.md)
