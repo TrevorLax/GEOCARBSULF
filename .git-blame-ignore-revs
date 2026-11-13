@@ -2,3 +2,4 @@
 #   git config blame.ignoreRevsFile .git-blame-ignore-revs
 # Add the full SHA of each reformat commit (JuliaFormatter 1.x BlueStyle reformat,
 # JuliaFormatter 2.x reformat) on its own line, with a comment above it.
+d994cb43c3995a8e4c3d22e50e9ff3fa9e0f45b7
