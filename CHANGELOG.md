@@ -78,6 +78,10 @@ Known differences from the R/Fortran code are listed in `docs/src/porting_notes.
 - "Legacy comparison" now runs on a pinned toolchain (`ubuntu-24.04`, R 4.6.1, a dated
   CRAN snapshot) and also checks the golden fixtures against the freshly compiled
   Fortran. `Weekly.yml` runs it with the newest toolchain.
+- "Changelog and AI usage", "Formatting" and "Lint" run on `ubuntu-latest` (was
+  `ubuntu-24.04`), like the other workflows. Lint's ShellCheck now comes from that
+  image (0.11 on Ubuntu 26.04, 0.9 on 24.04). "Legacy comparison" stays pinned to
+  `ubuntu-24.04` on purpose (fixed gfortran and CRAN binaries; see `Legacy.yml`).
 - Documentation deploys without persisted checkout credentials; Dependabot waits 14
   days before proposing a release; batch files are checked out with CRLF.
 - These changes were drafted with an AI coding assistant (Claude Code, Claude Opus 5.5;
