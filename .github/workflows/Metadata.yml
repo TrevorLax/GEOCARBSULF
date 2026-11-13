@@ -48,4 +48,7 @@ jobs:
           pv=$(sed -n 's/^version *= *"\(.*\)"/\1/p' Project.toml)
           cv=$(sed -n 's/^version: *"\{0,1\}\([^"]*\)"\{0,1\}$/\1/p' CITATION.cff)
           echo "Project.toml: $pv   CITATION.cff: $cv"
-          [ -n "$pv" ] && [ "$pv" = "$cv" ] || { echo "::error::version mismatch between Project.toml ($pv) and CITATION.cff ($cv)"; exit 1; }
+          if [ -z "$pv" ] || [ "$pv" != "$cv" ]; then
+            echo "::error::version mismatch between Project.toml ($pv) and CITATION.cff ($cv)"
+            exit 1
+          fi
