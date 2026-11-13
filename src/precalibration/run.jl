@@ -33,8 +33,9 @@ end
 _chunk_seed(seed::Integer, c::Integer) = UInt64(seed) * 0x9e3779b97f4a7c15 + UInt64(c)
 
 _n_chunks(cfg::ExperimentConfig) = cld(cfg.n_sample, cfg.n_per_chunk)
-_chunk_size(cfg::ExperimentConfig, c::Integer) =
-    c < _n_chunks(cfg) ? cfg.n_per_chunk : cfg.n_sample - (_n_chunks(cfg) - 1) * cfg.n_per_chunk
+function _chunk_size(cfg::ExperimentConfig, c::Integer)
+    return c < _n_chunks(cfg) ? cfg.n_per_chunk : cfg.n_sample - (_n_chunks(cfg) - 1) * cfg.n_per_chunk
+end
 
 """
     prepare_precalibration(cfg::ExperimentConfig) -> PrecalibrationSetup
@@ -49,23 +50,27 @@ function prepare_precalibration(cfg::ExperimentConfig)
     calib_index = [findfirst(==(p.name), CONSTANT_PARAMETER_NAMES) for p in priors]
     base_values = parameter_vector(mean_constants(table))
 
-    tprior = read_time_arrays(cfg.time_array_file; use_godderis = cfg.use_godderis)
+    tprior = read_time_arrays(cfg.time_array_file; use_godderis=cfg.use_godderis)
     center = tprior.center
     if cfg.time_center_from !== nothing
         prev = load_result(cfg.time_center_from)
-        n_accepted(prev) >= 1 || throw(ArgumentError("time_center_from: $(cfg.time_center_from) has no accepted samples"))
+        n_accepted(prev) >= 1 ||
+            throw(ArgumentError("time_center_from: $(cfg.time_center_from) has no accepted samples"))
         prev.age == center.age || throw(ArgumentError("time_center_from: age grids differ"))
         center = mean_time_forcings(prev.time_series, prev.age)
     end
     fvr = read_variance_reduction(cfg.variance_reduction_file)
-    sampler = cfg.time_sampler == :inverse_wishart ?
-        InverseWishartSampler(center, tprior.sigma, fvr) :
+    sampler = if cfg.time_sampler == :inverse_wishart
+        InverseWishartSampler(center, tprior.sigma, fvr)
+    else
         MultivariateTSampler(center, tprior.sigma, fvr)
+    end
 
-    proxy = read_proxy_data(cfg.proxy_file; proxies = cfg.proxies)
+    proxy = read_proxy_data(cfg.proxy_file; proxies=cfg.proxies)
     tdata = read_temperature_data(cfg.temperature_file)
-    ctx = EvaluationContext(co2_windows(proxy, center.age; nsig = cfg.nsig),
-                            temperature_windows(tdata, center.age; nsig = cfg.nsig); T0 = cfg.T0)
+    ctx = EvaluationContext(
+        co2_windows(proxy, center.age; nsig=cfg.nsig), temperature_windows(tdata, center.age; nsig=cfg.nsig); T0=cfg.T0
+    )
     rule = build_rule(cfg)
     if cfg.cretaceous_age !== nothing
         any(==(cfg.cretaceous_age), center.age) ||
@@ -105,18 +110,27 @@ function _run_chunk(setup::PrecalibrationSetup, c::Int)
     cov = cfg.save_covariances ? Dict{Symbol,Matrix{Float64}}() : nothing
 
     idx = Int[]
-    cbuf = Float64[]; sbuf = Float64[]; co2buf = Float64[]; o2buf = Float64[]; tbuf = Float64[]
-    stbuf = UInt8[]; pc_acc = Float64[]; pt_acc = Float64[]; covbuf = Float64[]
+    cbuf = Float64[]
+    sbuf = Float64[]
+    co2buf = Float64[]
+    o2buf = Float64[]
+    tbuf = Float64[]
+    stbuf = UInt8[]
+    pc_acc = Float64[]
+    pt_acc = Float64[]
+    covbuf = Float64[]
 
     for j in 1:nc
-        @timeit_debug TIMER "time series" sample_time_forcings!(rng, buf, setup.sampler; covariances = cov)
+        @timeit_debug TIMER "time series" sample_time_forcings!(rng, buf, setup.sampler; covariances=cov)
         p = @timeit_debug TIMER "constants: assemble" begin
             for (q, ci) in enumerate(setup.calib_index)
                 vals[ci] = X[j, q]
             end
             _constants_from_vector(Float64, vals)
         end
-        @timeit_debug TIMER "model" run_geocarb!(out, p, cfg.run_on_time_centers ? setup.center : buf; options = cfg.model)
+        @timeit_debug TIMER "model" run_geocarb!(
+            out, p, cfg.run_on_time_centers ? setup.center : buf; options=cfg.model
+        )
         ok = @timeit_debug TIMER "acceptance" accepts(setup.rule, out, setup.ctx)
         ok && @timeit_debug TIMER "store accepted" begin
             push!(idx, j)
@@ -125,15 +139,18 @@ function _run_chunk(setup::PrecalibrationSetup, c::Int)
                 append!(sbuf, getfield(buf, n))
                 cov === nothing || append!(covbuf, vec(cov[n]))
             end
-            append!(co2buf, out.co2); append!(o2buf, out.o2); append!(tbuf, out.temp)
+            append!(co2buf, out.co2)
+            append!(o2buf, out.o2)
+            append!(tbuf, out.temp)
             append!(stbuf, UInt8.(out.status))
             push!(pc_acc, legacy_percent_outbound(out.co2, setup.ctx.co2_windows))
             push!(pt_acc, _legacy_percent_outbound_shifted(out.temp, setup.ctx.T0, setup.ctx.temp_windows))
         end
     end
 
-    @timeit_debug TIMER "chunk output" _chunk_output(c, nc, idx, cbuf, sbuf, co2buf, o2buf, tbuf, stbuf, pc_acc, pt_acc,
-                                                       covbuf, cov !== nothing, nt)
+    @timeit_debug TIMER "chunk output" _chunk_output(
+        c, nc, idx, cbuf, sbuf, co2buf, o2buf, tbuf, stbuf, pc_acc, pt_acc, covbuf, cov !== nothing, nt
+    )
 end
 
 function _chunk_output(c, nc, idx, cbuf, sbuf, co2buf, o2buf, tbuf, stbuf, pc_acc, pt_acc, covbuf, has_cov, nt)
@@ -141,24 +158,60 @@ function _chunk_output(c, nc, idx, cbuf, sbuf, co2buf, o2buf, tbuf, stbuf, pc_ac
     constants = permutedims(reshape(cbuf, N_CONSTANTS, na))
     series = permutedims(reshape(sbuf, nt, N_FORCINGS, na), (1, 3, 2))
     covs = has_cov ? permutedims(reshape(covbuf, nt, nt, N_FORCINGS, na), (1, 2, 4, 3)) : nothing
-    return ChunkOutput(c, nc, idx, constants, series, reshape(co2buf, nt, na), reshape(o2buf, nt, na),
-        reshape(tbuf, nt, na), reshape(stbuf, nt, na), pc_acc, pt_acc, covs)
+    return ChunkOutput(
+        c,
+        nc,
+        idx,
+        constants,
+        series,
+        reshape(co2buf, nt, na),
+        reshape(o2buf, nt, na),
+        reshape(tbuf, nt, na),
+        reshape(stbuf, nt, na),
+        pc_acc,
+        pt_acc,
+        covs,
+    )
 end
 
 _chunk_file(dir::AbstractString, c::Integer) = joinpath(dir, @sprintf("chunk_%06d.jld2", c))
 
 function _save_chunk(path::AbstractString, o::ChunkOutput)
-    JLD2.jldsave(path; chunk = o.chunk, n = o.n, idx = o.idx, constants = o.constants, series = o.series,
-        co2 = o.co2, o2 = o.o2, temp = o.temp, status = o.status, prcout_co2 = o.prcout_co2,
-        prcout_temp = o.prcout_temp, has_cov = o.covariances !== nothing,
-        covariances = o.covariances === nothing ? zeros(0, 0, 0, 0) : o.covariances)
+    JLD2.jldsave(
+        path;
+        chunk=o.chunk,
+        n=o.n,
+        idx=o.idx,
+        constants=o.constants,
+        series=o.series,
+        co2=o.co2,
+        o2=o.o2,
+        temp=o.temp,
+        status=o.status,
+        prcout_co2=o.prcout_co2,
+        prcout_temp=o.prcout_temp,
+        has_cov=o.covariances !== nothing,
+        covariances=o.covariances === nothing ? zeros(0, 0, 0, 0) : o.covariances,
+    )
     return path
 end
 
 function _load_chunk(path::AbstractString)
     d = JLD2.load(path)
-    return ChunkOutput(d["chunk"], d["n"], d["idx"], d["constants"], d["series"], d["co2"], d["o2"],
-        d["temp"], d["status"], d["prcout_co2"], d["prcout_temp"], d["has_cov"] ? d["covariances"] : nothing)
+    return ChunkOutput(
+        d["chunk"],
+        d["n"],
+        d["idx"],
+        d["constants"],
+        d["series"],
+        d["co2"],
+        d["o2"],
+        d["temp"],
+        d["status"],
+        d["prcout_co2"],
+        d["prcout_temp"],
+        d["has_cov"] ? d["covariances"] : nothing,
+    )
 end
 
 function _compute_or_load_chunk(setup::PrecalibrationSetup, c::Int, checkpoint_dir)
@@ -191,8 +244,12 @@ are consumed in chunk order, so **the result does not depend on the number of
 threads**. With `checkpoint_dir`, every finished chunk is written there and reused if
 the run is restarted.
 """
-function run_precalibration(cfg::ExperimentConfig; max_parallel::Integer = Threads.nthreads(),
-                            checkpoint_dir::Union{Nothing,AbstractString} = nothing, verbose::Bool = true)
+function run_precalibration(
+    cfg::ExperimentConfig;
+    max_parallel::Integer=Threads.nthreads(),
+    checkpoint_dir::Union{Nothing,AbstractString}=nothing,
+    verbose::Bool=true,
+)
     t_start = time()
     started = Dates.format(Dates.now(), "yyyy-mm-ddTHH:MM:SS")
     setup = @timeit_debug TIMER "prepare" prepare_precalibration(cfg)
@@ -223,7 +280,7 @@ function run_precalibration(cfg::ExperimentConfig; max_parallel::Integer = Threa
             end
         end
         verbose && @info "precalibration $(cfg.tag): chunks 1:$(last(consumed).chunk) of $nchunk, " *
-                         "$n_simulated simulated, $(min(n_acc, cfg.n_accept_min)) accepted"
+            "$n_simulated simulated, $(min(n_acc, cfg.n_accept_min)) accepted"
         c = last(batch) + 1
     end
 
@@ -247,7 +304,7 @@ function _assemble(setup::PrecalibrationSetup, outs::Vector{ChunkOutput}, n_simu
         total += max(k, 0)
         total >= keep && break
     end
-    cat3(f, dims) = isempty(parts) ? nothing : cat((f(o, r) for (o, r) in parts)...; dims = dims)
+    cat3(f, dims) = isempty(parts) ? nothing : cat((f(o, r) for (o, r) in parts)...; dims=dims)
     constants = isempty(parts) ? zeros(0, N_CONSTANTS) : reduce(vcat, [o.constants[r, :] for (o, r) in parts])
     series = isempty(parts) ? zeros(nt, 0, N_FORCINGS) : cat3((o, r) -> o.series[:, r, :], 2)
     co2 = isempty(parts) ? zeros(nt, 0) : reduce(hcat, [o.co2[:, r] for (o, r) in parts])
@@ -256,8 +313,8 @@ function _assemble(setup::PrecalibrationSetup, outs::Vector{ChunkOutput}, n_simu
     status = isempty(parts) ? zeros(UInt8, nt, 0) : reduce(hcat, [o.status[:, r] for (o, r) in parts])
     pc = isempty(parts) ? Float64[] : reduce(vcat, [o.prcout_co2[r] for (o, r) in parts])
     pt = isempty(parts) ? Float64[] : reduce(vcat, [o.prcout_temp[r] for (o, r) in parts])
-    keys_ = isempty(parts) ? zeros(Int, 0, 2) :
-        reduce(vcat, [hcat(fill(o.chunk, length(r)), o.idx[r]) for (o, r) in parts])
+    keys_ =
+        isempty(parts) ? zeros(Int, 0, 2) : reduce(vcat, [hcat(fill(o.chunk, length(r)), o.idx[r]) for (o, r) in parts])
     covs = nothing
     if cfg.save_covariances
         covs = isempty(parts) ? zeros(nt, nt, 0, N_FORCINGS) : cat3((o, r) -> o.covariances[:, :, r, :], 3)
@@ -271,16 +328,33 @@ function _assemble(setup::PrecalibrationSetup, outs::Vector{ChunkOutput}, n_simu
         "threads" => string(Threads.nthreads()),
         "n_chunks_consumed" => string(length(outs)),
     )
-    return PrecalibrationResult(cfg.tag, cfg.source, config_summary(cfg), copy(setup.center.age),
-        collect(CONSTANT_PARAMETER_NAMES), constants, collect(TIME_FORCING_NAMES), series, co2, o2, temp,
-        status, pc, pt, keys_, n_simulated, covs, prov)
+    return PrecalibrationResult(
+        cfg.tag,
+        cfg.source,
+        config_summary(cfg),
+        copy(setup.center.age),
+        collect(CONSTANT_PARAMETER_NAMES),
+        constants,
+        collect(TIME_FORCING_NAMES),
+        series,
+        co2,
+        o2,
+        temp,
+        status,
+        pc,
+        pt,
+        keys_,
+        n_simulated,
+        covs,
+        prov,
+    )
 end
 
 function _git_commit()
     try
         dir = normpath(joinpath(@__DIR__, "..", ".."))
         isdir(joinpath(dir, ".git")) || return "unknown"
-        return readchomp(pipeline(`git -C $dir rev-parse HEAD`; stderr = devnull))
+        return readchomp(pipeline(`git -C $dir rev-parse HEAD`; stderr=devnull))
     catch
         return "unknown"
     end

@@ -12,10 +12,15 @@ model runs). Pass a [`ModelOptions`](@ref) to re-run every sample with different
 model options, for example the supplemental-experiment variants. `n` subsamples as in
 [`parameter_quantiles`](@ref); `idx` are the samples used.
 """
-function hindcast(res::PrecalibrationResult; options::Union{Nothing,ModelOptions} = nothing,
-                  T0::Real = PRESENT_TEMPERATURE, include_geog::Bool = true, n = nothing,
-                  rng::AbstractRNG = StableRNG(1))
-    idx = subsample_indices(n_accepted(res), n; rng = rng)
+function hindcast(
+    res::PrecalibrationResult;
+    options::Union{Nothing,ModelOptions}=nothing,
+    T0::Real=PRESENT_TEMPERATURE,
+    include_geog::Bool=true,
+    n=nothing,
+    rng::AbstractRNG=StableRNG(1),
+)
+    idx = subsample_indices(n_accepted(res), n; rng=rng)
     nt = length(res.age)
     co2 = Matrix{Float64}(undef, nt, length(idx))
     temp = Matrix{Float64}(undef, nt, length(idx))
@@ -26,12 +31,12 @@ function hindcast(res::PrecalibrationResult; options::Union{Nothing,ModelOptions
             co2[:, c] .= view(res.co2, :, k)
             temp[:, c] .= view(res.temp, :, k)
         else
-            run_geocarb!(out, sample_constants_params(res, k), sample_forcings(res, k); options = options)
+            run_geocarb!(out, sample_constants_params(res, k), sample_forcings(res, k); options=options)
             co2[:, c] .= out.co2
             temp[:, c] .= out.temp
         end
         temp[:, c] .+= T0
         include_geog && (temp[:, c] .+= view(res.time_series, :, k, jgeog))
     end
-    return (co2 = co2, temp = temp, idx = idx)
+    return (co2=co2, temp=temp, idx=idx)
 end

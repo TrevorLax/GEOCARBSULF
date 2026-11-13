@@ -1,0 +1,81 @@
+# Weekly health check on main with the newest dependency versions, R packages and
+# gfortran, so that breakage is noticed even when nobody pushes:
+#   * the full test suite;
+#   * the live R/Fortran comparison with the newest R, CRAN packages and runner image
+#     (Legacy.yml with latest: true; remove the job when it is retired);
+#   * documentation with external link checking (no deployment);
+#   * JET.jl static analysis of the model hot path (advisory).
+name: Weekly
+
+on:
+  schedule:
+    - cron: "0 6 * * 1" # Mondays 06:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A manual run started while the scheduled one is going waits instead of doubling up.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    name: Tests (latest dependencies)
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: julia-actions/setup-julia@da908477b5db94c10ffce8cfea9f2b3b9d5db687 # v3.0.3
+        with:
+          version: "1"
+      - uses: julia-actions/julia-buildpkg@e3eb439fad4f9aba7da2667e7510e4a46ebc46e1 # v1.7.0
+      - uses: julia-actions/julia-runtest@6e050c8013b833b1195105ff2fce9cd802f53271 # v1.12.0
+        with:
+          coverage: false
+
+  legacy:
+    name: Legacy (latest toolchain)
+    # zizmor suggests a newer `$/...` self-repository syntax; ./ is kept because actionlint
+    # 1.7.12 does not know the new form.
+    uses: ./.github/workflows/Legacy.yml # zizmor: ignore[self-repository]
+    with:
+      latest: true
+
+  linkcheck:
+    name: Docs link check
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: julia-actions/setup-julia@da908477b5db94c10ffce8cfea9f2b3b9d5db687 # v3.0.3
+        with:
+          version: "1"
+      - run: julia --project=docs -e 'using Pkg; Pkg.develop(PackageSpec(path = pwd())); Pkg.instantiate()'
+      - run: julia --project=docs --color=yes docs/make.jl
+        env:
+          LINKCHECK: "true"
+          DOCS_DEPLOY: "false"
+
+  jet:
+    name: JET (advisory)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: julia-actions/setup-julia@da908477b5db94c10ffce8cfea9f2b3b9d5db687 # v3.0.3
+        with:
+          version: "1"
+      - uses: julia-actions/julia-buildpkg@e3eb439fad4f9aba7da2667e7510e4a46ebc46e1 # v1.7.0
+      - name: Static analysis of run_geocarb!
+        run: |
+          julia --project=@jet -e 'using Pkg; Pkg.develop(PackageSpec(path = pwd())); Pkg.add("JET")'
+          julia --project=@jet --color=yes test/jet.jl

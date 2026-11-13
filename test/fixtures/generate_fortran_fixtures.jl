@@ -43,32 +43,47 @@ for i in 1:N
 end
 pm = mean_constants(table)
 push!(cases, ("not_converged", pm, tp.center, 1))
-push!(cases, ("huge_sensitivity", update(pm; deltaT2X = 50.0), tp.center, 10))
-fneg = copy(tp.center); fneg.GEOG .= -1e4
+push!(cases, ("huge_sensitivity", update(pm; deltaT2X=50.0), tp.center, 10))
+fneg = copy(tp.center);
+fneg.GEOG .= -1e4;
 push!(cases, ("negative_power_base", pm, fneg, 10))
 
-supp_cfgs = [("control", 130, 80, 1, -1), ("gym", 130, 80, 0.25, -1), ("timing", 110, 60, 1, -1),
-             ("gym_timing", 110, 60, 0.25, -1), ("dT2X", 130, 80, 1, 1), ("gym_timing_dT2X", 110, 60, 0.25, 1)]
+supp_cfgs = [
+    ("control", 130, 80, 1, -1),
+    ("gym", 130, 80, 0.25, -1),
+    ("timing", 110, 60, 1, -1),
+    ("gym_timing", 110, 60, 0.25, -1),
+    ("dT2X", 130, 80, 1, 1),
+    ("gym_timing_dT2X", 110, 60, 0.25, 1),
+]
 
 outdir = mkpath(joinpath(@__DIR__, "fortran"))
 nt = length(tp.center.age)
 cnames = String.(collect(CONSTANT_PARAMETER_NAMES))
 fnames = ["$(n)_$k" for n in TIME_FORCING_NAMES for k in 1:nt]
-write_csv(joinpath(outdir, "$(label)_inputs.csv"), vcat(["case", "iteration_threshold"], cnames, fnames),
-          vcat([[c[1] for c in cases], [c[4] for c in cases]],
-               [[getfield(c[2], n) for c in cases] for n in CONSTANT_PARAMETER_NAMES],
-               [[getfield(c[3], n)[k] for c in cases] for n in TIME_FORCING_NAMES for k in 1:nt]))
+write_csv(
+    joinpath(outdir, "$(label)_inputs.csv"),
+    vcat(["case", "iteration_threshold"], cnames, fnames),
+    vcat(
+        [[c[1] for c in cases], [c[4] for c in cases]],
+        [[getfield(c[2], n) for c in cases] for n in CONSTANT_PARAMETER_NAMES],
+        [[getfield(c[3], n)[k] for c in cases] for n in TIME_FORCING_NAMES for k in 1:nt],
+    ),
+)
 # temperatures are stored as temp + 15, the quantity the R code exports
 function dump_runs(name, runs)
     for (q, out, shift) in (("co2", 1, 0.0), ("o2", 2, 0.0), ("temp15", 3, 15.0))
-        write_csv(joinpath(outdir, "$(label)_$(name)_$(q).csv"), ["step_$k" for k in 1:nt],
-                  [[r[out][k] + shift for r in runs] for k in 1:nt])
+        write_csv(
+            joinpath(outdir, "$(label)_$(name)_$(q).csv"),
+            ["step_$k" for k in 1:nt],
+            [[r[out][k] + shift for r in runs] for k in 1:nt],
+        )
     end
 end
-dump_runs("main", [fortran_run(main, c[2], c[3]; iteration_threshold = c[4]) for c in cases])
+dump_runs("main", [fortran_run(main, c[2], c[3]; iteration_threshold=c[4]) for c in cases])
 if supp !== nothing
     for (nm, b, e, g, d) in supp_cfgs
-        dump_runs("supp_$nm", [fortran_run_supp(supp, c[2], c[3], b, e, g, d; iteration_threshold = c[4]) for c in cases])
+        dump_runs("supp_$nm", [fortran_run_supp(supp, c[2], c[3], b, e, g, d; iteration_threshold=c[4]) for c in cases])
     end
 end
 println("wrote fixtures for $(length(cases)) cases to $outdir")

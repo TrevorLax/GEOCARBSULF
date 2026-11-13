@@ -32,9 +32,24 @@ State at 570 Ma. `dlsa` and `dlca` follow from isotopic mass balance (f90:291-29
 function initial_state(::Type{T}, p::ConstantParams) where {T<:Real}
     dlsa = (p.dlst * p.ST - (p.dlpy_570 * p.Spy_570 + p.dlsy_570 * p.Ssy_570 + p.dlpa_570 * p.Spa)) / p.Ssa
     dlca = (p.dlct * p.CT - (p.dlgy_570 * p.Gy_570 + p.dlcy_570 * p.Cy_570 + p.dlga_570 * p.Ga)) / p.Ca_570
-    return ReservoirState{T}(p.oxygen_570, p.Gy_570, p.Cy_570, p.Ca_570, p.Ssy_570, p.Spy_570,
-        p.dlsy_570, p.dlcy_570, p.dlpy_570, p.dlpa_570, p.dlgy_570, p.dlga_570, dlsa, dlca,
-        p.Rcy_570, p.Rca_570)
+    return ReservoirState{T}(
+        p.oxygen_570,
+        p.Gy_570,
+        p.Cy_570,
+        p.Ca_570,
+        p.Ssy_570,
+        p.Spy_570,
+        p.dlsy_570,
+        p.dlcy_570,
+        p.dlpy_570,
+        p.dlpa_570,
+        p.dlgy_570,
+        p.dlga_570,
+        dlsa,
+        dlca,
+        p.Rcy_570,
+        p.Rca_570,
+    )
 end
 
 """
@@ -43,8 +58,9 @@ end
 New masses and isotopic values for the next time step (f90:529-545). The updates are
 sequential, as in the Fortran: each line uses the values updated on the lines before it.
 """
-@inline function update_reservoirs(s::ReservoirState{T}, oxygen, src, bur, capd34S, capd13C,
-                                   roc, d34S, d13C, p::ConstantParams, dt) where {T}
+@inline function update_reservoirs(
+    s::ReservoirState{T}, oxygen, src, bur, capd34S, capd13C, roc, d34S, d13C, p::ConstantParams, dt
+) where {T}
     Spy = s.Spy + (bur.Fbp - src.Fwpy - src.Fyop) * dt
     Ssy = s.Ssy + (bur.Fbs - src.Fwsy - src.Fyos) * dt
     Gy = s.Gy + (bur.Fbg - src.Fwgy - src.Fyog) * dt
@@ -62,6 +78,5 @@ sequential, as in the Fortran: each line uses the values updated on the lines be
     Rcy = s.Rcy + ((roc - s.Rcy) * bur.Fbc / Cy) * dt
     Rca = s.Rca + ((Rcy - s.Rca) * src.Fyoc / Ca) * dt
 
-    return ReservoirState{T}(oxygen, Gy, Cy, Ca, Ssy, Spy, dlsy, dlcy, dlpy, dlpa, dlgy, dlga,
-        dlsa, dlca, Rcy, Rca)
+    return ReservoirState{T}(oxygen, Gy, Cy, Ca, Ssy, Spy, dlsy, dlcy, dlpy, dlpa, dlgy, dlga, dlsa, dlca, Rcy, Rca)
 end

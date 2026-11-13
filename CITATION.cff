@@ -1,14 +1,58 @@
 cff-version: 1.2.0
-message: "If you use this software, please cite the article below and the software."
+message: >-
+  If you use this software, please cite it as below, together with Wong et al. (2021)
+  for the model and the precalibration method.
 title: "GeocarbPrecalibration.jl: a Julia port of GEOCARB-precalibration"
 type: software
 license: GPL-3.0-or-later
 version: 0.1.0
+# TODO: fill in after the repository is public and the first Zenodo release exists.
+repository-code: "https://github.com/OWNER/GeocarbPrecalibration.jl"
+# doi: 10.5281/zenodo.XXXXXXX   # Zenodo concept DOI (all versions)
+keywords:
+  - carbon cycle
+  - GEOCARB
+  - GEOCARBSULF
+  - paleoclimate
+  - climate sensitivity
+  - precalibration
+  - Julia
 authors:
+  - given-names: TODO
+    family-names: TODO
+    # orcid: "https://orcid.org/0000-0000-0000-0000"
+    # affiliation: TODO
   - family-names: Wong
     given-names: Tony E.
-  - family-names: Cui
-    given-names: Ying
+    # orcid: "https://orcid.org/0000-0000-0000-0000"
+    # affiliation: TODO
+references:
+  - type: software
+    title: "GEOCARB-precalibration"
+    authors:
+      - family-names: Wong
+        given-names: Tony E.
+      - family-names: Cui
+        given-names: Ying
+    license: GPL-3.0-or-later
+    notes: "The original R/Fortran code ported here; kept unmodified in legacy/."
+  - type: article
+    title: "A tighter constraint on Earth-system sensitivity from long-term temperature and carbon-cycle observations"
+    authors:
+      - family-names: Wong
+        given-names: Tony E.
+      - family-names: Cui
+        given-names: Ying
+      - family-names: Royer
+        given-names: Dana L.
+      - family-names: Keller
+        given-names: Klaus
+    journal: "Nature Communications"
+    volume: 12
+    start: 3173
+    year: 2021
+    doi: 10.1038/s41467-021-23543-9
+# After JOSS acceptance, replace this with the JOSS article.
 preferred-citation:
   type: article
   title: "A tighter constraint on Earth-system sensitivity from long-term temperature and carbon-cycle observations"
@@ -25,3 +69,4 @@ preferred-citation:
   volume: 12
   start: 3173
   year: 2021
+  doi: 10.1038/s41467-021-23543-9

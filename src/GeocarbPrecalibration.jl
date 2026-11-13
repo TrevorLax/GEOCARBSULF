@@ -87,35 +87,61 @@ export CONSTANT_PARAMETER_NAMES, TIME_FORCING_NAMES
 export ConstantParams, TimeForcings, ModelOptions
 export parameter_vector, update, parameter_description, parameter_units
 # --- model ----------------------------------------------------------------------
-export StepStatus, Converged, NotConverged, NaNEncountered, RCO2OutOfRange,
-       PresentDayCheckFailed, InvalidState
+export StepStatus, Converged, NotConverged, NaNEncountered, RCO2OutOfRange, PresentDayCheckFailed, InvalidState
 export GeocarbResult, run_geocarb, run_geocarb!, succeeded, temperature
 # --- inputs ---------------------------------------------------------------------
-export datapath, read_csv_table, read_prior_table, read_time_arrays, read_proxy_data,
-       read_temperature_data, read_park_royer_2011, mean_constants
+export datapath,
+    read_csv_table,
+    read_prior_table,
+    read_time_arrays,
+    read_proxy_data,
+    read_temperature_data,
+    read_park_royer_2011,
+    mean_constants
 export PriorSpec, PriorTable, TimeArrayPrior, ProxyData, TemperatureData
 # --- priors and samplers --------------------------------------------------------
 export TruncatedPrior, build_priors, quantile_from_unit, random_lhs
 export ChunkedLHS, GlobalLHS, sample_constants
-export TimeSeriesSampler, InverseWishartSampler, MultivariateTSampler,
-       inverse_wishart_dof, read_variance_reduction, sample_time_forcings!
+export TimeSeriesSampler,
+    InverseWishartSampler, MultivariateTSampler, inverse_wishart_dof, read_variance_reduction, sample_time_forcings!
 # --- constraints ----------------------------------------------------------------
-export Windows, co2_windows, temperature_windows, legacy_percent_outbound,
-       percent_outbound
+export Windows, co2_windows, temperature_windows, legacy_percent_outbound, percent_outbound
 # --- precalibration -------------------------------------------------------------
 export ExperimentConfig, load_experiments, validate, with_overrides, default_tag
 export AcceptanceRule, OutboundRule, AllOf, CretaceousWindowRule, build_rule
-export PrecalibrationResult, run_precalibration, n_accepted, constant_column,
-       forcing_series, save_result, load_result, write_summary_csvs, merge_results,
-       prepare_precalibration, accepts, EvaluationContext
+export PrecalibrationResult,
+    run_precalibration,
+    n_accepted,
+    constant_column,
+    forcing_series,
+    save_result,
+    load_result,
+    write_summary_csvs,
+    merge_results,
+    prepare_precalibration,
+    accepts,
+    EvaluationContext
 # --- analysis -------------------------------------------------------------------
-export DEFAULT_PROBS, parameter_quantiles, time_series_quantiles,
-       prior_posterior_table, hindcast, row_quantiles, gaussian_kde, bw_nrd0,
-       climate_sensitivity_summary, linear_interpolator, correlation_screen,
-       acf_quantiles, survival_curve
+export DEFAULT_PROBS,
+    parameter_quantiles,
+    time_series_quantiles,
+    prior_posterior_table,
+    hindcast,
+    row_quantiles,
+    gaussian_kde,
+    bw_nrd0,
+    climate_sensitivity_summary,
+    linear_interpolator,
+    correlation_screen,
+    acf_quantiles,
+    survival_curve
 # --- plotting (implemented in GeocarbMakieExt) -----------------------------------
-export plot_model_vs_proxy, plot_deltaT2X_distributions, plot_deltaT2X_experiments,
-       plot_time_series_parameters, plot_co2_windows_and_proxies,
-       plot_gym_modification, plot_time_series_autocorrelations
+export plot_model_vs_proxy,
+    plot_deltaT2X_distributions,
+    plot_deltaT2X_experiments,
+    plot_time_series_parameters,
+    plot_co2_windows_and_proxies,
+    plot_gym_modification,
+    plot_time_series_autocorrelations
 
 end # module

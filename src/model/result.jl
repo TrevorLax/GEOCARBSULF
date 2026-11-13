@@ -53,8 +53,14 @@ Pre-allocate a result for the given age grid (for [`run_geocarb!`](@ref)).
 """
 function GeocarbResult{T}(age::AbstractVector{<:Real}) where {T<:Real}
     n = length(age)
-    return GeocarbResult{T}(collect(Float64, age), Vector{T}(undef, n), Vector{T}(undef, n),
-        Vector{T}(undef, n), fill(Converged, n), zeros(Int, n))
+    return GeocarbResult{T}(
+        collect(Float64, age),
+        Vector{T}(undef, n),
+        Vector{T}(undef, n),
+        Vector{T}(undef, n),
+        fill(Converged, n),
+        zeros(Int, n),
+    )
 end
 
 """
@@ -85,7 +91,7 @@ original code made explicit (finding F-20):
   the R analysis scripts plot as hindcasts (`analysis_and_plots.R:140`).
 - `temperature(r; Ws = p.Ws)` adds the solar-luminosity term back in.
 """
-function temperature(r::GeocarbResult; T0::Real = PRESENT_TEMPERATURE, geog = nothing, Ws = nothing)
+function temperature(r::GeocarbResult; T0::Real=PRESENT_TEMPERATURE, geog=nothing, Ws=nothing)
     out = r.temp .+ T0
     if geog !== nothing
         length(geog) == length(out) || throw(ArgumentError("geog must have one value per time step"))
@@ -99,8 +105,11 @@ end
 
 function Base.show(io::IO, ::MIME"text/plain", r::GeocarbResult{T}) where {T}
     nfail = count(!=(Converged), r.status)
-    println(io, "GeocarbResult{$T}: $(length(r.age)) steps, ",
-        nfail == 0 ? "all converged" : "$nfail step(s) not converged/valid")
+    println(
+        io,
+        "GeocarbResult{$T}: $(length(r.age)) steps, ",
+        nfail == 0 ? "all converged" : "$nfail step(s) not converged/valid",
+    )
     i = lastindex(r.age)
-    print(io, "  present day: CO2 = ", r.co2[i], " ppmv, O2 = ", r.o2[i], " %, temp = ", r.temp[i], " °C")
+    return print(io, "  present day: CO2 = ", r.co2[i], " ppmv, O2 = ", r.o2[i], " %, temp = ", r.temp[i], " °C")
 end

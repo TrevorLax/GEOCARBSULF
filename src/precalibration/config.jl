@@ -71,9 +71,13 @@ inconsistent sample size, unknown choices, ...).
 """
 function validate(cfg::ExperimentConfig)
     err(msg) = throw(ArgumentError("experiment '$(cfg.name)' ($(cfg.tag)): $msg"))
-    for (k, f) in (("prior_file", cfg.prior_file), ("time_array_file", cfg.time_array_file),
-                   ("proxy_file", cfg.proxy_file), ("temperature_file", cfg.temperature_file),
-                   ("variance_reduction_file", cfg.variance_reduction_file))
+    for (k, f) in (
+        ("prior_file", cfg.prior_file),
+        ("time_array_file", cfg.time_array_file),
+        ("proxy_file", cfg.proxy_file),
+        ("temperature_file", cfg.temperature_file),
+        ("variance_reduction_file", cfg.variance_reduction_file),
+    )
         isfile(f) || err("$k not found: $f")
     end
     cfg.constraint in (:co2, :temp, :both) || err("constraint must be co2, temp or both (got $(cfg.constraint))")
@@ -83,7 +87,8 @@ function validate(cfg::ExperimentConfig)
     cfg.n_accept_min >= 1 || err("n_accept_min must be ≥ 1")
     cfg.seed >= 0 || err("seed must be ≥ 0")
     cfg.constant_design in (:chunked_lhs, :global_lhs) || err("constant_design must be chunked_lhs or global_lhs")
-    cfg.time_sampler in (:inverse_wishart, :multivariate_t) || err("time_sampler must be inverse_wishart or multivariate_t")
+    cfg.time_sampler in (:inverse_wishart, :multivariate_t) ||
+        err("time_sampler must be inverse_wishart or multivariate_t")
     if cfg.save_covariances && cfg.time_sampler != :inverse_wishart
         err("save_covariances requires time_sampler = inverse_wishart")
     end
@@ -107,11 +112,38 @@ const _FSR_FILES = Dict(
 const _DATA_FILES = Dict("F2017" => "CO2_Proxy_Foster2017_calib_SN-co2_25Sep2018.csv")
 
 const _TOP_KEYS = Set([
-    "name", "description", "tag_suffix", "param_choice", "data_choice", "fsr_choice", "data_dir",
-    "prior_file", "time_array_file", "proxy_file", "temperature_file", "variance_reduction_file",
-    "use_godderis", "proxies", "constraint", "threshold", "reject_failed_runs", "cretaceous_age",
-    "run_on_time_centers", "time_center_from", "n_sample", "n_per_chunk", "n_accept_min", "seed",
-    "constant_design", "time_sampler", "save_covariances", "nsig", "T0", "output_dir", "grid", "model",
+    "name",
+    "description",
+    "tag_suffix",
+    "param_choice",
+    "data_choice",
+    "fsr_choice",
+    "data_dir",
+    "prior_file",
+    "time_array_file",
+    "proxy_file",
+    "temperature_file",
+    "variance_reduction_file",
+    "use_godderis",
+    "proxies",
+    "constraint",
+    "threshold",
+    "reject_failed_runs",
+    "cretaceous_age",
+    "run_on_time_centers",
+    "time_center_from",
+    "n_sample",
+    "n_per_chunk",
+    "n_accept_min",
+    "seed",
+    "constant_design",
+    "time_sampler",
+    "save_covariances",
+    "nsig",
+    "T0",
+    "output_dir",
+    "grid",
+    "model",
 ])
 const _GRID_KEYS = Set(["threshold", "constraint", "seeds", "seed_multiplier"])
 
@@ -120,10 +152,17 @@ function _constraint_symbol(x)
     s in ("co2", "c") && return :co2
     s in ("temp", "t", "temperature") && return :temp
     s in ("both", "ct", "co2+temp") && return :both
-    throw(ArgumentError("unknown constraint '$x' (use co2, temp or both)"))
+    return throw(ArgumentError("unknown constraint '$x' (use co2, temp or both)"))
 end
 
-_constraint_code(c::Symbol) = c == :co2 ? "c" : c == :temp ? "t" : "ct"
+_constraint_code(c::Symbol) =
+    if c == :co2
+        "c"
+    elseif c == :temp
+        "t"
+    else
+        "ct"
+    end
 
 """
     default_tag(constraint, threshold; suffix = "", seed = nothing) -> String
@@ -131,7 +170,7 @@ _constraint_code(c::Symbol) = c == :co2 ? "c" : c == :temp ? "t" : "ct"
 Result tag in the style of the R code: `"<c|t|ct>_out<percent>"`, for example
 `"ct_out30"`, followed by `_<suffix>` and `_seed<seed>` when given.
 """
-function default_tag(constraint::Symbol, threshold::Real; suffix::AbstractString = "", seed = nothing)
+function default_tag(constraint::Symbol, threshold::Real; suffix::AbstractString="", seed=nothing)
     tag = _constraint_code(constraint) * "_out" * string(round(Int, 100 * threshold))
     isempty(suffix) || (tag *= "_" * suffix)
     seed === nothing || (tag *= "_seed$(seed)")
@@ -163,7 +202,8 @@ function load_experiments(path::AbstractString)
     text = read(path, String)
     d = TOML.parse(text)
     for k in keys(d)
-        k in _TOP_KEYS || throw(ArgumentError("$path: unknown key '$k'; allowed: " * join(sort!(collect(_TOP_KEYS)), ", ")))
+        k in _TOP_KEYS ||
+            throw(ArgumentError("$path: unknown key '$k'; allowed: " * join(sort!(collect(_TOP_KEYS)), ", ")))
     end
     data_dir = haskey(d, "data_dir") ? String(d["data_dir"]) : DATA_DIR
     isabspath(data_dir) || (data_dir = normpath(joinpath(dirname(abspath(path)), data_dir)))
@@ -172,15 +212,18 @@ function load_experiments(path::AbstractString)
     fsr_choice = String(get(d, "fsr_choice", "DT2019"))
     data_choice = String(get(d, "data_choice", "F2017"))
     haskey(_FSR_FILES, fsr_choice) || throw(ArgumentError("$path: unknown fsr_choice '$fsr_choice'"))
-    haskey(_DATA_FILES, data_choice) || throw(ArgumentError(
-        "$path: data_choice '$data_choice' has no data file in this repository (finding F-14); use F2017 or set proxy_file"))
+    haskey(_DATA_FILES, data_choice) || throw(
+        ArgumentError(
+            "$path: data_choice '$data_choice' has no data file in this repository (finding F-14); use F2017 or set proxy_file",
+        ),
+    )
 
     files = (
-        prior_file = _resolve_data_file(d, "prior_file", "GEOCARB_input_summaries_calib_$(param_choice).csv", data_dir),
-        time_array_file = _resolve_data_file(d, "time_array_file", _FSR_FILES[fsr_choice], data_dir),
-        proxy_file = _resolve_data_file(d, "proxy_file", _DATA_FILES[data_choice], data_dir),
-        temperature_file = _resolve_data_file(d, "temperature_file", "Mills_GR_2019_temp_co2.csv", data_dir),
-        variance_reduction_file = _resolve_data_file(d, "variance_reduction_file", "variance_reduction.toml", data_dir),
+        prior_file=_resolve_data_file(d, "prior_file", "GEOCARB_input_summaries_calib_$(param_choice).csv", data_dir),
+        time_array_file=_resolve_data_file(d, "time_array_file", _FSR_FILES[fsr_choice], data_dir),
+        proxy_file=_resolve_data_file(d, "proxy_file", _DATA_FILES[data_choice], data_dir),
+        temperature_file=_resolve_data_file(d, "temperature_file", "Mills_GR_2019_temp_co2.csv", data_dir),
+        variance_reduction_file=_resolve_data_file(d, "variance_reduction_file", "variance_reduction.toml", data_dir),
     )
     model = haskey(d, "model") ? model_options_from_dict(d["model"]) : ModelOptions()
     suffix = String(get(d, "tag_suffix", ""))
@@ -216,13 +259,19 @@ function load_experiments(path::AbstractString)
 
     configs = ExperimentConfig[]
     if !haskey(d, "grid")
-        tag = default_tag(base_constraint, base_threshold; suffix = suffix)
-        push!(configs, ExperimentConfig(; base..., constraint = base_constraint, threshold = base_threshold,
-                                          seed = base_seed, tag = tag, index = 1))
+        tag = default_tag(base_constraint, base_threshold; suffix=suffix)
+        push!(
+            configs,
+            ExperimentConfig(;
+                base..., constraint=base_constraint, threshold=base_threshold, seed=base_seed, tag=tag, index=1
+            ),
+        )
     else
         g = d["grid"]
         for k in keys(g)
-            k in _GRID_KEYS || throw(ArgumentError("$path: unknown [grid] key '$k'; allowed: " * join(sort!(collect(_GRID_KEYS)), ", ")))
+            k in _GRID_KEYS || throw(
+                ArgumentError("$path: unknown [grid] key '$k'; allowed: " * join(sort!(collect(_GRID_KEYS)), ", "))
+            )
         end
         thresholds = Float64.(get(g, "threshold", [base_threshold]))
         constraints = _constraint_symbol.(get(g, "constraint", [String(base_constraint)]))
@@ -234,10 +283,15 @@ function load_experiments(path::AbstractString)
         for c in constraints, th in thresholds
             for s in (seeds === nothing ? (nothing,) : seeds)
                 index += 1
-                seed = s !== nothing ? s : mult !== nothing ? mult * index : base_seed
-                tag = default_tag(c, th; suffix = suffix, seed = s)
-                push!(configs, ExperimentConfig(; base..., constraint = c, threshold = th, seed = seed,
-                                                  tag = tag, index = index))
+                seed = if s !== nothing
+                    s
+                elseif mult !== nothing
+                    mult * index
+                else
+                    base_seed
+                end
+                tag = default_tag(c, th; suffix=suffix, seed=s)
+                push!(configs, ExperimentConfig(; base..., constraint=c, threshold=th, seed=seed, tag=tag, index=index))
             end
         end
     end
@@ -254,10 +308,17 @@ function config_summary(cfg::ExperimentConfig)
     for f in fieldnames(ExperimentConfig)
         f == :source && continue
         v = getfield(cfg, f)
-        d[String(f)] = v === nothing ? "none" :
-                       v isa ModelOptions ? options_dict(v) :
-                       v isa Symbol ? String(v) :
-                       v isa AbstractVector{Symbol} ? String.(v) : v
+        d[String(f)] = if v === nothing
+            "none"
+        elseif v isa ModelOptions
+            options_dict(v)
+        elseif v isa Symbol
+            String(v)
+        elseif v isa AbstractVector{Symbol}
+            String.(v)
+        else
+            v
+        end
     end
     return d
 end

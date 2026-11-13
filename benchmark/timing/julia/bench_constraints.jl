@@ -29,33 +29,54 @@ function all_prcout!(pc, pt)
     end
 end
 
-component!(w, "J", "C1"; workload = "legacy_$n") do
-    pc = zeros(n); pt = zeros(n)
+component!(w, "J", "C1"; workload="legacy_$n") do
+    pc = zeros(n)
+    pt = zeros(n)
     all_prcout!(pc, pt)
-    check(isequal(pc, ref[:, 1]) && isequal(pt, ref[:, 2]), "legacy_percent_outbound does not reproduce legacy_prcout.csv")
+    check(
+        isequal(pc, ref[:, 1]) && isequal(pt, ref[:, 2]), "legacy_percent_outbound does not reproduce legacy_prcout.csv"
+    )
     k = calls_for(() -> all_prcout!(pc, pt))
     t = per_call(() -> all_prcout!(pc, pt), k)
-    record!(w; variant = "J", component = "C1", subcomponent = "legacy_percent_outbound", workload = "legacy_$n",
-            n = 2n * k, wall_s = t / 2n, notes = "seconds per series")
+    return record!(
+        w;
+        variant="J",
+        component="C1",
+        subcomponent="legacy_percent_outbound",
+        workload="legacy_$n",
+        n=2n * k,
+        wall_s=t / 2n,
+        notes="seconds per series",
+    )
 end
 
 # Model results rebuilt from the exports (temp without the +15 the R code added).
 function result_of(i)
     r = GeocarbResult{Float64}(age)
-    r.co2 .= co2[i]; r.temp .= temp[i] .- 15.0; r.o2 .= 0.0
+    r.co2 .= co2[i]
+    r.temp .= temp[i] .- 15.0
+    r.o2 .= 0.0
     r.status .= [isinf(x) ? NotConverged : Converged for x in co2[i]]
     return r
 end
 const results = [result_of(i) for i in 1:n]
-const ctx = EvaluationContext(cw, tw; T0 = 15.0)
+const ctx = EvaluationContext(cw, tw; T0=15.0)
 const rule = AllOf(OutboundRule(:co2, 0.5), OutboundRule(:temp, 0.5))
 count_accepted() = count(r -> accepts(rule, r, ctx), results)
 
-component!(w, "J", "C2"; workload = "legacy_$n") do
+component!(w, "J", "C2"; workload="legacy_$n") do
     na = count_accepted()
     check(na == count(i -> ref[i, 1] <= 0.5 && ref[i, 2] <= 0.5, 1:n), "acceptance count differs from R")
     k = calls_for(count_accepted)
     t = per_call(count_accepted, k)
-    record!(w; variant = "J", component = "C2", subcomponent = "accepts(AllOf(OutboundRule...))", workload = "legacy_$n",
-            n = n * k, wall_s = t / n, notes = "seconds per sample (computes both % outbound)")
+    return record!(
+        w;
+        variant="J",
+        component="C2",
+        subcomponent="accepts(AllOf(OutboundRule...))",
+        workload="legacy_$n",
+        n=n * k,
+        wall_s=t / n,
+        notes="seconds per sample (computes both % outbound)",
+    )
 end

@@ -8,7 +8,12 @@ Returned fields: `Fwpy, Fwsy, Fwgy, Fwcy` (young pyrite, CaSO4, organic C, carbo
 `Fyop, Fyos, Fyog, Fyoc` (degassing + old-reservoir weathering).
 """
 @inline function source_fluxes(i::Int, s::ReservoirState, fE, fBB, p::ConstantParams, f::TimeForcings)
-    fA = f.fA[i]; fR = f.fR[i]; fD = f.fD[i]; fL = f.fL[i]; fSR = f.fSR[i]; fC = f.fC[i]
+    fA = f.fA[i]
+    fR = f.fR[i]
+    fD = f.fD[i]
+    fL = f.fL[i]
+    fSR = f.fSR[i]
+    fC = f.fC[i]
     Fwpy = fA * fR * p.kwpy * s.Spy
     Fwsy = fA * fD * p.kwsy * s.Ssy
     Fwgy = fA * fR * p.kwgy * s.Gy
@@ -47,13 +52,26 @@ Burial fluxes of pyrite (`Fbp`), organic carbon (`Fbg`), CaSO4 sulfur (`Fbs`) an
 carbonate carbon (`Fbc`) from isotopic mass balance (f90:383-390).
 """
 @inline function burial_fluxes(i::Int, s::ReservoirState, src, capd34S, capd13C, f::TimeForcings)
-    d34S = f.d34S[i]; d13C = f.d13C[i]
-    Fbp = (1 / capd34S) * ((d34S - s.dlsy) * src.Fwsy + (d34S - s.dlsa) * src.Fwsa +
-                           (d34S - s.dlpy) * src.Fwpy + (d34S - s.dlpa) * src.Fwpa +
-                           (d34S - s.dlsa) * src.Fms + (d34S - s.dlpa) * src.Fmp)
-    Fbg = (1 / capd13C) * ((d13C - s.dlcy) * src.Fwcy + (d13C - s.dlca) * src.Fwca +
-                           (d13C - s.dlgy) * src.Fwgy + (d13C - s.dlga) * src.Fwga +
-                           (d13C - s.dlca) * src.Fmc + (d13C - s.dlga) * src.Fmg)
+    d34S = f.d34S[i]
+    d13C = f.d13C[i]
+    Fbp =
+        (1 / capd34S) * (
+            (d34S - s.dlsy) * src.Fwsy +
+            (d34S - s.dlsa) * src.Fwsa +
+            (d34S - s.dlpy) * src.Fwpy +
+            (d34S - s.dlpa) * src.Fwpa +
+            (d34S - s.dlsa) * src.Fms +
+            (d34S - s.dlpa) * src.Fmp
+        )
+    Fbg =
+        (1 / capd13C) * (
+            (d13C - s.dlcy) * src.Fwcy +
+            (d13C - s.dlca) * src.Fwca +
+            (d13C - s.dlgy) * src.Fwgy +
+            (d13C - s.dlga) * src.Fwga +
+            (d13C - s.dlca) * src.Fmc +
+            (d13C - s.dlga) * src.Fmg
+        )
     Fbs = src.Fwpy + src.Fwpa + src.Fwsy + src.Fwsa + src.Fms + src.Fmp - Fbp
     Fbc = src.Fwgy + src.Fwga + src.Fwcy + src.Fwca + src.Fmc + src.Fmg - Fbg
     return (; Fbp, Fbg, Fbs, Fbc)

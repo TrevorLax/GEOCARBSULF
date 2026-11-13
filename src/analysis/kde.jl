@@ -10,7 +10,13 @@ function bw_nrd0(x::AbstractVector{<:Real})
     q = Statistics.quantile(x, [0.25, 0.75])
     lo = min(hi, (q[2] - q[1]) / 1.34)
     if !(lo > 0)
-        lo = hi > 0 ? hi : abs(x[1]) > 0 ? abs(x[1]) : 1.0
+        lo = if hi > 0
+            hi
+        elseif abs(x[1]) > 0
+            abs(x[1])
+        else
+            1.0
+        end
     end
     return 0.9 * lo * length(x)^(-0.2)
 end
@@ -22,11 +28,16 @@ end
 Gaussian kernel density estimate on an evenly spaced grid of `n` points, evaluated
 exactly (R's `density` uses an FFT approximation of the same estimator).
 """
-function gaussian_kde(x::AbstractVector{<:Real}; bw::Real = bw_nrd0(x), from::Real = minimum(x) - 3bw,
-                      to::Real = maximum(x) + 3bw, n::Integer = 512)
+function gaussian_kde(
+    x::AbstractVector{<:Real};
+    bw::Real=bw_nrd0(x),
+    from::Real=minimum(x) - 3bw,
+    to::Real=maximum(x) + 3bw,
+    n::Integer=512,
+)
     bw > 0 || throw(ArgumentError("bandwidth must be positive"))
     from < to || throw(ArgumentError("from must be smaller than to"))
-    grid = collect(range(Float64(from), Float64(to); length = n))
+    grid = collect(range(Float64(from), Float64(to); length=n))
     dens = zeros(n)
     c = 1 / (length(x) * bw * sqrt(2π))
     for (k, g) in enumerate(grid)
@@ -37,5 +48,5 @@ function gaussian_kde(x::AbstractVector{<:Real}; bw::Real = bw_nrd0(x), from::Re
         end
         dens[k] = c * s
     end
-    return (x = grid, density = dens)
+    return (x=grid, density=dens)
 end

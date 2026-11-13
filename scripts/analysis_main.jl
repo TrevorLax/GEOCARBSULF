@@ -29,8 +29,10 @@ for c in ("c", "t", "ct"), th in (30, 35, 40, 45, 50)
     r = load_tag(tag)
     r === nothing && (println("missing $tag, skipped"); continue)
     if tag == "ct_out30"
-        extra = PrecalibrationResult[x for x in (load_tag("ct_out30_seed11"), load_tag("ct_out30_seed2020")) if x !== nothing]
-        isempty(extra) || (r = merge_results(vcat(PrecalibrationResult[r], extra); tag = "ct_out30"))
+        extra = PrecalibrationResult[
+            x for x in (load_tag("ct_out30_seed11"), load_tag("ct_out30_seed2020")) if x !== nothing
+        ]
+        isempty(extra) || (r = merge_results(vcat(PrecalibrationResult[r], extra); tag="ct_out30"))
     end
     results[tag] = r
 end
@@ -41,16 +43,19 @@ for (tag, r) in results
     n_accepted(r) == 0 && continue
     s = climate_sensitivity_summary(r)
     numbers[tag] = Dict(
-        "n_accepted" => n_accepted(r), "n_simulated" => r.n_simulated,
-        "deltaT2X_5_50_95" => s.deltaT2X, "GLAC_5_50_95" => s.GLAC,
+        "n_accepted" => n_accepted(r),
+        "n_simulated" => r.n_simulated,
+        "deltaT2X_5_50_95" => s.deltaT2X,
+        "GLAC_5_50_95" => s.GLAC,
         "deltaT2X_glacial_5_50_95" => s.deltaT2X_glacial,
-        "Pr_deltaT2X_ge_6" => s.prob_exceed[6.0], "Pr_deltaT2X_ge_7" => s.prob_exceed[7.0],
+        "Pr_deltaT2X_ge_6" => s.prob_exceed[6.0],
+        "Pr_deltaT2X_ge_7" => s.prob_exceed[7.0],
         "frac_prcout_co2_below_25pct" => count(<(0.25), r.prcout_co2) / n_accepted(r),
         "frac_prcout_temp_below_25pct" => count(<(0.25), r.prcout_temp) / n_accepted(r),
     )
 end
 open(joinpath(dir, "numbers.toml"), "w") do io
-    TOML.print(io, numbers; sorted = true)
+    return TOML.print(io, numbers; sorted=true)
 end
 println("wrote ", joinpath(dir, "numbers.toml"))
 
@@ -79,7 +84,7 @@ if plotting && haskey(results, "ct_out30")
     pr = read_park_royer_2011(datapath("ParkRoyer2011_Fig3_85varred.csv"))
     figs = Dict(
         "model_vs_proxy.pdf" => () -> plot_model_vs_proxy(r, proxy, tw),
-        "deltaT2X_distributions.pdf" => () -> plot_deltaT2X_distributions(r; prior = prior, park_royer = pr),
+        "deltaT2X_distributions.pdf" => () -> plot_deltaT2X_distributions(r; prior=prior, park_royer=pr),
         "deltaT2X_experiments.pdf" => () -> plot_deltaT2X_experiments(results),
         "co2_windows_and_proxies.pdf" => () -> plot_co2_windows_and_proxies(proxy, cw),
         "gym_modification.pdf" => () -> plot_gym_modification(),

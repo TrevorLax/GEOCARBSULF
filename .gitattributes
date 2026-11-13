@@ -4,3 +4,5 @@
 *.dll binary
 *.so binary
 *.xlsx binary
+# cmd.exe can mis-handle labels in LF-only batch files: check them out with CRLF
+*.bat text eol=crlf

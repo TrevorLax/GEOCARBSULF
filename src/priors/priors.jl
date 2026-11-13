@@ -33,8 +33,9 @@ function TruncatedPrior(s::PriorSpec)
     else
         Uniform(s.lower, s.upper)
     end
-    return TruncatedPrior(s.name, base, s.lower, s.upper,
-        Distributions.cdf(base, s.lower), Distributions.cdf(base, s.upper))
+    return TruncatedPrior(
+        s.name, base, s.lower, s.upper, Distributions.cdf(base, s.lower), Distributions.cdf(base, s.upper)
+    )
 end
 
 """

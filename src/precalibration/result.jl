@@ -74,8 +74,7 @@ end
 
 Constant parameters of accepted sample `k`.
 """
-sample_constants_params(res::PrecalibrationResult, k::Integer) =
-    ConstantParams(res.constant_names, res.constants[k, :])
+sample_constants_params(res::PrecalibrationResult, k::Integer) = ConstantParams(res.constant_names, res.constants[k, :])
 
 """
     sample_forcings(res, k) -> TimeForcings{Float64}
@@ -84,14 +83,20 @@ Forcings of accepted sample `k`.
 """
 function sample_forcings(res::PrecalibrationResult, k::Integer)
     d = Dict{Symbol,Vector{Float64}}(n => res.time_series[:, k, j] for (j, n) in enumerate(res.forcing_names))
-    return TimeForcings(res.age, d; check_finite = false)
+    return TimeForcings(res.age, d; check_finite=false)
 end
 
 function Base.show(io::IO, ::MIME"text/plain", res::PrecalibrationResult)
-    println(io, "PrecalibrationResult \"", res.tag, "\": ", n_accepted(res), " accepted of ",
-        res.n_simulated, " simulated")
-    print(io, "  age grid: ", length(res.age), " steps; covariances ",
-        res.covariances === nothing ? "not stored" : "stored")
+    println(
+        io, "PrecalibrationResult \"", res.tag, "\": ", n_accepted(res), " accepted of ", res.n_simulated, " simulated"
+    )
+    return print(
+        io,
+        "  age grid: ",
+        length(res.age),
+        " steps; covariances ",
+        res.covariances === nothing ? "not stored" : "stored",
+    )
 end
 
 """
@@ -101,7 +106,7 @@ Concatenate the accepted samples of several results on the same age grid, for ex
 the three seeds of the 30 % CO2 + temperature experiment (`analysis_and_plots.R:61-77`).
 `n_simulated` is summed; covariances are kept only if every result has them.
 """
-function merge_results(results::AbstractVector{PrecalibrationResult}; tag::AbstractString = first(results).tag)
+function merge_results(results::AbstractVector{PrecalibrationResult}; tag::AbstractString=first(results).tag)
     isempty(results) && throw(ArgumentError("nothing to merge"))
     r1 = first(results)
     for r in results
@@ -109,16 +114,29 @@ function merge_results(results::AbstractVector{PrecalibrationResult}; tag::Abstr
         r.constant_names == r1.constant_names || throw(ArgumentError("constant names differ"))
         r.forcing_names == r1.forcing_names || throw(ArgumentError("forcing names differ"))
     end
-    covs = all(r -> r.covariances !== nothing, results) ? cat((r.covariances for r in results)...; dims = 3) : nothing
+    covs = all(r -> r.covariances !== nothing, results) ? cat((r.covariances for r in results)...; dims=3) : nothing
     prov = Dict{String,String}("merged_from" => join((r.tag for r in results), ", "))
     for (i, r) in enumerate(results), (k, v) in r.provenance
         prov["part$(i)_$k"] = v
     end
-    return PrecalibrationResult(String(tag), r1.config_text, r1.config, copy(r1.age), copy(r1.constant_names),
-        reduce(vcat, [r.constants for r in results]), copy(r1.forcing_names),
-        cat((r.time_series for r in results)...; dims = 2),
-        reduce(hcat, [r.co2 for r in results]), reduce(hcat, [r.o2 for r in results]),
-        reduce(hcat, [r.temp for r in results]), reduce(hcat, [r.status for r in results]),
-        reduce(vcat, [r.prcout_co2 for r in results]), reduce(vcat, [r.prcout_temp for r in results]),
-        reduce(vcat, [r.sample_keys for r in results]), sum(r.n_simulated for r in results), covs, prov)
+    return PrecalibrationResult(
+        String(tag),
+        r1.config_text,
+        r1.config,
+        copy(r1.age),
+        copy(r1.constant_names),
+        reduce(vcat, [r.constants for r in results]),
+        copy(r1.forcing_names),
+        cat((r.time_series for r in results)...; dims=2),
+        reduce(hcat, [r.co2 for r in results]),
+        reduce(hcat, [r.o2 for r in results]),
+        reduce(hcat, [r.temp for r in results]),
+        reduce(hcat, [r.status for r in results]),
+        reduce(vcat, [r.prcout_co2 for r in results]),
+        reduce(vcat, [r.prcout_temp for r in results]),
+        reduce(vcat, [r.sample_keys for r in results]),
+        sum(r.n_simulated for r in results),
+        covs,
+        prov,
+    )
 end

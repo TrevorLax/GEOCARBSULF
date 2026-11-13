@@ -25,11 +25,11 @@ Read a CO2 proxy CSV (columns `age, co2, co2_low, co2_high, proxy_type, referenc
 other columns are ignored) and keep the listed proxy types. As in `getData.R:12-20`,
 rows are grouped by proxy type in the order of `proxies`.
 """
-function read_proxy_data(path::AbstractString; proxies = DEFAULT_PROXIES)
+function read_proxy_data(path::AbstractString; proxies=DEFAULT_PROXIES)
     t = read_csv_table(path)
     age = numeric_column(t, "age")
     co2 = numeric_column(t, "co2")
-    lo = numeric_column(t, "co2_low"; allow_missing = true)
+    lo = numeric_column(t, "co2_low"; allow_missing=true)
     hi = numeric_column(t, "co2_high")
     ptype = Symbol.(column(t, "proxy_type"))
     ref = has_column(t, "reference") ? column(t, "reference") : fill("", length(age))
@@ -42,8 +42,7 @@ function read_proxy_data(path::AbstractString; proxies = DEFAULT_PROXIES)
         append!(idx, findall(==(Symbol(p)), ptype))
     end
     for i in idx
-        (co2[i] > 0 && hi[i] > 0) ||
-            throw(ArgumentError("$path: row $(i + 1): co2 and co2_high must be positive"))
+        (co2[i] > 0 && hi[i] > 0) || throw(ArgumentError("$path: row $(i + 1): co2 and co2_high must be positive"))
     end
     return ProxyData(age[idx], co2[idx], lo[idx], hi[idx], ptype[idx], ref[idx])
 end

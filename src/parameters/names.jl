@@ -10,12 +10,62 @@ The 56 time-invariant GEOCARBSULFvolc parameters, in the order of the original
 Fortran `Matrix_56`.
 """
 const CONSTANT_PARAMETER_NAMES = (
-    :ACT, :ACTcarb, :VNV, :NV, :exp_NV, :LIFE, :GYM, :FERT, :exp_fnBb, :deltaT2X,
-    :GLAC, :J, :n, :Ws, :exp_fD, :Fwpa_0, :Fwsa_0, :Fwga_0, :Fwca_0, :Fmg_0, :Fmc_0,
-    :Fmp_0, :Fms_0, :Fwsi_0, :Xvolc_0, :CAPd13C_0, :CAPd34S_0, :oxygen_570, :Gy_570,
-    :Cy_570, :Ca_570, :Ssy_570, :Spy_570, :dlsy_570, :dlcy_570, :dlpy_570, :dlpa_570,
-    :dlgy_570, :dlga_570, :Rcy_570, :Rca_570, :Rv_570, :Rg_570, :Fob, :COC, :Ga, :Ssa,
-    :Spa, :ST, :dlst, :CT, :dlct, :kwpy, :kwsy, :kwgy, :kwcy,
+    :ACT,
+    :ACTcarb,
+    :VNV,
+    :NV,
+    :exp_NV,
+    :LIFE,
+    :GYM,
+    :FERT,
+    :exp_fnBb,
+    :deltaT2X,
+    :GLAC,
+    :J,
+    :n,
+    :Ws,
+    :exp_fD,
+    :Fwpa_0,
+    :Fwsa_0,
+    :Fwga_0,
+    :Fwca_0,
+    :Fmg_0,
+    :Fmc_0,
+    :Fmp_0,
+    :Fms_0,
+    :Fwsi_0,
+    :Xvolc_0,
+    :CAPd13C_0,
+    :CAPd34S_0,
+    :oxygen_570,
+    :Gy_570,
+    :Cy_570,
+    :Ca_570,
+    :Ssy_570,
+    :Spy_570,
+    :dlsy_570,
+    :dlcy_570,
+    :dlpy_570,
+    :dlpa_570,
+    :dlgy_570,
+    :dlga_570,
+    :Rcy_570,
+    :Rca_570,
+    :Rv_570,
+    :Rg_570,
+    :Fob,
+    :COC,
+    :Ga,
+    :Ssa,
+    :Spa,
+    :ST,
+    :dlst,
+    :CT,
+    :dlct,
+    :kwpy,
+    :kwsy,
+    :kwgy,
+    :kwcy,
 )
 
 "Number of time-invariant parameters (56)."
@@ -36,15 +86,25 @@ const _F = "10^18 mol/Myr"
 
 # (description, units); descriptions are taken from the comments in run_geocarb.f90:49-119.
 const PARAMETER_INFO = Dict{Symbol,Tuple{String,String}}(
-    :ACT => ("Activation energy for dissolution of Mg- and Ca-silicates on land (0.03 ≈ 20 kJ/mol; 0.08 ≈ 55 kJ/mol; Berner 2004 p. 28)", "1/K"),
+    :ACT => (
+        "Activation energy for dissolution of Mg- and Ca-silicates on land (0.03 ≈ 20 kJ/mol; 0.08 ≈ 55 kJ/mol; Berner 2004 p. 28)",
+        "1/K",
+    ),
     :ACTcarb => ("Activation energy for dissolution of carbonates on land", "1/K"),
     :VNV => ("Rate of chemical weathering in volcanic silicate rocks relative to non-volcanic silicate rocks", "-"),
     :NV => ("Coefficient relating physical erosion to the mean 87Sr/86Sr of non-volcanic silicate rocks", "-"),
     :exp_NV => ("Exponent relating physical erosion to the mean 87Sr/86Sr of non-volcanic silicate rocks", "-"),
-    :LIFE => ("Rate of chemical weathering in a minimally vegetated world relative to the present (angiosperm-dominated) world", "-"),
+    :LIFE => (
+        "Rate of chemical weathering in a minimally vegetated world relative to the present (angiosperm-dominated) world",
+        "-",
+    ),
     :GYM => ("Rate of chemical weathering by gymnosperms relative to angiosperms", "-"),
-    :FERT => ("Exponent for the fraction of vegetation whose growth is stimulated by CO2, in [2RCO2/(1+RCO2)]^FERT", "-"),
-    :exp_fnBb => ("Exponent for the effect of climate on silicate or carbonate weathering in the absence of vascular plants", "-"),
+    :FERT =>
+        ("Exponent for the fraction of vegetation whose growth is stimulated by CO2, in [2RCO2/(1+RCO2)]^FERT", "-"),
+    :exp_fnBb => (
+        "Exponent for the effect of climate on silicate or carbonate weathering in the absence of vascular plants",
+        "-",
+    ),
     :deltaT2X => ("Climate sensitivity (warming per CO2 doubling); deltaT2X = GCM·ln(2)", "°C"),
     :GLAC => ("Factor by which deltaT2X changes during times with large continental ice sheets", "-"),
     :J => ("Coefficient in CAPd13C = CAPd13C_0 + J·(O2/38 − 1)", "per mil"),
@@ -61,8 +121,10 @@ const PARAMETER_INFO = Dict{Symbol,Tuple{String,String}}(
     :Fms_0 => ("Sulfur degassing flux from volcanism, metamorphism and diagenesis of CaSO4 sulfur at present", _F),
     :Fwsi_0 => ("Weathering flux for all Ca and Mg silicates at present", _F),
     :Xvolc_0 => ("Fraction of total Ca and Mg silicate weathering derived from volcanic rocks at present", "-"),
-    :CAPd13C_0 => ("Carbon isotopic fractionation between shallow-marine carbonate and organic matter at present", "per mil"),
-    :CAPd34S_0 => ("Sulfur isotopic fractionation between shallow-marine CaSO4 sulfur and pyrite sulfur at present", "per mil"),
+    :CAPd13C_0 =>
+        ("Carbon isotopic fractionation between shallow-marine carbonate and organic matter at present", "per mil"),
+    :CAPd34S_0 =>
+        ("Sulfur isotopic fractionation between shallow-marine CaSO4 sulfur and pyrite sulfur at present", "per mil"),
     :oxygen_570 => ("Mass of atmospheric O2 at 570 Ma (7.5 and 143 correspond to 5% and 50% O2)", _M),
     :Gy_570 => ("Mass of young crustal organic carbon at 570 Ma", _M),
     :Cy_570 => ("Mass of young crustal carbonate carbon at 570 Ma", _M),
@@ -122,8 +184,7 @@ Units of a constant parameter or time-varying forcing (`"-"` for dimensionless).
 parameter_units(name::Symbol) = _info(name)[2]
 
 function _info(name::Symbol)
-    haskey(PARAMETER_INFO, name) ||
-        throw(ArgumentError("unknown parameter or forcing name :$name"))
+    haskey(PARAMETER_INFO, name) || throw(ArgumentError("unknown parameter or forcing name :$name"))
     return PARAMETER_INFO[name]
 end
 

@@ -7,5 +7,5 @@
     @test isnan(G.nanlog(-1.0))
     @test G.nanlog(0.0) == -Inf
     @test G.nanlog(1.0) == 0.0
-    @test G.nanpow(-8.0, 1 / 3) |> isnan
+    @test isnan(G.nanpow(-8.0, 1 / 3))
 end

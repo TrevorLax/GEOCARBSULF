@@ -1,5 +1,14 @@
 # GeocarbPrecalibration.jl
 
+<!-- Replace OWNER with the GitHub account or organisation once the repository exists. -->
+[![CI](https://github.com/OWNER/GeocarbPrecalibration.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/OWNER/GeocarbPrecalibration.jl/actions/workflows/CI.yml)
+[![Legacy comparison](https://github.com/OWNER/GeocarbPrecalibration.jl/actions/workflows/Legacy.yml/badge.svg?branch=main)](https://github.com/OWNER/GeocarbPrecalibration.jl/actions/workflows/Legacy.yml)
+[![Docs (stable)](https://img.shields.io/badge/docs-stable-blue.svg)](https://OWNER.github.io/GeocarbPrecalibration.jl/stable/)
+[![Docs (dev)](https://img.shields.io/badge/docs-dev-blue.svg)](https://OWNER.github.io/GeocarbPrecalibration.jl/dev/)
+[![codecov](https://codecov.io/gh/OWNER/GeocarbPrecalibration.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/OWNER/GeocarbPrecalibration.jl)
+[![Code Style: Blue](https://img.shields.io/badge/code%20style-blue-4495d1.svg)](https://github.com/JuliaDiff/BlueStyle)
+<!-- After the first Zenodo release: [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.XXXXXXX.svg)](https://doi.org/10.5281/zenodo.XXXXXXX) -->
+
 A Julia implementation of the **GEOCARBSULFvolc** long-term carbon-cycle model and the
 Latin-hypercube **precalibration** of Wong et al. (2021), *A tighter constraint on
 Earth-system sensitivity from long-term temperature and carbon-cycle observations*
@@ -18,12 +27,31 @@ unmodified, in [`legacy/`](legacy/README.md).
 - **Tested.** Unit, input/output, statistical, workflow, golden-master and
   legacy-comparison tests; see [Testing](docs/src/testing.md).
 
+## Statement of need
+
+The R/Fortran precalibration code of Wong et al. (2021) reproduces the paper but is
+hard to extend, test or run in parallel. Its experiments are set by editing scripts,
+and model variants are copies of the Fortran. This package gives researchers in
+paleoclimate and Earth-system science the same model and workflow as one documented,
+tested library. Experiments are declared in files, variants are options, ensembles
+are deterministic and threaded, and results are checked continuously against the
+original code.
+
 ## Installation
 
-Requires Julia ≥ 1.10.
+Requires Julia ≥ 1.10. The package is not yet in the General registry. Install it from
+GitHub:
+
+```julia
+using Pkg
+Pkg.add(url = "https://github.com/OWNER/GeocarbPrecalibration.jl")
+```
+
+or, to work on the code, clone the repository and instantiate its environment:
 
 ```text
-cd GEOCARD_juliaed
+git clone https://github.com/OWNER/GeocarbPrecalibration.jl
+cd GeocarbPrecalibration.jl
 julia --project=. -e "using Pkg; Pkg.instantiate()"
 ```
 
@@ -69,6 +97,11 @@ julia --project=. -e "using Pkg; Pkg.test()"                     # full suite (a
 julia --project=. test/legacy_comparison/run_comparison.jl       # vs the original R/Fortran (needs R)
 ```
 
+Continuous integration (GitHub Actions, `.github/workflows/`) runs the test suite on
+Linux, macOS and Windows and the live comparison with the original R/Fortran code on
+every push and pull request. It also builds the documentation with its doctests. See
+[Testing](docs/src/testing.md#continuous-integration).
+
 ## Layout
 
 ```text
@@ -80,15 +113,28 @@ scripts/        command-line entry points
 test/           test suite; test/legacy_comparison compares with the original code
 docs/           Documenter.jl documentation
 legacy/         the original R and Fortran code, unmodified
-ci/             GitHub Actions workflows (move to .github/workflows to enable)
+paper/          JOSS paper (paper.md, paper.bib)
+.github/        GitHub Actions workflows, issue and pull-request templates
 ```
 
 ## Documentation
 
-Build with `julia --project=docs docs/make.jl` (after `Pkg.develop(path=".")` in the
-docs environment). Start with [the model](docs/src/model.md),
+The documentation is online at <https://OWNER.github.io/GeocarbPrecalibration.jl/stable/>.
+To build it locally, with all doctests, run `julia --project=docs docs/make.jl` (after
+`Pkg.develop(path=".")` in the docs environment). Start with [the model](docs/src/model.md),
 [precalibration](docs/src/precalibration.md), [experiments](docs/src/experiments.md)
 and the [porting notes](docs/src/porting_notes.md).
+
+## Contributing and support
+
+Bug reports, questions and pull requests are welcome. See [CONTRIBUTING.md](CONTRIBUTING.md)
+and the [Code of Conduct](CODE_OF_CONDUCT.md).
+
+## AI usage
+
+Generative-AI tools were used in developing this package. [AI_USAGE.md](AI_USAGE.md)
+(also the "AI usage" page of the documentation) describes where and how, and how the
+results were verified.
 
 ## Licence and credit
 

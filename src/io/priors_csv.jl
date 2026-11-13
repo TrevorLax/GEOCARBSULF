@@ -35,8 +35,9 @@ struct PriorTable
     specs::Vector{PriorSpec}
 end
 
-const _PRIOR_COLUMNS = ("parameter", "type", "resample", "distribution_type", "mean",
-                        "two_sigma", "lower_limit", "upper_limit", "calib")
+const _PRIOR_COLUMNS = (
+    "parameter", "type", "resample", "distribution_type", "mean", "two_sigma", "lower_limit", "upper_limit", "calib"
+)
 
 """
     read_prior_table(path) -> PriorTable
@@ -58,19 +59,27 @@ function read_prior_table(path::AbstractString)
     specs = PriorSpec[]
     for r in eachindex(names)
         where_ = "$path: row $(r + 1) ($(names[r]))"
-        kind = types[r] == "constant" ? :constant :
-               types[r] == "time array" ? :time_array :
-               throw(ArgumentError("$where_: unknown type '$(types[r])' (expected 'constant' or 'time array')"))
+        kind = if types[r] == "constant"
+            :constant
+        elseif types[r] == "time array"
+            :time_array
+        else
+            throw(ArgumentError("$where_: unknown type '$(types[r])' (expected 'constant' or 'time array')"))
+        end
         d = Symbol(lowercase(dist[r]))
         d in (:gaussian, :lognormal, :uniform) ||
             throw(ArgumentError("$where_: unknown distribution_type '$(dist[r])'"))
-        num(col) = try
-            parse_number(t.rows[r][_colindex(t, col)]; allow_missing = true)
-        catch err
-            err isa ArgumentError || rethrow()
-            throw(ArgumentError("$where_, column '$col': $(err.msg)"))
-        end
-        μ = num("mean"); s2 = num("two_sigma"); lo = num("lower_limit"); hi = num("upper_limit")
+        num(col) =
+            try
+                parse_number(t.rows[r][_colindex(t, col)]; allow_missing=true)
+            catch err
+                err isa ArgumentError || rethrow()
+                throw(ArgumentError("$where_, column '$col': $(err.msg)"))
+            end
+        μ = num("mean")
+        s2 = num("two_sigma")
+        lo = num("lower_limit")
+        hi = num("upper_limit")
         isnan(lo) && (lo = -Inf)
         isnan(hi) && (hi = Inf)
         lo < hi || throw(ArgumentError("$where_: lower_limit ($lo) must be smaller than upper_limit ($hi)"))
@@ -83,8 +92,7 @@ function read_prior_table(path::AbstractString)
                 (isfinite(s2) && s2 / 2 > 1) ||
                     throw(ArgumentError("$where_: a log-normal prior needs two_sigma/2 > 1 (sdlog = log(two_sigma/2))"))
             else
-                (isfinite(lo) && isfinite(hi)) ||
-                    throw(ArgumentError("$where_: a uniform prior needs finite bounds"))
+                (isfinite(lo) && isfinite(hi)) || throw(ArgumentError("$where_: a uniform prior needs finite bounds"))
             end
         end
         cal = strip(calib[r])
@@ -138,5 +146,4 @@ calibrated_specs(t::PriorTable) = [s for s in t.specs if s.kind == :constant && 
 
 All constants at their prior means (the "preliminary simulation" of `lhs.R:30`).
 """
-mean_constants(t::PriorTable) =
-    ConstantParams(Dict{Symbol,Any}(s.name => s.mean for s in constant_specs(t)))
+mean_constants(t::PriorTable) = ConstantParams(Dict{Symbol,Any}(s.name => s.mean for s in constant_specs(t)))

@@ -1,0 +1,38 @@
+name: Bug report
+description: Something does not work, or results look wrong
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! If the problem concerns numerical differences from the
+        original R/Fortran code, please also say whether `test/legacy_comparison/run_comparison.jl`
+        passes on your machine.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Minimal example
+      description: Code or an experiment TOML that reproduces the problem.
+      render: julia
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Error message or output
+      render: text
+  - type: textarea
+    id: versions
+    attributes:
+      label: Versions
+      description: Output of `versioninfo()` and `using Pkg; Pkg.status()`.
+      render: text
+    validations:
+      required: true

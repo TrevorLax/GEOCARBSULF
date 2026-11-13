@@ -32,7 +32,7 @@ its age are pooled. Each proxy spans `log10(co2) ± nsig·log10(co2_high/co2)`, 
 window is the envelope of those spans, intersected with `bounds`. Steps without data
 get the full `bounds`.
 """
-function co2_windows(proxy::ProxyData, age::AbstractVector; nsig::Real = 1.0, bounds = (0.0, 50_000.0))
+function co2_windows(proxy::ProxyData, age::AbstractVector; nsig::Real=1.0, bounds=(0.0, 50_000.0))
     n = length(age)
     dt = n > 1 ? abs(age[1] - age[2]) : 10.0
     half = 0.5 * dt
@@ -61,7 +61,7 @@ Temperature windows from Mills et al. (2019) (`constraints.R:51-71`):
 `time` equals `−age`. The windows include the solar-luminosity effect and are compared
 with `temp + 15` from the model (see [`temperature`](@ref)).
 """
-function temperature_windows(data::TemperatureData, age::AbstractVector; nsig::Real = 1.0)
+function temperature_windows(data::TemperatureData, age::AbstractVector; nsig::Real=1.0)
     upper = data.T_avg .+ nsig .* (data.T_max .- data.T_avg)
     lower = data.T_avg .- nsig .* (data.T_avg .- data.T_min)
     low = similar(collect(Float64, age))

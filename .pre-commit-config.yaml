@@ -1,0 +1,105 @@
+# Git hooks, run with prek (https://github.com/j178/prek); plain pre-commit reads the
+# same file. Set up once per clone:
+#
+#   prek install                      # installs the pre-commit and pre-push hooks
+#   SKIP=legacy-untouched prek run --all-files
+#
+# pre-commit stage: file hygiene, workflow linting, JuliaFormatter, legacy/ guard.
+# pre-push stage:   CHANGELOG/AI-usage check, golden regression tests, the live
+#                   comparison with the original R/Fortran code (every push), and the
+#                   documentation build when docs or docstrings may have changed.
+#
+# Hooks are a convenience: `git push --no-verify` skips them. The required checks on
+# `main` are the guarantee (see CI_CD_PLAN.md). Keep this file free of prek-only
+# features (no `repo: builtin`), so pre-commit can run it too.
+#
+# Hook repositories are pinned to full commit SHAs; update with `prek auto-update`
+# and review the result like any other change.
+
+default_install_hook_types: [pre-commit, pre-push]
+default_stages: [pre-commit]
+fail_fast: true
+
+# Golden data and generated output: never touched by any hook.
+exclude: ^(data/|test/fixtures/fortran/|test/legacy_comparison/output/|docs/build/)
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c # v6.0.0
+    hooks:
+      # legacy/ holds the original R/Fortran code and must stay byte-identical.
+      - id: trailing-whitespace
+        exclude: ^legacy/
+        args: [--markdown-linebreak-ext=md]
+      - id: end-of-file-fixer
+        exclude: ^legacy/
+      - id: mixed-line-ending
+        exclude: ^legacy/|\.bat$ # batch files are CRLF (.gitattributes)
+        args: [--fix=lf]
+      - id: check-yaml
+      - id: check-toml
+      - id: check-merge-conflict
+      - id: check-added-large-files
+        args: [--maxkb=1000]
+      - id: detect-private-key
+
+  - repo: https://github.com/rhysd/actionlint
+    rev: 914e7df21a07ef503a81201c76d2b11c789d3fca # v1.7.12
+    hooks:
+      - id: actionlint
+
+  - repo: https://github.com/zizmorcore/zizmor-pre-commit
+    rev: 06a39750ec31860bb44f2acf67182c40016cd1e7 # v1.32.0
+    hooks:
+      - id: zizmor
+
+  - repo: local
+    hooks:
+      # ---- pre-commit stage -----------------------------------------------------
+      - id: juliaformatter
+        name: JuliaFormatter (BlueStyle, version pinned in tools/format)
+        language: system
+        entry: julia --startup-file=no --project=tools/format scripts/dev/format.jl
+        types: [julia]
+
+      - id: legacy-untouched
+        name: legacy/ stays unmodified (override with SKIP=legacy-untouched)
+        language: fail
+        entry: >-
+          legacy/ holds the original R/Fortran code and must stay unmodified. If the
+          change is intended, commit with SKIP=legacy-untouched and name legacy/ in
+          the CHANGELOG entry.
+        files: ^legacy/
+
+      # ---- pre-push stage -------------------------------------------------------
+      - id: changelog-ai
+        name: CHANGELOG entry and AI usage (scripts/ci/check_changes.jl)
+        language: system
+        entry: julia --startup-file=no scripts/ci/check_changes.jl
+        stages: [pre-push]
+        pass_filenames: false
+        always_run: true
+
+      - id: golden-regression
+        name: golden-master tests against the compiled Fortran
+        language: system
+        entry: julia --startup-file=no --project=. scripts/dev/test_group.jl regression
+        stages: [pre-push]
+        pass_filenames: false
+        always_run: true
+
+      - id: legacy-comparison
+        name: live comparison with the original R/Fortran code (needs R)
+        language: system
+        entry: julia --startup-file=no --project=. test/legacy_comparison/run_comparison.jl --no-plots
+        stages: [pre-push]
+        pass_filenames: false
+        always_run: true
+
+      - id: docs-build
+        name: documentation build with doctests
+        language: system
+        entry: julia --startup-file=no --project=docs scripts/dev/docs.jl
+        stages: [pre-push]
+        pass_filenames: false
+        files: ^(docs/src/|docs/make\.jl|src/|AI_USAGE\.md|README\.md)

@@ -1,0 +1,45 @@
+# Required check "Changelog and AI usage": every pull request must
+#   * add an entry to the unreleased section of CHANGELOG.md (no escape label);
+#   * name changes to test/tolerances.toml, test/fixtures/fortran/ or legacy/ in it;
+#   * tick exactly one AI box of the PR template, consistent with Co-Authored-By
+#     trailers, list every AI tool used in AI_USAGE.md, and mention AI in the entry;
+#   * keep the AI_USAGE.md summary and the paper's disclosure in step.
+# Pull requests opened by dependabot[bot] are exempt from the CHANGELOG and disclosure
+# rules. The logic is in scripts/ci/check_changes.jl, which the prek pre-push hook
+# also runs.
+#
+# No path filter: a required check that is skipped blocks merging. The PR body is
+# untrusted input; it reaches the script only through an environment variable.
+name: Changes
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    name: Changelog and AI usage
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # merge base and commit trailers
+          persist-credentials: false
+      - uses: julia-actions/setup-julia@da908477b5db94c10ffce8cfea9f2b3b9d5db687 # v3.0.3
+        with:
+          version: "1"
+      - name: Check CHANGELOG and AI usage
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
+        run: julia --startup-file=no --color=yes scripts/ci/check_changes.jl

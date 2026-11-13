@@ -24,7 +24,7 @@ taken by position: time, CO2 max, CO2 min, T max, T min, T average. Empty cells 
 function read_temperature_data(path::AbstractString)
     t = read_csv_table(path)
     length(t.header) >= 6 || throw(ArgumentError("$path: expected at least 6 columns"))
-    cols = [numeric_column(t, j; allow_missing = true) for j in 1:6]
+    cols = [numeric_column(t, j; allow_missing=true) for j in 1:6]
     any(isnan, cols[1]) && throw(ArgumentError("$path: the time column has missing values"))
     return TemperatureData(cols...)
 end
@@ -39,5 +39,5 @@ byte-order mark, both handled by [`read_csv_table`](@ref).
 function read_park_royer_2011(path::AbstractString)
     t = read_csv_table(path)
     length(t.header) >= 4 || throw(ArgumentError("$path: expected 4 columns"))
-    return (deltaT2X = numeric_column(t, 1), pdf = numeric_column(t, 3), cdf = numeric_column(t, 4))
+    return (deltaT2X=numeric_column(t, 1), pdf=numeric_column(t, 3), cdf=numeric_column(t, 4))
 end

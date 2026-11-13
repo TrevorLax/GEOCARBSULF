@@ -40,6 +40,6 @@ for (name, file) in files
 end
 out = mkpath(joinpath(root, "cretaceous"))
 open(joinpath(out, "numbers.toml"), "w") do io
-    TOML.print(io, numbers; sorted = true)
+    return TOML.print(io, numbers; sorted=true)
 end
 println("wrote ", joinpath(out, "numbers.toml"))

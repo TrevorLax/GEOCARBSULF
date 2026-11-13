@@ -1,0 +1,113 @@
+# Live comparison with the ORIGINAL R/Fortran code (legacy/, unmodified).
+#
+# Runs the original R driver and the Fortran model (compiled here with R CMD SHLIB and
+# gfortran) on 1000 prior samples and six supplemental variants, then requires Julia to
+# reproduce every output within test/tolerances.toml (rtol 1e-8; 1e-4 after a run's
+# first failed step; identical Inf/NaN positions and % outbound). Then it regenerates
+# the golden fixtures from the freshly compiled Fortran and runs the golden test on
+# them. See test/legacy_comparison/README.md.
+#
+# Toolchain: pinned for push/PR (a required check must not break because CRAN or R
+# moved): ubuntu-24.04 (fixes gfortran), R 4.6.1, CRAN packages from a dated Posit
+# Package Manager snapshot. Weekly.yml calls this workflow with `latest: true` to test
+# the newest R, packages and runner image. Move the pins only on purpose, with a
+# CHANGELOG entry.
+#
+# TEMPORARY: once validation against R/Fortran is retired, delete this file, the call in
+# Weekly.yml and the "Legacy comparison" required check. The golden-master test
+# (test/regression, run by CI.yml on every OS) keeps pinning results to the Fortran.
+name: Legacy
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      latest:
+        description: Use the newest R, CRAN packages and runner image instead of the pins
+        type: boolean
+        default: false
+  workflow_call:
+    inputs:
+      latest:
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: legacy-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  comparison:
+    name: Legacy comparison
+    runs-on: ${{ inputs.latest && 'ubuntu-latest' || 'ubuntu-24.04' }}
+    timeout-minutes: 45
+    env:
+      TOOLCHAIN: ${{ inputs.latest && 'latest' || 'pinned' }}
+      CRAN_SNAPSHOT: https://packagemanager.posit.co/cran/__linux__/noble/2026-11-10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: julia-actions/setup-julia@da908477b5db94c10ffce8cfea9f2b3b9d5db687 # v3.0.3
+        with:
+          version: "1"
+      - uses: julia-actions/cache@9353db09a0f2bbbdec6f41791918c75d37391b36 # v3.5.0
+      - uses: r-lib/actions/setup-r@f9a764fea8d5c63df6ef9a5c7795bf7deb5d7e05 # v2
+        with:
+          r-version: ${{ inputs.latest && 'release' || '4.6.1' }}
+          use-public-rspm: true # binary packages (also sets the user agent P3M needs)
+      - name: Install gfortran (R CMD SHLIB compiles the legacy Fortran)
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends gfortran
+      - name: Install the R packages used by the legacy code
+        run: |
+          if [ "$TOOLCHAIN" = pinned ]; then
+            repo="$CRAN_SNAPSHOT"
+          else
+            repo=$(Rscript -e 'cat(getOption("repos")[["CRAN"]])')
+          fi
+          echo "CRAN repository: $repo"
+          Rscript -e '
+            pkgs <- c("lhs", "CholWishart", "abind")
+            install.packages(pkgs, repos = commandArgs(TRUE)[1])
+            ok <- vapply(c(pkgs, "MASS"), requireNamespace, logical(1), quietly = TRUE)
+            if (!all(ok)) stop("could not install: ", paste(names(ok)[!ok], collapse = ", "))
+            print(installed.packages()[c(pkgs, "MASS"), "Version"])' "$repo"
+      - name: Toolchain versions
+        run: |
+          echo "toolchain: $TOOLCHAIN"
+          R --version | head -1
+          gfortran --version | head -1
+          julia --version
+      - uses: julia-actions/julia-buildpkg@e3eb439fad4f9aba7da2667e7510e4a46ebc46e1 # v1.7.0
+      - name: Compare with the original R/Fortran code
+        run: julia --project=. --color=yes test/legacy_comparison/run_comparison.jl --no-plots
+      - name: Golden fixtures agree with the freshly compiled Fortran
+        # Regenerates fixtures (label "ci") with the libraries R CMD SHLIB just built and
+        # runs the golden test on them as well as on the committed `original` set. If the
+        # committed fixtures were ever regenerated from Julia instead of the Fortran, a
+        # model change would pass on them but fail here.
+        run: |
+          julia --project=. --color=yes test/fixtures/generate_fortran_fixtures.jl legacy/fortran ci 100
+          julia --project=. --color=yes scripts/dev/test_group.jl regression
+      - name: Report to the job summary
+        if: always()
+        run: |
+          report=test/legacy_comparison/output/comparison_report.txt
+          if [ -f "$report" ]; then
+            { echo "## Julia port vs original R/Fortran"; echo '```text'; head -n 800 "$report"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No comparison report was written (the R run probably failed; see the log)." >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Upload the comparison output
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: legacy-comparison-${{ github.run_id }}
+          path: test/legacy_comparison/output/
+          retention-days: 14
+          if-no-files-found: warn

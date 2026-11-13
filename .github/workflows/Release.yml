@@ -1,0 +1,63 @@
+# Pushing a tag vX.Y.Z publishes a GitHub Release. Zenodo's GitHub integration (switch
+# it on once at https://zenodo.org/account/settings/github/) archives every published
+# release and mints a DOI, which JOSS requires at acceptance.
+#
+# Release checklist: bump `version` in Project.toml and CITATION.cff, add a
+# "## X.Y.Z" section to CHANGELOG.md, resolve all TODOs in AI_USAGE.md and
+# paper/paper.md, merge to main, then:  git tag vX.Y.Z && git push origin vX.Y.Z
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: GitHub Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write # create the release
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check that the tag matches the metadata
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          v="${TAG#v}"
+          pv=$(sed -n 's/^version *= *"\(.*\)"/\1/p' Project.toml)
+          cv=$(sed -n 's/^version: *"\{0,1\}\([^"]*\)"\{0,1\}$/\1/p' CITATION.cff)
+          fail=0
+          [ "$v" = "$pv" ] || { echo "::error file=Project.toml::tag $TAG but Project.toml version is $pv"; fail=1; }
+          [ "$v" = "$cv" ] || { echo "::error file=CITATION.cff::tag $TAG but CITATION.cff version is $cv"; fail=1; }
+          grep -qE "^## +v?${v//./\\.}( |$)" CHANGELOG.md || { echo "::error file=CHANGELOG.md::no '## $v' section in CHANGELOG.md"; fail=1; }
+          if grep -qiE "^## +v?${v//./\\.} .*unreleased" CHANGELOG.md; then echo "::error file=CHANGELOG.md::section $v is still marked unreleased"; fail=1; fi
+          if grep -n 'TODO' AI_USAGE.md paper/paper.md paper/paper.bib CITATION.cff; then echo "::error::TODO placeholders left in the AI usage report, paper or citation metadata"; fail=1; fi
+          if grep -rn 'PORT_AUTHOR\|OWNER/GeocarbPrecalibration' --include='*.md' --include='*.toml' --include='*.cff' --include='*.yml' --include='*.bib' . | grep -v '^./.github/workflows/'; then
+            echo "::error::author/owner placeholders are left (see above)"; fail=1
+          fi
+          exit $fail
+      - name: Extract the release notes from CHANGELOG.md
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          v="${TAG#v}"
+          awk -v v="$v" '
+            $0 ~ "^## +v?" v "( |$)" { on = 1; next }
+            on && /^## / { exit }
+            on { print }' CHANGELOG.md > release_notes.md
+          cat release_notes.md
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag --title "GeocarbPrecalibration.jl $TAG" --notes-file release_notes.md

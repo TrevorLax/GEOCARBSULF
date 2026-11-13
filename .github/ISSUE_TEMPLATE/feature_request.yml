@@ -1,0 +1,21 @@
+name: Feature request
+description: Suggest a model option, experiment, analysis or improvement
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: need
+    attributes:
+      label: What do you need, and why?
+      description: The scientific or practical use case.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: If it changes the model, how should the default (legacy-reproducing) behaviour be kept?
+  - type: textarea
+    id: references
+    attributes:
+      label: References
+      description: Papers or code that describe the feature.

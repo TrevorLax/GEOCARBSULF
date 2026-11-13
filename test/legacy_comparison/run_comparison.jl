@@ -14,6 +14,8 @@
 #   --rtol-clean X     tolerance before a run's first failed step (default 1e-8)
 #   --rtol-post X      tolerance at/after a run's first failed step (default 1e-4)
 #   --atol X           absolute tolerance (default 1e-10)
+#                      The defaults are read from test/tolerances.toml. CI and the
+#                      pre-push hook never pass these three options.
 #   --worst N          worst cells listed per region in the report (default 10)
 #   --skip-r           reuse the exports already in --out (do not run R again)
 #   --rscript PATH     Rscript executable (default: the RSCRIPT environment variable,
@@ -37,15 +39,17 @@ function find_rscript(explicit)
     if Sys.iswindows()
         for base in (raw"C:\Program Files\R", joinpath(homedir(), "AppData", "Local", "Programs", "R"))
             isdir(base) || continue
-            versions = sort(filter(d -> startswith(d, "R-"), readdir(base));
-                            by = d -> something(tryparse(VersionNumber, replace(d, "R-" => "")), v"0"))
+            versions = sort(
+                filter(d -> startswith(d, "R-"), readdir(base));
+                by=d -> something(tryparse(VersionNumber, replace(d, "R-" => "")), v"0"),
+            )
             for v in reverse(versions)
                 f = joinpath(base, v, "bin", "Rscript.exe")
                 isfile(f) && return f
             end
         end
     end
-    error("Rscript not found. Install R, put Rscript on the PATH, or pass --rscript / set RSCRIPT.")
+    return error("Rscript not found. Install R, put Rscript on the PATH, or pass --rscript / set RSCRIPT.")
 end
 
 function comparison_options(args)
@@ -53,9 +57,16 @@ function comparison_options(args)
     o = Dict{String,Any}(
         "legacy-dir" => get(ENV, "GEOCARB_LEGACY_DIR", joinpath(root, "legacy")),
         "out" => joinpath(@__DIR__, "output"),
-        "n" => "1000", "n-supp" => "200", "seed" => "2026",
-        "rtol-clean" => string(RTOL_CLEAN), "rtol-post" => string(RTOL_POST), "atol" => string(ATOL),
-        "worst" => "10", "skip-r" => false, "rscript" => nothing, "no-plots" => false,
+        "n" => "1000",
+        "n-supp" => "200",
+        "seed" => "2026",
+        "rtol-clean" => string(RTOL_CLEAN),
+        "rtol-post" => string(RTOL_POST),
+        "atol" => string(ATOL),
+        "worst" => "10",
+        "skip-r" => false,
+        "rscript" => nothing,
+        "no-plots" => false,
     )
     i = 1
     while i <= length(args)
@@ -75,7 +86,7 @@ function comparison_options(args)
     return o
 end
 
-function run_legacy_comparison(args = String[])
+function run_legacy_comparison(args=String[])
     o = comparison_options(args)
     legacy = abspath(o["legacy-dir"])
     out = abspath(o["out"])
@@ -88,15 +99,20 @@ function run_legacy_comparison(args = String[])
         cmd = `$rscript $(joinpath(@__DIR__, "run_legacy.R")) $legacy $out $(o["n"]) $(o["n-supp"]) $(o["seed"])`
         println("Running the original R/Fortran code:\n  ", cmd)
         t = @elapsed run(cmd)
-        println("  done in ", round(t; digits = 1), " s")
+        println("  done in ", round(t; digits=1), " s")
     end
     t = @elapsed @testset "Julia port vs original R/Fortran" begin
-        compare_with_legacy(out; rtol_clean = parse(Float64, o["rtol-clean"]), rtol_post = parse(Float64, o["rtol-post"]),
-                            atol = parse(Float64, o["atol"]), worst = parse(Int, o["worst"]),
-                            fortran_dir = joinpath(legacy, "fortran"))
+        compare_with_legacy(
+            out;
+            rtol_clean=parse(Float64, o["rtol-clean"]),
+            rtol_post=parse(Float64, o["rtol-post"]),
+            atol=parse(Float64, o["atol"]),
+            worst=parse(Int, o["worst"]),
+            fortran_dir=joinpath(legacy, "fortran"),
+        )
     end
-    println("Julia comparison finished in ", round(t; digits = 1), " s; report: ", joinpath(out, "comparison_report.txt"))
-    o["no-plots"] || draw_comparison_figures(out)
+    println("Julia comparison finished in ", round(t; digits=1), " s; report: ", joinpath(out, "comparison_report.txt"))
+    return o["no-plots"] || draw_comparison_figures(out)
 end
 
 """

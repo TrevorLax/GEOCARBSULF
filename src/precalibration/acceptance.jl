@@ -22,8 +22,7 @@ struct EvaluationContext
     temp_windows::Windows
     T0::Float64
 end
-EvaluationContext(co2::Windows, temp::Windows; T0::Real = PRESENT_TEMPERATURE) =
-    EvaluationContext(co2, temp, Float64(T0))
+EvaluationContext(co2::Windows, temp::Windows; T0::Real=PRESENT_TEMPERATURE) = EvaluationContext(co2, temp, Float64(T0))
 
 """
     OutboundRule(variable, threshold; reject_failed = false)
@@ -36,7 +35,7 @@ struct OutboundRule <: AcceptanceRule
     variable::Symbol
     threshold::Float64
     reject_failed::Bool
-    function OutboundRule(variable::Symbol, threshold::Real; reject_failed::Bool = false)
+    function OutboundRule(variable::Symbol, threshold::Real; reject_failed::Bool=false)
         variable in (:co2, :temp) || throw(ArgumentError("variable must be :co2 or :temp"))
         0 < threshold <= 1 || throw(ArgumentError("threshold must be in (0, 1]"))
         return new(variable, Float64(threshold), reject_failed)
@@ -69,7 +68,7 @@ AllOf(rules::AcceptanceRule...) = AllOf(AcceptanceRule[rules...])
 """
 function accepts(rule::OutboundRule, r::GeocarbResult, ctx::EvaluationContext)
     w = rule.variable == :co2 ? ctx.co2_windows : ctx.temp_windows
-    score = percent_outbound(r, w, rule.variable; T0 = ctx.T0, reject_failed = rule.reject_failed)
+    score = percent_outbound(r, w, rule.variable; T0=ctx.T0, reject_failed=rule.reject_failed)
     return score <= rule.threshold     # false for NaN
 end
 
@@ -89,8 +88,10 @@ Acceptance rule described by an experiment configuration.
 """
 function build_rule(cfg::ExperimentConfig)
     rules = AcceptanceRule[]
-    cfg.constraint in (:co2, :both) && push!(rules, OutboundRule(:co2, cfg.threshold; reject_failed = cfg.reject_failed_runs))
-    cfg.constraint in (:temp, :both) && push!(rules, OutboundRule(:temp, cfg.threshold; reject_failed = cfg.reject_failed_runs))
+    cfg.constraint in (:co2, :both) &&
+        push!(rules, OutboundRule(:co2, cfg.threshold; reject_failed=cfg.reject_failed_runs))
+    cfg.constraint in (:temp, :both) &&
+        push!(rules, OutboundRule(:temp, cfg.threshold; reject_failed=cfg.reject_failed_runs))
     cfg.cretaceous_age === nothing || push!(rules, CretaceousWindowRule(cfg.cretaceous_age))
     return AllOf(rules)
 end

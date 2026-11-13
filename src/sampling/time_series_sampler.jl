@@ -5,7 +5,7 @@ Variance-reduction factors `f` per forcing (`time_series_df.R:12`). They set the
 inverse-Wishart degrees of freedom so that sampled variances match the reduced-variance
 experiments of Royer et al. (2014).
 """
-function read_variance_reduction(path::AbstractString = datapath("variance_reduction.toml"))
+function read_variance_reduction(path::AbstractString=datapath("variance_reduction.toml"))
     d = TOML.parsefile(path)
     haskey(d, "variance_reduction") || throw(ArgumentError("$path: missing [variance_reduction] table"))
     out = Dict{Symbol,Float64}()
@@ -16,7 +16,8 @@ function read_variance_reduction(path::AbstractString = datapath("variance_reduc
         out[s] = Float64(v)
     end
     missing_names = setdiff(Set(TIME_FORCING_NAMES), keys(out))
-    isempty(missing_names) || throw(ArgumentError("$path: missing factors for " * join(sort!(String.(collect(missing_names))), ", ")))
+    isempty(missing_names) ||
+        throw(ArgumentError("$path: missing factors for " * join(sort!(String.(collect(missing_names))), ", ")))
     return out
 end
 
@@ -73,7 +74,7 @@ for S in (:InverseWishartSampler, :MultivariateTSampler)
         center.age == sigma.age || throw(ArgumentError("centre and sigma age grids differ"))
         return $S{T}(center, sigma, inverse_wishart_dof(sigma, f_var_red))
     end
-    @eval $S(prior::TimeArrayPrior, f_var_red::AbstractDict{Symbol,<:Real} = read_variance_reduction()) =
+    @eval $S(prior::TimeArrayPrior, f_var_red::AbstractDict{Symbol,<:Real}=read_variance_reduction()) =
         $S(prior.center, prior.sigma, f_var_red)
 end
 
@@ -84,7 +85,7 @@ Overwrite `out` with one draw of all 12 forcings. With an `InverseWishartSampler
 `covariances` may be a `Dict{Symbol,Matrix{Float64}}` that receives the covariance draw
 of each forcing.
 """
-function sample_time_forcings!(rng::AbstractRNG, out::TimeForcings, s::TimeSeriesSampler; covariances = nothing)
+function sample_time_forcings!(rng::AbstractRNG, out::TimeForcings, s::TimeSeriesSampler; covariances=nothing)
     out.age == s.center.age || throw(ArgumentError("output and sampler age grids differ"))
     for name in TIME_FORCING_NAMES
         x = getfield(out, name)
@@ -92,7 +93,7 @@ function sample_time_forcings!(rng::AbstractRNG, out::TimeForcings, s::TimeSerie
         σ = getfield(s.sigma, name)
         ν = s.dof[name]
         cov = covariances === nothing ? nothing : get!(covariances, name) do
-            Matrix{Float64}(undef, length(μ), length(μ))
+            return Matrix{Float64}(undef, length(μ), length(μ))
         end
         _draw_series!(rng, x, μ, σ, ν, s, cov)
         _normalize!(x, name)
@@ -122,7 +123,7 @@ function _draw_series!(rng::AbstractRNG, x::AbstractVector, μ, σ, ν::Int, ::I
         ψ = (ν - p - 1) * σ[i]^2
         sc = 1 / sqrt(ψ)
         M[i, i] = sqrt(rand(rng, Chisq(ν - i + 1))) * sc
-        for j in 1:(i-1)
+        for j in 1:(i - 1)
             M[i, j] = randn(rng) * sc
         end
     end

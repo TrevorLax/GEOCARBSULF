@@ -41,15 +41,27 @@ end
 Call `run_geocarb_` with the constants in `Matrix_56` order and the forcings as the
 58 × 12 `Matrix_12` the Fortran expects.
 """
-function fortran_run(fptr::Ptr{Cvoid}, p::ConstantParams, f::TimeForcings; iteration_threshold::Integer = 10)
+function fortran_run(fptr::Ptr{Cvoid}, p::ConstantParams, f::TimeForcings; iteration_threshold::Integer=10)
     m56 = Float64.(parameter_vector(p))
     m12 = Float64.(forcing_matrix(f))
     age = copy(f.age)
     n = length(age)
-    co2 = fill(-999.99, n); o2 = fill(-999.99, n); temp = fill(-999.99, n)
-    ccall(fptr, Cvoid,
-          (Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ref{Int32}, Ref{Int32}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}),
-          m56, m12, age, Int32(n), Int32(iteration_threshold), co2, o2, temp)
+    co2 = fill(-999.99, n)
+    o2 = fill(-999.99, n)
+    temp = fill(-999.99, n)
+    ccall(
+        fptr,
+        Cvoid,
+        (Ptr{Float64}, Ptr{Float64}, Ptr{Float64}, Ref{Int32}, Ref{Int32}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}),
+        m56,
+        m12,
+        age,
+        Int32(n),
+        Int32(iteration_threshold),
+        co2,
+        o2,
+        temp,
+    )
     return co2, o2, temp
 end
 
@@ -58,17 +70,52 @@ end
 
 Call `run_geocarb_supp_` (supplemental experiments).
 """
-function fortran_run_supp(fptr::Ptr{Cvoid}, p::ConstantParams, f::TimeForcings, beg::Real, en::Real,
-                          gym_fac::Real, dT2X_fac::Real; iteration_threshold::Integer = 10)
+function fortran_run_supp(
+    fptr::Ptr{Cvoid},
+    p::ConstantParams,
+    f::TimeForcings,
+    beg::Real,
+    en::Real,
+    gym_fac::Real,
+    dT2X_fac::Real;
+    iteration_threshold::Integer=10,
+)
     m56 = Float64.(parameter_vector(p))
     m12 = Float64.(forcing_matrix(f))
     age = copy(f.age)
     n = length(age)
-    co2 = fill(-999.99, n); o2 = fill(-999.99, n); temp = fill(-999.99, n)
-    ccall(fptr, Cvoid,
-          (Ptr{Float64}, Ptr{Float64}, Ref{Float64}, Ref{Float64}, Ref{Float64}, Ref{Float64},
-           Ptr{Float64}, Ref{Int32}, Ref{Int32}, Ptr{Float64}, Ptr{Float64}, Ptr{Float64}),
-          m56, m12, Float64(beg), Float64(en), Float64(gym_fac), Float64(dT2X_fac),
-          age, Int32(n), Int32(iteration_threshold), co2, o2, temp)
+    co2 = fill(-999.99, n)
+    o2 = fill(-999.99, n)
+    temp = fill(-999.99, n)
+    ccall(
+        fptr,
+        Cvoid,
+        (
+            Ptr{Float64},
+            Ptr{Float64},
+            Ref{Float64},
+            Ref{Float64},
+            Ref{Float64},
+            Ref{Float64},
+            Ptr{Float64},
+            Ref{Int32},
+            Ref{Int32},
+            Ptr{Float64},
+            Ptr{Float64},
+            Ptr{Float64},
+        ),
+        m56,
+        m12,
+        Float64(beg),
+        Float64(en),
+        Float64(gym_fac),
+        Float64(dT2X_fac),
+        age,
+        Int32(n),
+        Int32(iteration_threshold),
+        co2,
+        o2,
+        temp,
+    )
     return co2, o2, temp
 end

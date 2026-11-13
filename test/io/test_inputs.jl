@@ -33,7 +33,7 @@ end
     @test s.fAw_fA == G.numeric_column(raw, "efAw_fA_Godderis")   # σ is not rescaled (as in R)
     @test c.GEOG == G.numeric_column(raw, "GEOG_Godderis")
     @test c.Sr == G.numeric_column(raw, "Sr")
-    nog = read_time_arrays(ARRAY_FILE; use_godderis = false)
+    nog = read_time_arrays(ARRAY_FILE; use_godderis=false)
     @test nog.center.fA == G.numeric_column(raw, "fA")
 end
 
@@ -43,7 +43,7 @@ end
     @test d.proxy_type[1] == :paleosols                 # grouped by proxy type (getData.R)
     @test count(==(:boron), d.proxy_type) == 224
     @test all(d.co2 .> 0)
-    only_boron = read_proxy_data(PROXY_FILE; proxies = (:boron,))
+    only_boron = read_proxy_data(PROXY_FILE; proxies=(:boron,))
     @test length(only_boron) == 224
     idx = G.proxy_step_index(d, collect(570.0:-10.0:0.0))
     @test all(i -> i === nothing || 1 <= i <= 58, idx)

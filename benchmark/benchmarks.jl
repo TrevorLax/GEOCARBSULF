@@ -21,7 +21,7 @@ SUITE["sampler"]["multivariate_t"] = @benchmarkable sample_time_forcings!($rng, 
 SUITE["sampler"]["lhs_10000x56"] = @benchmarkable random_lhs($rng, 10_000, 56)
 
 if abspath(PROGRAM_FILE) == @__FILE__
-    results = run(SUITE; verbose = true)
+    results = run(SUITE; verbose=true)
     show(stdout, MIME"text/plain"(), results)
     println()
 end

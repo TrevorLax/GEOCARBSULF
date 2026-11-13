@@ -12,3 +12,6 @@
 .DS_Store
 *.Rhistory
 /logs/
+/docs/src/ai_usage.md
+/paper/paper.pdf
+/paper/jats/

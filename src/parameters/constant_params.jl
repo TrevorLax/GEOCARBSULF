@@ -15,6 +15,18 @@ p2 = update(p; deltaT2X = 4.0)
 ```
 
 Missing or unknown names raise an `ArgumentError`.
+
+# Examples
+
+```jldoctest
+julia> p = mean_constants(read_prior_table(datapath("GEOCARB_input_summaries_calib_all.csv")));
+
+julia> p.deltaT2X
+3.0
+
+julia> update(p; deltaT2X = 4.0).deltaT2X
+4.0
+```
 """
 struct ConstantParams{T<:Real}
     ACT::T
@@ -86,8 +98,7 @@ Base.propertynames(::ConstantParams) = CONSTANT_PARAMETER_NAMES
 Build from parallel lists of names (`Symbol`s or `String`s) and values, in any order.
 """
 function ConstantParams(names::AbstractVector, values::AbstractVector)
-    length(names) == length(values) ||
-        throw(ArgumentError("got $(length(names)) names but $(length(values)) values"))
+    length(names) == length(values) || throw(ArgumentError("got $(length(names)) names but $(length(values)) values"))
     d = Dict{Symbol,Any}()
     for (k, v) in zip(names, values)
         s = Symbol(k)
@@ -108,11 +119,9 @@ must be present and no others.
 function ConstantParams(d::AbstractDict)
     keyset = Set(Symbol(k) for k in keys(d))
     missing_names = [n for n in CONSTANT_PARAMETER_NAMES if !(n in keyset)]
-    isempty(missing_names) ||
-        throw(ArgumentError("missing constant parameter(s): " * join(missing_names, ", ")))
+    isempty(missing_names) || throw(ArgumentError("missing constant parameter(s): " * join(missing_names, ", ")))
     unknown = [k for k in keyset if !(k in CONSTANT_PARAMETER_NAMES)]
-    isempty(unknown) ||
-        throw(ArgumentError("unknown constant parameter(s): " * join(sort!(String.(unknown)), ", ")))
+    isempty(unknown) || throw(ArgumentError("unknown constant parameter(s): " * join(sort!(String.(unknown)), ", ")))
     lookup(n) = haskey(d, n) ? d[n] : d[String(n)]
     vals = [lookup(n) for n in CONSTANT_PARAMETER_NAMES]
     all(v -> v isa Real, vals) || throw(ArgumentError("all parameter values must be real numbers"))
@@ -129,8 +138,7 @@ ConstantParams(; kwargs...) = ConstantParams(Dict{Symbol,Any}(kwargs))
 Fast constructor from a vector already in canonical order (used in the sampling loop).
 """
 @inline function _constants_from_vector(::Type{T}, v::AbstractVector) where {T<:Real}
-    length(v) == N_CONSTANTS ||
-        throw(ArgumentError("expected $(N_CONSTANTS) values, got $(length(v))"))
+    length(v) == N_CONSTANTS || throw(ArgumentError("expected $(N_CONSTANTS) values, got $(length(v))"))
     return ConstantParams{T}(ntuple(i -> convert(T, v[i]), Val(N_CONSTANTS))...)
 end
 
@@ -139,8 +147,7 @@ end
 
 The parameter values in the canonical order of [`CONSTANT_PARAMETER_NAMES`](@ref).
 """
-parameter_vector(p::ConstantParams{T}) where {T} =
-    T[getfield(p, n) for n in CONSTANT_PARAMETER_NAMES]
+parameter_vector(p::ConstantParams{T}) where {T} = T[getfield(p, n) for n in CONSTANT_PARAMETER_NAMES]
 
 """
     update(p::ConstantParams; kwargs...) -> ConstantParams
@@ -158,10 +165,12 @@ function update(p::ConstantParams; kwargs...)
     return ConstantParams(d)
 end
 
-Base.:(==)(a::ConstantParams, b::ConstantParams) =
-    all(getfield(a, n) == getfield(b, n) for n in CONSTANT_PARAMETER_NAMES)
-Base.isequal(a::ConstantParams, b::ConstantParams) =
-    all(isequal(getfield(a, n), getfield(b, n)) for n in CONSTANT_PARAMETER_NAMES)
+function Base.:(==)(a::ConstantParams, b::ConstantParams)
+    return all(getfield(a, n) == getfield(b, n) for n in CONSTANT_PARAMETER_NAMES)
+end
+function Base.isequal(a::ConstantParams, b::ConstantParams)
+    return all(isequal(getfield(a, n), getfield(b, n)) for n in CONSTANT_PARAMETER_NAMES)
+end
 Base.hash(p::ConstantParams, h::UInt) = hash(parameter_vector(p), hash(:ConstantParams, h))
 
 function Base.show(io::IO, ::MIME"text/plain", p::ConstantParams{T}) where {T}
