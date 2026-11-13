@@ -196,7 +196,7 @@ component!(w, "J", "M1"; workload="legacy_$(length(inputs))") do
         for k in eachindex(inputs)
             # the Fortran exposes no iteration count; its Inf masks equal Julia's, so Julia's counts apply
             open(w.per_sample_path, "a") do io
-                println(
+                return println(
                     io,
                     join(
                         _csvfield.(
@@ -211,7 +211,7 @@ component!(w, "J", "M1"; workload="legacy_$(length(inputs))") do
                                 nfail_of(k),
                                 tf[k, j],
                                 w.session,
-                            ]
+                            ],
                         ),
                         ",",
                     ),
@@ -316,7 +316,7 @@ component!(w, "J", "M2") do
             FArgs(p, f)
         end
     ), 1) / n
-    record!(
+    return record!(
         w;
         impl="fortran",
         variant="H0",
@@ -432,7 +432,7 @@ component!(w, "J", "M5") do
             run_geocarb!(o32[k], p32[k]...; options=opts)
         end
     ), 1)
-    record!(
+    return record!(
         w;
         variant="J",
         component="M5",

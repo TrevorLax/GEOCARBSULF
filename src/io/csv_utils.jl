@@ -166,8 +166,9 @@ end
 
 Numeric column by position (for files whose header names are not meaningful).
 """
-numeric_column(t::CSVTable, j::Integer; allow_missing::Bool=false) =
-    numeric_column(t, t.header[j]; allow_missing=allow_missing)
+function numeric_column(t::CSVTable, j::Integer; allow_missing::Bool=false)
+    return numeric_column(t, t.header[j]; allow_missing=allow_missing)
+end
 
 """
     write_csv(path, header, columns)

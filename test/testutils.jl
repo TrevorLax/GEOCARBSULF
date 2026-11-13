@@ -46,6 +46,8 @@ function tmpfile(content::Union{AbstractString,AbstractVector{UInt8}}; ext=".csv
 end
 
 "A small experiment configuration for workflow tests."
-small_config(; kwargs...) = ExperimentConfig(;
-    name="test", tag="test", n_sample=60, n_per_chunk=20, n_accept_min=10_000, threshold=1.0, seed=7, kwargs...
-)
+function small_config(; kwargs...)
+    return ExperimentConfig(;
+        name="test", tag="test", n_sample=60, n_per_chunk=20, n_accept_min=10_000, threshold=1.0, seed=7, kwargs...
+    )
+end

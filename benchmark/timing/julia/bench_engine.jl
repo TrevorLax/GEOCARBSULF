@@ -106,7 +106,7 @@ if mode == "fixed"
             m = measure_gc(() -> runpc(config(v, n, ch, thr, n + 1), nthreads_of(v)))
             r = m.value
             check(r.n_simulated == n, "fixed work: n_simulated = $(r.n_simulated), expected $n")
-            record!(
+            return record!(
                 w,
                 m;
                 variant=v,
@@ -166,7 +166,7 @@ if mode == "fixed"
                 wall_s=t - inner,
                 notes="run_precalibration wall minus the sections",
             )
-            record!(
+            return record!(
                 w;
                 variant=v,
                 component="E2",
@@ -199,7 +199,7 @@ elseif mode == "realistic"
                 n_accepted(r) == k,
                 "only $(n_accepted(r)) of $k accepted within n_sample = $cap (lower realistic_min_rate)",
             )
-            record!(
+            return record!(
                 w,
                 m;
                 variant=v,
@@ -222,7 +222,7 @@ elseif mode == "threads"
     component!(w, "J2", "E4"; workload=wl) do
         runpc(config("J2", min(n, 2ch), ch, thr, min(n, 2ch) + 1), Threads.nthreads())   # same settings, two chunks
         m = measure_gc(() -> runpc(config("J2", n, ch, thr, n + 1), Threads.nthreads()))
-        record!(
+        return record!(
             w,
             m;
             variant="J2",
@@ -257,7 +257,7 @@ elseif mode == "memory"
             save_covariances=cov,
         )
         m = measure_gc(() -> runpc(cfg, 1))
-        record!(
+        return record!(
             w,
             m;
             variant=design == :global_lhs ? "J0" : "J1",
@@ -295,6 +295,6 @@ elseif mode == "checkpoint"
         record!(
             w, c; variant="J1", component="E6", subcomponent="resuming from checkpoints", workload=wl, n=n, threads=1
         )
-        rm(dir; recursive=true, force=true)
+        return rm(dir; recursive=true, force=true)
     end
 end

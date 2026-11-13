@@ -20,7 +20,8 @@ using GeocarbPrecalibration
 
 function main(args)
     isempty(args) && (
-        println(stderr, "usage: run_experiment.jl CONFIG.toml [--only KEY=VALUE] [--dry-run] [--checkpoint] [--quiet]"); exit(2)
+        println(stderr, "usage: run_experiment.jl CONFIG.toml [--only KEY=VALUE] [--dry-run] [--checkpoint] [--quiet]");
+        exit(2)
     )
     path = args[1]
     filters = Pair{String,String}[]
@@ -82,7 +83,7 @@ function main(args)
         dir = joinpath(cfg.output_dir, cfg.tag)
         ckpt = checkpoint ? joinpath(dir, "checkpoints") : nothing
         println("→ $(cfg.tag) (seed $(cfg.seed)) → $dir")
-        res = run_precalibration(cfg; checkpoint_dir=ckpt, verbose=!quiet)
+        res = run_precalibration(cfg; checkpoint_dir=ckpt, verbose=(!quiet))
         save_result(joinpath(dir, "result.jld2"), res)
         write_summary_csvs(dir, res)
         println("  $(n_accepted(res)) accepted of $(res.n_simulated) simulated in $(res.provenance["wall_seconds"]) s")

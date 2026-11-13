@@ -41,7 +41,7 @@ for n in jints(job, "lhs_sizes")
                 all(all(p.lower <= x <= p.upper for x in view(X, :, j)) for (j, p) in enumerate(priors)),
             "transform_unit: value outside its truncation bounds",
         )
-        record!(w, m2; variant="J", component="P2", subcomponent="transform_unit", workload="n=$n", n=n)
+        return record!(w, m2; variant="J", component="P2", subcomponent="transform_unit", workload="n=$n", n=n)
     end
 end
 component!(w, "J", "P2-guard") do      # same check as the legacy comparison (max 1.1e-12 there)
@@ -49,7 +49,7 @@ component!(w, "J", "P2-guard") do      # same check as the legacy comparison (ma
     _, V = read_matrix(joinpath(exports, "legacy_lhs_values.csv"))
     pr = Dict(p.name => p for p in priors)
     J = [quantile_from_cdf(pr[Symbol(hl[j])], L[i, j]) for i in axes(L, 1), j in axes(L, 2)]
-    check(maximum(abs.(J .- V) ./ max.(abs.(V), 1e-300)) <= 1e-11, "quantiles differ from legacy_lhs_values.csv")
+    return check(maximum(abs.(J .- V) ./ max.(abs.(V), 1e-300)) <= 1e-11, "quantiles differ from legacy_lhs_values.csv")
 end
 
 # --- P3 --------------------------------------------------------------------------------
@@ -125,7 +125,7 @@ component!(w, "J", "P3"; workload="n=$n3") do
             GP._normalize!(x, name)
         end
     ), k)
-    record!(
+    return record!(
         w;
         variant="J",
         component="P3",
@@ -162,10 +162,10 @@ for n in jints(job, "covariance_n")
             for _ in 1:n, name in TIME_FORCING_NAMES
                 append!(covbuf, vec(cov[name]))
             end
-            permutedims(reshape(covbuf, nt, nt, 12, n), (1, 2, 4, 3))
+            return permutedims(reshape(covbuf, nt, nt, 12, n), (1, 2, 4, 3))
         end
         check(size(m.value) == (nt, nt, n, 12), "covariance array: bad dimensions")
-        record!(
+        return record!(
             w,
             m;
             variant="J",

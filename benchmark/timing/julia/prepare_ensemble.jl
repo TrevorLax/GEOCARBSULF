@@ -35,6 +35,6 @@ write(joinpath(out, "prcout.f64"), hcat(r.prcout_co2, r.prcout_temp))
 open(io -> println(io, join(String.(r.constant_names), ",")), joinpath(out, "constant_names.txt"), "w")
 open(io -> println(io, join(String.(r.forcing_names), ",")), joinpath(out, "forcing_names.txt"), "w")
 open(joinpath(out, "ensemble.toml"), "w") do io
-    println(io, "n = $n\nthreshold = $thr\nseed = $seed\nn_simulated = $(r.n_simulated)\nseconds = $t")
+    return println(io, "n = $n\nthreshold = $thr\nseed = $seed\nn_simulated = $(r.n_simulated)\nseconds = $t")
 end
 println("ensemble: $n accepted of $(r.n_simulated) simulated in $(round(t; digits = 1)) s")

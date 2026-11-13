@@ -118,24 +118,36 @@ function main()
             added = added_lines(mb, head, "CHANGELOG.md")
             releasing = any(n == h1 for (n, _) in added)   # the top heading itself changed
             if !occursin("unreleased", lowercase(lines[h1])) && !releasing
-                err("The top section of CHANGELOG.md ('$(lines[h1])') is not marked unreleased. " *
-                    "Start a new '## X.Y.Z (unreleased)' section for this change."; file="CHANGELOG.md")
+                err(
+                    "The top section of CHANGELOG.md ('$(lines[h1])') is not marked unreleased. " *
+                    "Start a new '## X.Y.Z (unreleased)' section for this change.";
+                    file="CHANGELOG.md",
+                )
             end
             for (n, t) in added
                 if !isempty(strip(t)) && !(h1 <= n < h2)
-                    warn("CHANGELOG.md line $n was added outside the top section; entries for this change " *
-                         "belong in the unreleased section."; file="CHANGELOG.md")
+                    warn(
+                        "CHANGELOG.md line $n was added outside the top section; entries for this change " *
+                        "belong in the unreleased section.";
+                        file="CHANGELOG.md",
+                    )
                 end
             end
             entry = join((t for (n, t) in added if h1 < n < h2 && !isempty(strip(t))), "\n")
             if isempty(entry) && !releasing && !exempt
-                err("CHANGELOG.md changed, but no line was added to its top section ('$(lines[h1])'). " *
-                    "Describe this change there."; file="CHANGELOG.md")
+                err(
+                    "CHANGELOG.md changed, but no line was added to its top section ('$(lines[h1])'). " *
+                    "Describe this change there.";
+                    file="CHANGELOG.md",
+                )
             end
         end
     elseif !exempt
-        err("CHANGELOG.md has no entry for this change. Every change needs one, in the top " *
-            "'(unreleased)' section (see CONTRIBUTING.md)."; file="CHANGELOG.md")
+        err(
+            "CHANGELOG.md has no entry for this change. Every change needs one, in the top " *
+            "'(unreleased)' section (see CONTRIBUTING.md).";
+            file="CHANGELOG.md",
+        )
     end
 
     # 2. special changes must be named in the entry
@@ -146,8 +158,11 @@ function main()
     )
     for (what, touches, re, word) in special
         if any(touches, changed) && !occursin(re, entry)
-            err("This change touches $what. Its CHANGELOG entry must say so (use the word \"$word\") " *
-                "and explain why."; file="CHANGELOG.md")
+            err(
+                "This change touches $what. Its CHANGELOG entry must say so (use the word \"$word\") " *
+                "and explain why.";
+                file="CHANGELOG.md",
+            )
         end
     end
 
@@ -158,8 +173,11 @@ function main()
     for t in ai_trailers
         name = strip(replace(t, r"<[^>]*>" => ""))
         if tools === nothing || !occursin(lowercase(name), lowercase(tools))
-            err("A commit has the trailer 'Co-Authored-By: $t', but '$name' is not listed in the " *
-                "Tools table of AI_USAGE.md."; file="AI_USAGE.md")
+            err(
+                "A commit has the trailer 'Co-Authored-By: $t', but '$name' is not listed in the " *
+                "Tools table of AI_USAGE.md.";
+                file="AI_USAGE.md",
+            )
         end
     end
     ai_used = !isempty(ai_trailers)
@@ -172,29 +190,39 @@ function main()
         if no_ai == yes_ai
             err("Tick exactly one of the two boxes under 'AI usage' in the pull-request description.")
         elseif ai_used && no_ai
-            err("Commits carry AI Co-Authored-By trailers ($(join(ai_trailers, "; "))), but the " *
-                "pull request says no AI tools were used.")
+            err(
+                "Commits carry AI Co-Authored-By trailers ($(join(ai_trailers, "; "))), but the " *
+                "pull request says no AI tools were used.",
+            )
         end
         ai_used |= yes_ai
     end
     if ai_used && !exempt && !occursin(r"\bAI\b", entry)
-        err("AI tools were used for this change; say so in its CHANGELOG entry (for example " *
-            "\"drafted with an AI coding assistant, see AI_USAGE.md\")."; file="CHANGELOG.md")
+        err(
+            "AI tools were used for this change; say so in its CHANGELOG entry (for example " *
+            "\"drafted with an AI coding assistant, see AI_USAGE.md\").";
+            file="CHANGELOG.md",
+        )
     end
 
     # 5. AI_USAGE.md summary and the paper's disclosure stay in step
     old = section(show_file(mb, "AI_USAGE.md"), "Summary")
     new = section(show_file(head, "AI_USAGE.md"), "Summary")
     if old !== nothing && new !== nothing && strip(old) != strip(new) && !("paper/paper.md" in changed)
-        err("The Summary of AI_USAGE.md changed but paper/paper.md did not. Update the paper's " *
-            "'AI usage disclosure' section to match."; file="paper/paper.md")
+        err(
+            "The Summary of AI_USAGE.md changed but paper/paper.md did not. Update the paper's " *
+            "'AI usage disclosure' section to match.";
+            file="paper/paper.md",
+        )
     end
 
     # 6. model documentation (advisory)
     if any(f -> startswith(f, "src/model/"), changed) &&
-       !any(in(changed), ("docs/src/model.md", "docs/src/porting_notes.md"))
-        warn("src/model/ changed but docs/src/model.md and docs/src/porting_notes.md did not. " *
-             "Check whether the model documentation needs updating.")
+        !any(in(changed), ("docs/src/model.md", "docs/src/porting_notes.md"))
+        warn(
+            "src/model/ changed but docs/src/model.md and docs/src/porting_notes.md did not. " *
+            "Check whether the model documentation needs updating.",
+        )
     end
 
     if isempty(ERRORS)

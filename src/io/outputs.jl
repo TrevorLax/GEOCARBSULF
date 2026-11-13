@@ -107,7 +107,7 @@ function write_summary_csvs(dir::AbstractString, res::PrecalibrationResult)
     )
     p3 = joinpath(dir, "provenance.toml")
     open(p3, "w") do io
-        TOML.print(
+        return TOML.print(
             io,
             Dict(
                 "tag" => res.tag,

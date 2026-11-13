@@ -36,7 +36,7 @@ for pass in 1:2
         res = julia_analysis!(st, loader, num; figdir=joinpath(figroot, "julia_pass$pass"))
         flush_sections!(st; mode=mode)
         draw_figures!(st, res["figures"], res["figdir"], CairoMakie.save; mode=mode)
-        global numbers = res
+        return global numbers = res
     end
 end
 

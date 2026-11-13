@@ -152,7 +152,7 @@ function _constraint_symbol(x)
     s in ("co2", "c") && return :co2
     s in ("temp", "t", "temperature") && return :temp
     s in ("both", "ct", "co2+temp") && return :both
-    throw(ArgumentError("unknown constraint '$x' (use co2, temp or both)"))
+    return throw(ArgumentError("unknown constraint '$x' (use co2, temp or both)"))
 end
 
 _constraint_code(c::Symbol) =

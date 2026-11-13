@@ -62,7 +62,7 @@ function julia_analysis!(
         tp = read_time_arrays(datapath("GEOCARB_input_arrays_NewDegassing.csv"))
         tw = temperature_windows(read_temperature_data(datapath("Mills_GR_2019_temp_co2.csv")), tp.center.age)
         cw = co2_windows(proxy, tp.center.age)
-        (table, proxy, tw, cw)
+        return (table, proxy, tw, cw)
     end
 
     # A1 load + A2 parameter and time-series quantiles (the R loop interleaves them)
@@ -82,7 +82,7 @@ function julia_analysis!(
         results[tag] = r
         section(st, "A2 parameter and time-series quantiles") do
             pq[tag] = parameter_quantiles(r; n=num_samples, rng=StableRNG(rng_seed))
-            tq[tag] = time_series_quantiles(r)
+            return tq[tag] = time_series_quantiles(r)
         end
     end
     out["deltaT2X_quantiles_c_out30"] = pq["c_out30"].values[findfirst(==(:deltaT2X), pq["c_out30"].names), :]
@@ -110,7 +110,9 @@ function julia_analysis!(
         end
     end
     mq = section(st, "A2 hindcast quantiles") do
-        Dict(tag => (co2=row_quantiles(hc[tag].co2), temp=row_quantiles(hc[tag].temp)) for tag in EXPERIMENT_TAGS)
+        return Dict(
+            tag => (co2=row_quantiles(hc[tag].co2), temp=row_quantiles(hc[tag].temp)) for tag in EXPERIMENT_TAGS
+        )
     end
 
     r30 = results["ct_out30"]
@@ -128,7 +130,7 @@ function julia_analysis!(
                 count(<(0.25), view(prc[tag], :, 2)) / size(prc[tag], 1),
             ) for tag in ("t_out30", "ct_out30", "c_out30")
         )
-        (kde=(k1, k2, k3), park_royer=pr, summary=summ, fractions=fr)
+        return (kde=(k1, k2, k3), park_royer=pr, summary=summ, fractions=fr)
     end
 
     prior_q = section(st, "A2 prior time-series sampling") do
@@ -148,7 +150,7 @@ function julia_analysis!(
         for j in 1:12, t in 1:nt
             q[t, :, j] .= Statistics.quantile(view(series, t, :, j), DEFAULT_PROBS)
         end
-        q
+        return q
     end
 
     out["som_table"] = section(() -> prior_posterior_table(table, r30), st, "A6 prior/posterior table")
@@ -189,7 +191,7 @@ function julia_analysis!(
         ts30 = reshape(permutedims(r30.time_series, (2, 1, 3)), size(r30.time_series, 2), :)
         [corspearman(view(ts30, :, j), ds) for j in axes(ts30, 2)]
         [cor(view(ts30, :, j), ds) for j in axes(ts30, 2)]
-        acf_quantiles(r30; lag_max=20)
+        return acf_quantiles(r30; lag_max=20)
     end
 
     if figdir !== nothing

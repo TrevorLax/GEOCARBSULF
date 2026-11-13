@@ -38,7 +38,7 @@ component!(w, "J", "C1"; workload="legacy_$n") do
     )
     k = calls_for(() -> all_prcout!(pc, pt))
     t = per_call(() -> all_prcout!(pc, pt), k)
-    record!(
+    return record!(
         w;
         variant="J",
         component="C1",
@@ -69,7 +69,7 @@ component!(w, "J", "C2"; workload="legacy_$n") do
     check(na == count(i -> ref[i, 1] <= 0.5 && ref[i, 2] <= 0.5, 1:n), "acceptance count differs from R")
     k = calls_for(count_accepted)
     t = per_call(count_accepted, k)
-    record!(
+    return record!(
         w;
         variant="J",
         component="C2",

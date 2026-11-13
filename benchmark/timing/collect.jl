@@ -584,7 +584,7 @@ if !isempty(ps)
     impls = unique((r["impl"], r["variant"]) for r in ps if r["component"] == "M4")
     for (im, va) in impls
         sel = [r for r in ps if r["impl"] == im && r["variant"] == va && r["component"] == "M4"]
-        g(gr) = (v = [num(r["seconds"]) for r in sel if r["group"] == gr]; isempty(v) ? "–" : fmt_t(median(v)))
+        g(gr) = (v=[num(r["seconds"]) for r in sel if r["group"] == gr]; isempty(v) ? "–" : fmt_t(median(v)))
         p(
             "| ",
             im,
@@ -672,8 +672,8 @@ for (comp, title) in (("P1", "LHS design"), ("P2", "constant transform"), ("E2",
             " | ",
             join(
                 [
-                    (v = get(groups, (im, va, comp, sub, wl, "warm"), Float64[]); isempty(v) ? "–" : fmt_t(median(v)))
-                    for wl in workloads(comp)
+                    (v=get(groups, (im, va, comp, sub, wl, "warm"), Float64[]); isempty(v) ? "–" : fmt_t(median(v))) for
+                    wl in workloads(comp)
                 ],
                 " | ",
             ),
@@ -1022,7 +1022,7 @@ if !isempty(m5)
         (
             "H8",
             "model options change runtime by < 2 %",
-            @sprintf("largest change %.1f %% → %s", 100spread, spread < 0.02 ? "holds" : "does not hold")
+            @sprintf("largest change %.1f %% → %s", 100spread, spread < 0.02 ? "holds" : "does not hold"),
         ),
     )
 end

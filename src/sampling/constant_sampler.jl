@@ -23,8 +23,9 @@ struct GlobalLHS <: ConstantDesign end
 `n × length(priors)` matrix of parameter values from one Latin hypercube design
 transformed through the truncated priors.
 """
-sample_constants(rng::AbstractRNG, priors::AbstractVector{<:TruncatedPrior}, n::Integer) =
-    transform_unit(random_lhs(rng, n, length(priors)), priors)
+function sample_constants(rng::AbstractRNG, priors::AbstractVector{<:TruncatedPrior}, n::Integer)
+    return transform_unit(random_lhs(rng, n, length(priors)), priors)
+end
 
 """
     transform_unit(U, priors) -> Matrix{Float64}

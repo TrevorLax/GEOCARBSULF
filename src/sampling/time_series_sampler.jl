@@ -93,7 +93,7 @@ function sample_time_forcings!(rng::AbstractRNG, out::TimeForcings, s::TimeSerie
         σ = getfield(s.sigma, name)
         ν = s.dof[name]
         cov = covariances === nothing ? nothing : get!(covariances, name) do
-            Matrix{Float64}(undef, length(μ), length(μ))
+            return Matrix{Float64}(undef, length(μ), length(μ))
         end
         _draw_series!(rng, x, μ, σ, ν, s, cov)
         _normalize!(x, name)

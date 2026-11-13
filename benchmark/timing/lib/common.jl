@@ -53,7 +53,7 @@ function jints(job, k)
     s = jstr(job, k, "")
     return isempty(s) ? Int[] : [parse(Int, replace(x, "_" => "")) for x in split(s, ",")]
 end
-jlist(job, k) = (s = jstr(job, k, ""); isempty(s) ? String[] : String.(split(s, ",")))
+jlist(job, k) = (s=jstr(job, k, ""); isempty(s) ? String[] : String.(split(s, ",")))
 
 # ---------------------------------------------------------------------------------
 # Raw CSV writer
@@ -161,12 +161,13 @@ function record!(
 end
 
 "Record the result of [`measure`](@ref) (wall, GC, compile time, allocations)."
-record!(w::RawWriter, m::NamedTuple; kwargs...) =
-    record!(w; merge((wall_s=m.wall, gc_s=m.gc, compile_s=m.compile, alloc_bytes=m.bytes), values(kwargs))...)
+function record!(w::RawWriter, m::NamedTuple; kwargs...)
+    return record!(w; merge((wall_s=m.wall, gc_s=m.gc, compile_s=m.compile, alloc_bytes=m.bytes), values(kwargs))...)
+end
 
 function record_per_sample!(w::RawWriter, variant, component, sample::Integer, group, iterations, n_failed, seconds)
     open(w.per_sample_path, "a") do io
-        println(
+        return println(
             io,
             join(
                 _csvfield.(
@@ -181,7 +182,7 @@ function record_per_sample!(w::RawWriter, variant, component, sample::Integer, g
                         n_failed,
                         Float64(seconds),
                         w.session,
-                    ]
+                    ],
                 ),
                 ",",
             ),

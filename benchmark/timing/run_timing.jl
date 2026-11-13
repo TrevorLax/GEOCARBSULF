@@ -957,7 +957,7 @@ function main(args)
         String[],
     )
     open(joinpath(dir, "session.toml"), "w") do io
-        TOML.print(
+        return TOML.print(
             io,
             Dict(
                 "suite" => o["suite"],

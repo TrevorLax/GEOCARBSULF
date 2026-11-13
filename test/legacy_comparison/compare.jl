@@ -149,8 +149,9 @@ end
 Write a runs × steps matrix with the header of the legacy exports (`step_1`, …), so the
 Julia outputs can be read back exactly like the R ones (used by `plot_comparison.jl`).
 """
-write_matrix(path::AbstractString, M::AbstractMatrix) =
-    GP.write_csv(path, ["step_$j" for j in axes(M, 2)], [M[:, j] for j in axes(M, 2)])
+function write_matrix(path::AbstractString, M::AbstractMatrix)
+    return GP.write_csv(path, ["step_$j" for j in axes(M, 2)], [M[:, j] for j in axes(M, 2)])
+end
 
 function write_stats_csv(path::AbstractString, stats::AbstractVector{DiffStats})
     return GP.write_csv(
@@ -211,7 +212,7 @@ function compare_with_legacy(
             rtol_clean,
             rtol_post,
             atol
-        )
+        ),
     )
     isfile(joinpath(dir, "legacy_meta.txt")) &&
         foreach(l -> say("  legacy | " * l), readlines(joinpath(dir, "legacy_meta.txt")))
@@ -244,7 +245,7 @@ function compare_with_legacy(
                         L[I],
                         J[I],
                         rel
-                    )
+                    ),
                 )
             end
         end
@@ -298,7 +299,7 @@ function compare_with_legacy(
             count(.!post),
             length(post),
             count(i -> all(isfinite, view(Rco2, i, :)), axes(Rco2, 1))
-        )
+        ),
     )
     opt = ModelOptions(; fortran_single_literals=true)
     o = julia_outputs(samples, opt)
@@ -322,7 +323,7 @@ function compare_with_legacy(
             flips,
             isempty(clean_rel) ? 0.0 : GP.median(clean_rel),
             isempty(clean_rel) ? 0.0 : maximum(clean_rel)
-        )
+        ),
     )
 
     # 4. % outbound ----------------------------------------------------------------------
@@ -413,7 +414,7 @@ function compare_with_legacy(
             rtol_clean,
             isempty(post_stats) ? 0.0 : maximum(s -> s.max_rel, post_stats),
             rtol_post
-        )
+        ),
     )
     write(joinpath(dir, "comparison_report.txt"), join(report, "\n") * "\n")
     write_stats_csv(joinpath(dir, "comparison_stats.csv"), all_stats)

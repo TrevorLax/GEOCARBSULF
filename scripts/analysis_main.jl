@@ -55,7 +55,7 @@ for (tag, r) in results
     )
 end
 open(joinpath(dir, "numbers.toml"), "w") do io
-    TOML.print(io, numbers; sorted=true)
+    return TOML.print(io, numbers; sorted=true)
 end
 println("wrote ", joinpath(dir, "numbers.toml"))
 

@@ -47,8 +47,11 @@ struct ModelOptions
     fortran_single_literals::Bool
 end
 
-_pair(x) = (length(x) == 2 || throw(ArgumentError("expected a pair of numbers, got $x"));
-(Float64(x[1]), Float64(x[2])))
+function _pair(x)
+    return (
+        length(x) == 2 || throw(ArgumentError("expected a pair of numbers, got $x")); (Float64(x[1]), Float64(x[2]))
+    )
+end
 
 function ModelOptions(;
     dt::Real=10.0,

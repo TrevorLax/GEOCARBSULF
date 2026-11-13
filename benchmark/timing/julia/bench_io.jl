@@ -66,7 +66,7 @@ for cov in (true, false)
                 check(m.value.constants == r.constants && isequal(m.value.co2, r.co2), "load_result changed the data")
                 record!(w, m; variant=v, component="O2", subcomponent="load_result (JLD2)", workload=wl, n=n)
             end
-            rm(d; recursive=true, force=true)
+            return rm(d; recursive=true, force=true)
         end
     end
 end
