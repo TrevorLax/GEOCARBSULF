@@ -1,0 +1,36 @@
+# Required check "Lint": the pre-commit hooks of .pre-commit-config.yaml on every file,
+# run with prek: file hygiene, actionlint and zizmor (workflow security). Uses the same
+# pinned hook versions as the local hooks.
+#   * juliaformatter is skipped here; Format.yml is the formatting check.
+#   * legacy-untouched is skipped; it guards commits, and would flag every legacy file
+#     with --all-files. Changes to legacy/ are caught by Changes.yml.
+name: Lint
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install prek
+        run: pipx install prek==0.5.10
+      - name: Run the pre-commit hooks on all files
+        env:
+          SKIP: juliaformatter,legacy-untouched
+        run: prek run --all-files --show-diff-on-failure

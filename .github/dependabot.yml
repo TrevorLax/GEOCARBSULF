@@ -1,0 +1,26 @@
+# Weekly update PRs for the pinned GitHub Actions (SHA pins are bumped with their
+# version comments) and for the [compat] bounds of the package and docs environments.
+# The 14-day cooldown applies the project's rule that pins use releases at least two
+# weeks old. Dependabot PRs are exempt from the CHANGELOG rule (Changes.yml).
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 14
+    groups:
+      actions:
+        patterns: ["*"]
+    commit-message:
+      prefix: "ci"
+
+  - package-ecosystem: julia
+    directories: ["/", "/docs"]
+    schedule:
+      interval: weekly
+    cooldown:
+      default-days: 14
+    commit-message:
+      prefix: "deps"

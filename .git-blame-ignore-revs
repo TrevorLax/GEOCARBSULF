@@ -1,0 +1,4 @@
+# Commits that only reformat code. GitHub's blame view skips them; locally:
+#   git config blame.ignoreRevsFile .git-blame-ignore-revs
+# Add the full SHA of each reformat commit (JuliaFormatter 1.x BlueStyle reformat,
+# JuliaFormatter 2.x reformat) on its own line, with a comment above it.

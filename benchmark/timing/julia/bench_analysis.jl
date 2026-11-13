@@ -12,22 +12,30 @@ include(joinpath(@__DIR__, "..", "lib", "analysis_julia.jl"))
 ens = jstr(job, "ensemble_jld2")
 num = jint(job, "num_samples")
 figroot = jstr(job, "fig_dir")
-out_dir = jstr(job, "out_dir"); mkpath(out_dir)
+out_dir = jstr(job, "out_dir");
+mkpath(out_dir);
 wl = "ensemble n=$num, 15 experiments"
 loader(tag) = load_result(ens)
 
 t_makie = @elapsed using CairoMakie
-record!(w; variant = "J", component = "G1", subcomponent = "using CairoMakie (in process)", mode = "first_call",
-        wall_s = t_makie, workload = wl)
+record!(
+    w;
+    variant="J",
+    component="G1",
+    subcomponent="using CairoMakie (in process)",
+    mode="first_call",
+    wall_s=t_makie,
+    workload=wl,
+)
 
 numbers = nothing
 for pass in 1:2
     mode = pass == 1 ? "first_call" : "warm"
     st = SectionTimer(w, "J", wl, num)
-    component!(w, "J", "A"; workload = wl) do
-        res = julia_analysis!(st, loader, num; figdir = joinpath(figroot, "julia_pass$pass"))
-        flush_sections!(st; mode = mode)
-        draw_figures!(st, res["figures"], res["figdir"], CairoMakie.save; mode = mode)
+    component!(w, "J", "A"; workload=wl) do
+        res = julia_analysis!(st, loader, num; figdir=joinpath(figroot, "julia_pass$pass"))
+        flush_sections!(st; mode=mode)
+        draw_figures!(st, res["figures"], res["figdir"], CairoMakie.save; mode=mode)
         global numbers = res
     end
 end

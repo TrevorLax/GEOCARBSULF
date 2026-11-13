@@ -27,7 +27,7 @@ a centre column `X` and a standard-deviation column `eX`. This reproduces
 
 The file must list ages from oldest to youngest.
 """
-function read_time_arrays(path::AbstractString; use_godderis::Bool = true)
+function read_time_arrays(path::AbstractString; use_godderis::Bool=true)
     t = read_csv_table(path)
     age = numeric_column(t, "age")
     center = Dict{Symbol,Vector{Float64}}()
@@ -66,7 +66,7 @@ function mean_time_forcings(series::AbstractArray{<:Real,3}, age::AbstractVector
     size(series, 2) >= 1 || throw(ArgumentError("no samples to average"))
     d = Dict{Symbol,Vector{Float64}}()
     for (j, n) in enumerate(TIME_FORCING_NAMES)
-        d[n] = vec(mean(view(series, :, :, j); dims = 2))
+        d[n] = vec(mean(view(series, :, :, j); dims=2))
     end
     return TimeForcings(age, d)
 end

@@ -1,9 +1,10 @@
 # Porting notes
 
 This page records how the R/Fortran code maps onto the Julia package and every
-decision that makes the two differ. Finding numbers (F-xx) refer to
-`JULIA_IMPROVEMENTS_AND_FRAMEWORKS.md`; decision numbers (D-x) to §9 of
-`JULIA_REWRITE_PLAN.md`.
+decision that makes the two differ. Finding numbers (F-xx) refer to the review of the
+original code carried out before the port, and decision numbers (D-x) to the porting
+decisions taken from it (internal planning documents, not distributed). Each finding
+used in the code is described where it is cited.
 
 ## File mapping
 

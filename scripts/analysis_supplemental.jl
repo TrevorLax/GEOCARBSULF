@@ -39,6 +39,6 @@ for (name, file) in experiments
 end
 out = mkpath(joinpath(root, "supplemental"))
 open(joinpath(out, "numbers.toml"), "w") do io
-    TOML.print(io, numbers; sorted = true)
+    TOML.print(io, numbers; sorted=true)
 end
 println("wrote ", joinpath(out, "numbers.toml"))

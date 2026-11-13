@@ -17,9 +17,9 @@
     d[:bogus] = 1.0
     @test_throws ArgumentError ConstantParams(d)               # unknown name
     @test_throws ArgumentError ConstantParams(names, v[1:10])  # length mismatch
-    q = update(p; deltaT2X = 4.0)
+    q = update(p; deltaT2X=4.0)
     @test q.deltaT2X == 4.0 && q.GLAC == p.GLAC
-    @test_throws ArgumentError update(p; nope = 1.0)
+    @test_throws ArgumentError update(p; nope=1.0)
     @test G._constants_from_vector(Float64, v) == p
     @test parameter_units(:deltaT2X) == "°C"
     @test !isempty(parameter_description(:Fwsi_0))
@@ -38,12 +38,16 @@ end
     @test TimeForcings(f.age, d) == f
     @test_throws ArgumentError TimeForcings(reverse(f.age), d)       # ages must decrease
     @test_throws ArgumentError TimeForcings(f.age .+ 10, d)          # 580 Ma is outside the model
-    d2 = copy(d); d2[:Sr] = d[:Sr][1:10]
+    d2 = copy(d)
+    d2[:Sr] = d[:Sr][1:10]
     @test_throws ArgumentError TimeForcings(f.age, d2)               # length mismatch
-    d3 = copy(d); d3[:Sr] = copy(d[:Sr]); d3[:Sr][3] = NaN
+    d3 = copy(d)
+    d3[:Sr] = copy(d[:Sr])
+    d3[:Sr][3] = NaN
     @test_throws ArgumentError TimeForcings(f.age, d3)               # non-finite value
-    @test TimeForcings(f.age, d3; check_finite = false) isa TimeForcings
-    d4 = copy(d); delete!(d4, :fC)
+    @test TimeForcings(f.age, d3; check_finite=false) isa TimeForcings
+    d4 = copy(d)
+    delete!(d4, :fC)
     @test_throws ArgumentError TimeForcings(f.age, d4)               # missing forcing
     m = G.forcing_matrix(f)
     @test size(m) == (58, 12)
@@ -58,21 +62,21 @@ end
     @test o == G.DEFAULT_MODEL_OPTIONS
     @test o.glacial_intervals == [(260.0, 330.0), (-Inf, 40.0)]
     @test o.gym_angio_transition == (130.0, 80.0) && o.gym_factor == 1.0 && !o.dT2X_ramp
-    @test_throws ArgumentError ModelOptions(dt = -1)
-    @test_throws ArgumentError ModelOptions(gym_angio_transition = (60, 110))
-    @test_throws ArgumentError ModelOptions(iteration_threshold = 0)
-    @test_throws ArgumentError ModelOptions(gym_factor = -1)
-    @test_throws ArgumentError ModelOptions(rco2_bounds = (2.0, 1.0))
+    @test_throws ArgumentError ModelOptions(dt=-1)
+    @test_throws ArgumentError ModelOptions(gym_angio_transition=(60, 110))
+    @test_throws ArgumentError ModelOptions(iteration_threshold=0)
+    @test_throws ArgumentError ModelOptions(gym_factor=-1)
+    @test_throws ArgumentError ModelOptions(rco2_bounds=(2.0, 1.0))
     o2 = G.model_options_from_dict(Dict("gym_angio_transition" => [110, 60], "gym_factor" => 0.25, "dT2X_ramp" => true))
     @test o2.gym_angio_transition == (110.0, 60.0) && o2.gym_factor == 0.25 && o2.dT2X_ramp
     @test_throws ArgumentError G.model_options_from_dict(Dict("bogus" => 1))
     @test G.model_options_from_dict(G.options_dict(o2)) == o2
-    k1 = G.resolve_constants(ModelOptions(fortran_single_literals = true))
+    k1 = G.resolve_constants(ModelOptions(; fortran_single_literals=true))
     @test k1.ln2 == Float64(Float32(log(2.0)))
     @test k1.tol == Float64(0.01f0) && k1.sr_offset == Float64(0.7f0) && k1.damping == Float64(0.9f0)
     @test o.fortran_single_literals                       # v1 default: the compiled Fortran's literals
     @test G.resolve_constants(o) == k1
-    k0 = G.resolve_constants(ModelOptions(fortran_single_literals = false))
+    k0 = G.resolve_constants(ModelOptions(; fortran_single_literals=false))
     @test k0.tol == 0.01 && k0.sr_offset == 0.7 && k0.ln2 == log(2.0)
     @test k0.ln2 != k1.ln2 && k0.tol != k1.tol
 end

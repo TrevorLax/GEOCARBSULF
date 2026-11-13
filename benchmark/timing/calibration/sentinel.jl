@@ -12,10 +12,24 @@ function scalar_kernel(n)
     end
     return s
 end
-A = [sin(i + j) for i in 1:200, j in 1:200]; B = copy(A)
-scalar_kernel(10); A * B
-for (name, f) in (("exp/log loop (10^7)", () -> scalar_kernel(10_000_000)), ("200x200 matmul x50", () -> (for _ in 1:50; A * B; end)))
+A = [sin(i + j) for i in 1:200, j in 1:200];
+B = copy(A);
+scalar_kernel(10);
+A * B;
+for (name, f) in (("exp/log loop (10^7)", () -> scalar_kernel(10_000_000)), ("200x200 matmul x50", () -> (
+    for _ in 1:50
+        A * B
+    end
+)))
     t = minimum(per_call(f, 1) for _ in 1:5)
-    record!(w; variant = "J", component = "SENT", subcomponent = name, workload = jstr(job, "position"), wall_s = t,
-            threads = 1, notes = "minimum of 5")
+    record!(
+        w;
+        variant="J",
+        component="SENT",
+        subcomponent=name,
+        workload=jstr(job, "position"),
+        wall_s=t,
+        threads=1,
+        notes="minimum of 5",
+    )
 end

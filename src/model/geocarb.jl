@@ -12,18 +12,35 @@ failed steps). Invalid *inputs* (for example an age grid whose spacing is not
 
 # Examples
 
-```julia
-table = read_prior_table(datapath("GEOCARB_input_summaries_calib_all.csv"))
-p = mean_constants(table)
-f = read_time_arrays(datapath("GEOCARB_input_arrays_NewDegassing.csv")).center
-r = run_geocarb(p, f)
-r.co2          # ppmv, 58 values from 570 Ma to the present
+```jldoctest
+julia> table = read_prior_table(datapath("GEOCARB_input_summaries_calib_all.csv"));
+
+julia> p = mean_constants(table);
+
+julia> f = read_time_arrays(datapath("GEOCARB_input_arrays_NewDegassing.csv")).center;
+
+julia> r = run_geocarb(p, f);
+
+julia> succeeded(r)
+true
+
+julia> length(r.co2)   # ppmv, 58 values from 570 Ma to the present
+58
+
+julia> round.(r.co2[1:3]; sigdigits = 6)
+3-element Vector{Float64}:
+ 5473.6
+ 5663.08
+ 6226.25
+
+julia> round(r.co2[end]; digits = 1)   # present day
+243.7
 ```
 """
-function run_geocarb(p::ConstantParams, f::TimeForcings; options::ModelOptions = DEFAULT_MODEL_OPTIONS)
+function run_geocarb(p::ConstantParams, f::TimeForcings; options::ModelOptions=DEFAULT_MODEL_OPTIONS)
     T = promote_type(_numtype(p), _numtype(f))
     out = GeocarbResult{T}(f.age)
-    return run_geocarb!(out, p, f; options = options)
+    return run_geocarb!(out, p, f; options=options)
 end
 
 """
@@ -33,8 +50,9 @@ In-place version of [`run_geocarb`](@ref): overwrite the pre-allocated `out` (se
 `GeocarbResult{T}(age)`). It does not allocate, which matters inside the sampling
 loop.
 """
-function run_geocarb!(out::GeocarbResult, p::ConstantParams, f::TimeForcings;
-                      options::ModelOptions = DEFAULT_MODEL_OPTIONS)
+function run_geocarb!(
+    out::GeocarbResult, p::ConstantParams, f::TimeForcings; options::ModelOptions=DEFAULT_MODEL_OPTIONS
+)
     o = options
     age = f.age
     n = length(age)
@@ -78,8 +96,14 @@ function run_geocarb!(out::GeocarbResult, p::ConstantParams, f::TimeForcings;
         out.temp[i] = gcm * nanlog(rco2) - p.Ws * t / AGE_MAX
 
         # present-day check on O2 (%) and RCO2 (f90:558-566)
-        present_fail = t == 0 && (isnan(s.oxygen + rco2) || o2pct < k.pd_o2_min ||
-                                  o2pct > k.pd_o2_max || rco2 < k.pd_rco2_min || rco2 > k.pd_rco2_max)
+        present_fail =
+            t == 0 && (
+                isnan(s.oxygen + rco2) ||
+                o2pct < k.pd_o2_min ||
+                o2pct > k.pd_o2_max ||
+                rco2 < k.pd_rco2_min ||
+                rco2 > k.pd_rco2_max
+            )
         if present_fail && !failed
             status = PresentDayCheckFailed
         end
@@ -97,9 +121,12 @@ end
 
 function _check_dt(age::Vector{Float64}, dt::Float64)
     for i in 2:length(age)
-        if age[i-1] - age[i] != dt
-            throw(ArgumentError("the age grid must have a uniform spacing of dt = $dt Myr " *
-                                "(found $(age[i-1]) → $(age[i]))"))
+        if age[i - 1] - age[i] != dt
+            throw(
+                ArgumentError(
+                    "the age grid must have a uniform spacing of dt = $dt Myr " * "(found $(age[i-1]) → $(age[i]))"
+                ),
+            )
         end
     end
     return nothing

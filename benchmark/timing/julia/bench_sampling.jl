@@ -26,18 +26,22 @@ const mt = MultivariateTSampler(tp.center, tp.sigma, fvr)
 const nt = length(tp.center.age)
 
 # --- P1 + P2 -------------------------------------------------------------------------
-random_lhs(StableRNG(1), 100, np); transform_unit(random_lhs(StableRNG(1), 100, np), priors)
+random_lhs(StableRNG(1), 100, np);
+transform_unit(random_lhs(StableRNG(1), 100, np), priors);
 for n in jints(job, "lhs_sizes")
-    component!(w, "J", "P1"; workload = "n=$n") do
+    component!(w, "J", "P1"; workload="n=$n") do
         m = measure(() -> random_lhs(StableRNG(jint(job, "rep", 1)), n, np))
         U = m.value
         check(size(U) == (n, np) && all(x -> 0 < x < 1, U), "random_lhs: bad design")
-        record!(w, m; variant = "J", component = "P1", subcomponent = "random_lhs", workload = "n=$n", n = n)
+        record!(w, m; variant="J", component="P1", subcomponent="random_lhs", workload="n=$n", n=n)
         m2 = measure(() -> transform_unit(U, priors))
         X = m2.value
-        check(all(isfinite, X) && all(all(p.lower <= x <= p.upper for x in view(X, :, j)) for (j, p) in enumerate(priors)),
-              "transform_unit: value outside its truncation bounds")
-        record!(w, m2; variant = "J", component = "P2", subcomponent = "transform_unit", workload = "n=$n", n = n)
+        check(
+            all(isfinite, X) &&
+                all(all(p.lower <= x <= p.upper for x in view(X, :, j)) for (j, p) in enumerate(priors)),
+            "transform_unit: value outside its truncation bounds",
+        )
+        record!(w, m2; variant="J", component="P2", subcomponent="transform_unit", workload="n=$n", n=n)
     end
 end
 component!(w, "J", "P2-guard") do      # same check as the legacy comparison (max 1.1e-12 there)
@@ -49,12 +53,12 @@ component!(w, "J", "P2-guard") do      # same check as the legacy comparison (ma
 end
 
 # --- P3 --------------------------------------------------------------------------------
-function per_sample(sampler, n; covariances = nothing, seed = 1)
+function per_sample(sampler, n; covariances=nothing, seed=1)
     rng = StableRNG(seed)
     buf = copy(tp.center)
     t0 = time_ns()
     for _ in 1:n
-        sample_time_forcings!(rng, buf, sampler; covariances = covariances)
+        sample_time_forcings!(rng, buf, sampler; covariances=covariances)
     end
     return (time_ns() - t0) / 1e9 / n, buf
 end
@@ -69,37 +73,90 @@ function check_present(buf)
     end
 end
 n3 = jint(job, "sampler_n")
-component!(w, "J", "P3"; workload = "n=$n3") do
+component!(w, "J", "P3"; workload="n=$n3") do
     cov = Dict{Symbol,Matrix{Float64}}()
-    per_sample(iw, 20); per_sample(iw, 20; covariances = cov); per_sample(mt, 20)
-    t, buf = per_sample(iw, n3); check_present(buf)
-    record!(w; variant = "J", component = "P3", subcomponent = "total (inverse Wishart + MvNormal)", workload = "n=$n3",
-            n = n3, wall_s = t, notes = "seconds per sample (12 forcings); Bartlett draw, Σ not formed")
-    t, buf = per_sample(iw, n3; covariances = cov); check_present(buf)
-    record!(w; variant = "J", component = "P3", subcomponent = "total, covariances returned", workload = "n=$n3",
-            n = n3, wall_s = t, notes = "seconds per sample (12 forcings); forms Σ = (LA)⁻ᵀ(LA)⁻¹")
-    t, buf = per_sample(mt, n3); check_present(buf)
-    record!(w; variant = "J", component = "P3", subcomponent = "total, multivariate t", workload = "n=$n3",
-            n = n3, wall_s = t, notes = "seconds per sample (12 forcings); exact marginal, O(p)")
+    per_sample(iw, 20)
+    per_sample(iw, 20; covariances=cov)
+    per_sample(mt, 20)
+    t, buf = per_sample(iw, n3)
+    check_present(buf)
+    record!(
+        w;
+        variant="J",
+        component="P3",
+        subcomponent="total (inverse Wishart + MvNormal)",
+        workload="n=$n3",
+        n=n3,
+        wall_s=t,
+        notes="seconds per sample (12 forcings); Bartlett draw, Σ not formed",
+    )
+    t, buf = per_sample(iw, n3; covariances=cov)
+    check_present(buf)
+    record!(
+        w;
+        variant="J",
+        component="P3",
+        subcomponent="total, covariances returned",
+        workload="n=$n3",
+        n=n3,
+        wall_s=t,
+        notes="seconds per sample (12 forcings); forms Σ = (LA)⁻ᵀ(LA)⁻¹",
+    )
+    t, buf = per_sample(mt, n3)
+    check_present(buf)
+    record!(
+        w;
+        variant="J",
+        component="P3",
+        subcomponent="total, multivariate t",
+        workload="n=$n3",
+        n=n3,
+        wall_s=t,
+        notes="seconds per sample (12 forcings); exact marginal, O(p)",
+    )
     x = copy(tp.center.fR)
-    k = calls_for(() -> (for name in TIME_FORCING_NAMES; GP._normalize!(x, name); end))
-    t = per_call(() -> (for name in TIME_FORCING_NAMES; GP._normalize!(x, name); end), k)
-    record!(w; variant = "J", component = "P3", subcomponent = "normalisation", workload = "n=$n3", n = k, wall_s = t,
-            notes = "seconds per sample (12 forcings)")
+    k = calls_for(() -> (
+        for name in TIME_FORCING_NAMES
+            GP._normalize!(x, name)
+        end
+    ))
+    t = per_call(() -> (
+        for name in TIME_FORCING_NAMES
+            GP._normalize!(x, name)
+        end
+    ), k)
+    record!(
+        w;
+        variant="J",
+        component="P3",
+        subcomponent="normalisation",
+        workload="n=$n3",
+        n=k,
+        wall_s=t,
+        notes="seconds per sample (12 forcings)",
+    )
 end
 
 # --- P4 --------------------------------------------------------------------------------
 for n in jints(job, "covariance_n")
     need = 2 * 8.0 * nt * nt * n * 12
     if need > jfloat(job, "memory_limit_bytes")
-        record!(w; variant = "J", component = "P4", workload = "n=$n", n = n, wall_s = NaN,
-                notes = "skipped by the memory guard: needs about $(round(need / 1e9; digits = 1)) GB")
+        record!(
+            w;
+            variant="J",
+            component="P4",
+            workload="n=$n",
+            n=n,
+            wall_s=NaN,
+            notes="skipped by the memory guard: needs about $(round(need / 1e9; digits = 1)) GB",
+        )
         continue
     end
-    component!(w, "J", "P4"; workload = "n=$n") do
+    component!(w, "J", "P4"; workload="n=$n") do
         cov = Dict{Symbol,Matrix{Float64}}()
-        rng = StableRNG(2); buf = copy(tp.center)
-        sample_time_forcings!(rng, buf, iw; covariances = cov)
+        rng = StableRNG(2)
+        buf = copy(tp.center)
+        sample_time_forcings!(rng, buf, iw; covariances=cov)
         covbuf = Float64[]
         m = measure() do
             for _ in 1:n, name in TIME_FORCING_NAMES
@@ -108,9 +165,18 @@ for n in jints(job, "covariance_n")
             permutedims(reshape(covbuf, nt, nt, 12, n), (1, 2, 4, 3))
         end
         check(size(m.value) == (nt, nt, n, 12), "covariance array: bad dimensions")
-        record!(w, m; variant = "J", component = "P4", subcomponent = "store accepted (append + permutedims)",
-                workload = "n=$n", n = n, wall_s = m.wall / n, alloc_bytes = m.bytes ÷ n,
-                notes = "seconds and bytes per sample; array $(round(sizeof(m.value) / 1e9; digits = 2)) GB")
+        record!(
+            w,
+            m;
+            variant="J",
+            component="P4",
+            subcomponent="store accepted (append + permutedims)",
+            workload="n=$n",
+            n=n,
+            wall_s=m.wall / n,
+            alloc_bytes=m.bytes ÷ n,
+            notes="seconds and bytes per sample; array $(round(sizeof(m.value) / 1e9; digits = 2)) GB",
+        )
     end
 end
 
@@ -118,12 +184,26 @@ end
 k = jint(job, "rng_draws")
 component!(w, "J", "P5") do
     for (rname, mk) in (("StableRNG", () -> StableRNG(1)), ("Xoshiro", () -> Random.Xoshiro(1)))
-        rng = mk(); rand(rng, 10); randn(rng, 10); rand(rng, Chisq(60), 10)
-        for (dname, f) in (("rand", () -> rand(rng, k)), ("randn", () -> randn(rng, k)),
-                           ("rand(Chisq(60))", () -> rand(rng, Chisq(60), k)))
+        rng = mk()
+        rand(rng, 10)
+        randn(rng, 10)
+        rand(rng, Chisq(60), 10)
+        for (dname, f) in (
+            ("rand", () -> rand(rng, k)),
+            ("randn", () -> randn(rng, k)),
+            ("rand(Chisq(60))", () -> rand(rng, Chisq(60), k)),
+        )
             m = measure(f)
-            record!(w, m; variant = "J", component = "P5", subcomponent = "$dname $rname", n = k, wall_s = m.wall / k,
-                    notes = "seconds per draw")
+            record!(
+                w,
+                m;
+                variant="J",
+                component="P5",
+                subcomponent="$dname $rname",
+                n=k,
+                wall_s=m.wall / k,
+                notes="seconds per draw",
+            )
         end
     end
 end

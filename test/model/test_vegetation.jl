@@ -1,7 +1,7 @@
 @testset "vegetation_fE" begin
     p, _ = default_inputs()
     o = ModelOptions()
-    fE(t, opt = o) = G.vegetation_fE(t, p, opt)
+    fE(t, opt=o) = G.vegetation_fE(t, p, opt)
     @test fE(570.0) == p.LIFE
     @test fE(390.0) == p.LIFE
     @test fE(380.0) ≈ p.LIFE
@@ -13,16 +13,16 @@
     @test fE(80.0) == 1
     @test fE(0.0) == 1
     for knot in (380.0, 350.0, 130.0, 80.0)              # piecewise linear and continuous
-        @test isapprox(fE(knot + 1e-9), fE(knot); atol = 1e-6)
+        @test isapprox(fE(knot + 1e-9), fE(knot); atol=1e-6)
     end
 
-    m = ModelOptions(gym_angio_transition = (110, 60), gym_factor = 0.25)
+    m = ModelOptions(; gym_angio_transition=(110, 60), gym_factor=0.25)
     @test fE(120.0, m) == p.GYM
     @test fE(110.0, m) ≈ 0.25 * p.GYM
     @test fE(85.0, m) ≈ (0.25 * p.GYM + 1) / 2
     @test fE(60.0, m) == 1
     @test fE(365.0, m) == fE(365.0)
-    z = ModelOptions(gym_factor = 0.0)                   # NaN in the Fortran (F-09), defined here
+    z = ModelOptions(; gym_factor=0.0)                   # NaN in the Fortran (F-09), defined here
     @test fE(100.0, z) ≈ 30 / 50
 end
 

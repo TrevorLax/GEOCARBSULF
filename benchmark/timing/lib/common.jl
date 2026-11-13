@@ -22,7 +22,7 @@ function read_job(path::AbstractString)
     for line in eachline(path)
         s = strip(line)
         (isempty(s) || startswith(s, "#")) && continue
-        k, v = split(s, "="; limit = 2)
+        k, v = split(s, "="; limit=2)
         d[strip(k)] = strip(v)
     end
     return d
@@ -41,10 +41,14 @@ function write_job(path::AbstractString, d::AbstractDict)
     return path
 end
 
-jstr(job, k, default = nothing) = haskey(job, k) ? job[k] : (default === nothing ? error("job file: missing key '$k'") : default)
-jint(job, k, default = nothing) = parse(Int, replace(jstr(job, k, default === nothing ? nothing : string(default)), "_" => ""))
-jfloat(job, k, default = nothing) = parse(Float64, jstr(job, k, default === nothing ? nothing : string(default)))
-jbool(job, k, default = false) = lowercase(jstr(job, k, string(default))) in ("true", "1", "yes")
+function jstr(job, k, default=nothing)
+    return haskey(job, k) ? job[k] : (default === nothing ? error("job file: missing key '$k'") : default)
+end
+function jint(job, k, default=nothing)
+    return parse(Int, replace(jstr(job, k, default === nothing ? nothing : string(default)), "_" => ""))
+end
+jfloat(job, k, default=nothing) = parse(Float64, jstr(job, k, default === nothing ? nothing : string(default)))
+jbool(job, k, default=false) = lowercase(jstr(job, k, string(default))) in ("true", "1", "yes")
 function jints(job, k)
     s = jstr(job, k, "")
     return isempty(s) ? Int[] : [parse(Int, replace(x, "_" => "")) for x in split(s, ",")]
@@ -55,12 +59,31 @@ jlist(job, k) = (s = jstr(job, k, ""); isempty(s) ? String[] : String.(split(s, 
 # Raw CSV writer
 # ---------------------------------------------------------------------------------
 
-const RAW_HEADER = ["impl", "variant", "component", "subcomponent", "workload", "n", "threads", "rep", "mode",
-                    "wall_s", "cpu_s", "gc_s", "compile_s", "alloc_bytes", "peak_rss_bytes", "checksum_ok",
-                    "session_id", "timestamp", "notes"]
+const RAW_HEADER = [
+    "impl",
+    "variant",
+    "component",
+    "subcomponent",
+    "workload",
+    "n",
+    "threads",
+    "rep",
+    "mode",
+    "wall_s",
+    "cpu_s",
+    "gc_s",
+    "compile_s",
+    "alloc_bytes",
+    "peak_rss_bytes",
+    "checksum_ok",
+    "session_id",
+    "timestamp",
+    "notes",
+]
 
-const PER_SAMPLE_HEADER = ["impl", "variant", "component", "rep", "sample", "group", "iterations", "n_failed",
-                           "seconds", "session_id"]
+const PER_SAMPLE_HEADER = [
+    "impl", "variant", "component", "rep", "sample", "group", "iterations", "n_failed", "seconds", "session_id"
+]
 
 struct RawWriter
     path::String
@@ -71,8 +94,9 @@ struct RawWriter
 end
 
 function RawWriter(job::AbstractDict)
-    w = RawWriter(jstr(job, "raw_file"), jstr(job, "per_sample_file"), jstr(job, "session_id"), "julia",
-                  jint(job, "rep", 1))
+    w = RawWriter(
+        jstr(job, "raw_file"), jstr(job, "per_sample_file"), jstr(job, "session_id"), "julia", jint(job, "rep", 1)
+    )
     for (p, h) in ((w.path, RAW_HEADER), (w.per_sample_path, PER_SAMPLE_HEADER))
         mkpath(dirname(p))
         isfile(p) || open(io -> println(io, join(h, ",")), p, "w")
@@ -91,27 +115,77 @@ _csvfield(x) = _csvfield(string(x))
 
 Append one measurement. Unknown quantities are left as NA.
 """
-function record!(w::RawWriter; variant::AbstractString, component::AbstractString, wall_s::Real,
-                 subcomponent::AbstractString = "", workload::AbstractString = "", n::Integer = 1,
-                 threads::Integer = Threads.nthreads(), rep::Integer = w.rep, mode::AbstractString = "warm",
-                 cpu_s::Real = NaN, gc_s::Real = NaN, compile_s::Real = NaN, alloc_bytes::Integer = -1,
-                 peak_rss_bytes::Integer = -1, checksum_ok::Bool = true, notes::AbstractString = "",
-                 impl::AbstractString = w.impl)
-    row = Any[impl, variant, component, subcomponent, workload, n, threads, rep, mode, Float64(wall_s),
-              Float64(cpu_s), Float64(gc_s), Float64(compile_s), alloc_bytes, peak_rss_bytes, checksum_ok,
-              w.session, Dates.format(Dates.now(), "yyyy-mm-ddTHH:MM:SS"), notes]
+function record!(
+    w::RawWriter;
+    variant::AbstractString,
+    component::AbstractString,
+    wall_s::Real,
+    subcomponent::AbstractString="",
+    workload::AbstractString="",
+    n::Integer=1,
+    threads::Integer=Threads.nthreads(),
+    rep::Integer=w.rep,
+    mode::AbstractString="warm",
+    cpu_s::Real=NaN,
+    gc_s::Real=NaN,
+    compile_s::Real=NaN,
+    alloc_bytes::Integer=-1,
+    peak_rss_bytes::Integer=-1,
+    checksum_ok::Bool=true,
+    notes::AbstractString="",
+    impl::AbstractString=w.impl,
+)
+    row = Any[
+        impl,
+        variant,
+        component,
+        subcomponent,
+        workload,
+        n,
+        threads,
+        rep,
+        mode,
+        Float64(wall_s),
+        Float64(cpu_s),
+        Float64(gc_s),
+        Float64(compile_s),
+        alloc_bytes,
+        peak_rss_bytes,
+        checksum_ok,
+        w.session,
+        Dates.format(Dates.now(), "yyyy-mm-ddTHH:MM:SS"),
+        notes,
+    ]
     open(io -> println(io, join(_csvfield.(row), ",")), w.path, "a")
     return nothing
 end
 
 "Record the result of [`measure`](@ref) (wall, GC, compile time, allocations)."
 record!(w::RawWriter, m::NamedTuple; kwargs...) =
-    record!(w; merge((wall_s = m.wall, gc_s = m.gc, compile_s = m.compile, alloc_bytes = m.bytes), values(kwargs))...)
+    record!(w; merge((wall_s=m.wall, gc_s=m.gc, compile_s=m.compile, alloc_bytes=m.bytes), values(kwargs))...)
 
 function record_per_sample!(w::RawWriter, variant, component, sample::Integer, group, iterations, n_failed, seconds)
     open(w.per_sample_path, "a") do io
-        println(io, join(_csvfield.(Any[w.impl, variant, component, w.rep, sample, group, iterations, n_failed,
-                                       Float64(seconds), w.session]), ","))
+        println(
+            io,
+            join(
+                _csvfield.(
+                    Any[
+                        w.impl,
+                        variant,
+                        component,
+                        w.rep,
+                        sample,
+                        group,
+                        iterations,
+                        n_failed,
+                        Float64(seconds),
+                        w.session,
+                    ]
+                ),
+                ",",
+            ),
+        )
     end
 end
 
@@ -127,7 +201,7 @@ Wall time (s), GC time (s), compilation time (s) and bytes allocated by one call
 function measure(f)
     t = @timed f()
     compile = hasproperty(t, :compile_time) ? Float64(t.compile_time) : NaN
-    return (wall = Float64(t.time), gc = Float64(t.gctime), compile = compile, bytes = Int(t.bytes), value = t.value)
+    return (wall=Float64(t.time), gc=Float64(t.gctime), compile=compile, bytes=Int(t.bytes), value=t.value)
 end
 
 "Wall time of `k` calls of `f()`, in seconds per call."
@@ -140,7 +214,7 @@ function per_call(f, k::Integer)
 end
 
 "Number of calls needed for a timed block to last at least `target` seconds."
-function calls_for(f; target::Real = 0.05, max_calls::Integer = 10^7)
+function calls_for(f; target::Real=0.05, max_calls::Integer=10^7)
     k = 1
     while k < max_calls
         t = per_call(f, k) * k
@@ -170,7 +244,7 @@ Run one benchmark component. A failed guard or an error is logged as a row with
 `checksum_ok = false` (so the report shows it), printed, and does not stop the
 other components.
 """
-function component!(f, w::RawWriter, variant::AbstractString, component::AbstractString; workload::AbstractString = "")
+function component!(f, w::RawWriter, variant::AbstractString, component::AbstractString; workload::AbstractString="")
     t0 = time()
     try
         f()
@@ -178,18 +252,27 @@ function component!(f, w::RawWriter, variant::AbstractString, component::Abstrac
     catch err
         msg = err isa GuardError ? err.msg : sprint(showerror, err)
         @error "$(w.impl) $variant $component failed" exception = (err, catch_backtrace())
-        record!(w; variant = variant, component = component, workload = workload, wall_s = NaN,
-                checksum_ok = false, notes = first(replace(msg, '\n' => ' '), 300))
+        record!(
+            w;
+            variant=variant,
+            component=component,
+            workload=workload,
+            wall_s=NaN,
+            checksum_ok=false,
+            notes=first(replace(msg, '\n' => ' '), 300),
+        )
     end
     return nothing
 end
 
 "Inf/NaN positions identical; finite values within rtol before the first failure and rtol_post after."
-function check_outputs(label, got::AbstractMatrix, ref::AbstractMatrix; rtol = 1e-8, rtol_post = 1e-4, atol = 1e-10,
-                       exact::Bool = false)
+function check_outputs(
+    label, got::AbstractMatrix, ref::AbstractMatrix; rtol=1e-8, rtol_post=1e-4, atol=1e-10, exact::Bool=false
+)
     check(size(got) == size(ref), "$label: size $(size(got)) vs $(size(ref))")
-    post = cumsum(isinf.(ref); dims = 2) .> 0
-    nbad = 0; nmask = 0
+    post = cumsum(isinf.(ref); dims=2) .> 0
+    nbad = 0
+    nmask = 0
     for i in eachindex(got, ref)
         x, y = got[i], ref[i]
         if isnan(x) || isnan(y) || isinf(x) || isinf(y)
@@ -237,9 +320,12 @@ memory_ok(projected::Real, fraction::Real) = projected <= fraction * total_memor
 #   R GlobalLHS: two n × 56 matrices (parameters_lhs and par_calib_tmp) plus the list of
 #   chunks (finding F-11); per chunk 58·58·chunk·12 covariances plus 58·chunk·12 series.
 r_engine_bytes(n, chunk) = 3 * 8.0 * n * 56 + 8.0 * chunk * 12 * (58 * 58 + 58) + 4e8
-julia_engine_bytes(n, chunk; global_lhs = false, covariances = false, threads = 1) =
-    (global_lhs ? 2 * 8.0 * n * 56 : 0.0) + threads * 8.0 * chunk * (56 + 12 * 58 + 3 * 58) +
-    (covariances ? threads * 8.0 * chunk * 12 * 58 * 58 : 0.0) + 1.5e9
+function julia_engine_bytes(n, chunk; global_lhs=false, covariances=false, threads=1)
+    return (global_lhs ? 2 * 8.0 * n * 56 : 0.0) +
+           threads * 8.0 * chunk * (56 + 12 * 58 + 3 * 58) +
+           (covariances ? threads * 8.0 * chunk * 12 * 58 * 58 : 0.0) +
+           1.5e9
+end
 
 # ---------------------------------------------------------------------------------
 # Legacy inputs: the exports of test/legacy_comparison (constants.csv, time_series.csv,
@@ -260,9 +346,17 @@ Stratification of plan §5.1: `clean` (no failed step), `heavy` (the 10 % with t
 failed steps) and `partial` (the rest).
 """
 function sample_groups(co2_ref::AbstractMatrix)
-    nfail = vec(count(isinf, co2_ref; dims = 2))
+    nfail = vec(count(isinf, co2_ref; dims=2))
     cut = quantile(Float64.(nfail), 0.9)
-    return [nf == 0 ? "clean" : (nf >= cut && nf > 0) ? "heavy" : "partial" for nf in nfail], nfail
+    return [
+        if nf == 0
+            "clean"
+        elseif (nf >= cut && nf > 0)
+            "heavy"
+        else
+            "partial"
+        end for nf in nfail
+    ], nfail
 end
 
 const SESSION_START = time()

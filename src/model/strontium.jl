@@ -9,8 +9,9 @@ Volcanic / non-volcanic silicate weathering, the "volc" in GEOCARBSULFvolc (Bern
 - `Xvolc`: fraction of Ca and Mg silicate weathering derived from volcanic rocks;
 - `fvolc`: volcanic weathering effect relative to the present.
 """
-@inline function volcanic_weathering(i::Int, src, bur, s::ReservoirState, p::ConstantParams,
-                                     f::TimeForcings, k::ResolvedConstants)
+@inline function volcanic_weathering(
+    i::Int, src, bur, s::ReservoirState, p::ConstantParams, f::TimeForcings, k::ResolvedConstants
+)
     roc = (f.Sr[i] / SR_SCALE) + k.sr_offset
     Rg = p.Rg_570 - p.NV * (1 - nanpow(f.fR[i], 1 / p.exp_NV))
     A = ((p.Rv_570 - roc) * f.fSR[i] * p.Fob) / (bur.Fbc - src.Fwcy - src.Fwca)

@@ -1,0 +1,11 @@
+# Formatter environment shared by the pre-commit hook (scripts/dev/format.jl) and
+# .github/workflows/Format.yml, so both always format with the same version.
+# Change the version only in its own commit, followed by a reformat commit whose SHA
+# goes in .git-blame-ignore-revs. Commit Manifest.toml after `Pkg.instantiate()` so
+# the formatter's own dependencies (JuliaSyntax and others) are fixed too.
+[deps]
+JuliaFormatter = "98e50ef6-434e-11e9-1051-2b60c6c9e899"
+
+[compat]
+JuliaFormatter = "=2.14.11"
+julia = "1.10"

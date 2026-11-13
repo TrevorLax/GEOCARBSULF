@@ -7,8 +7,9 @@ t_using = @elapsed using GeocarbPrecalibration
 include(joinpath(@__DIR__, "..", "lib", "common.jl"))
 job = read_job(ARGS[1])
 w = RawWriter(job)
-record!(w; variant = "J", component = "S1", subcomponent = "using GeocarbPrecalibration (in process)", mode = "cold",
-        wall_s = t_using)
+record!(
+    w; variant="J", component="S1", subcomponent="using GeocarbPrecalibration (in process)", mode="cold", wall_s=t_using
+)
 function setup_inputs()
     table = read_prior_table(datapath("GEOCARB_input_summaries_calib_all.csv"))
     priors = build_priors(table)
@@ -17,16 +18,16 @@ function setup_inputs()
     tw = temperature_windows(read_temperature_data(datapath("Mills_GR_2019_temp_co2.csv")), tp.center.age)
     cw = co2_windows(proxy, tp.center.age)
     dof = inverse_wishart_dof(tp.sigma, read_variance_reduction())
-    return (table = table, priors = priors, tp = tp, cw = cw, tw = tw, dof = dof)
+    return (table=table, priors=priors, tp=tp, cw=cw, tw=tw, dof=dof)
 end
 m = measure(setup_inputs)
-record!(w, m; variant = "J", component = "S2", subcomponent = "input set-up", mode = "first_call")
+record!(w, m; variant="J", component="S2", subcomponent="input set-up", mode="first_call")
 m2 = measure(setup_inputs)
-record!(w, m2; variant = "J", component = "S2", subcomponent = "input set-up", mode = "warm")
+record!(w, m2; variant="J", component="S2", subcomponent="input set-up", mode="warm")
 s = m.value
 p = mean_constants(s.table)
 m = measure(() -> run_geocarb(p, s.tp.center))
 check(succeeded(m.value), "prior-mean run failed")
-record!(w, m; variant = "J", component = "S3", subcomponent = "first run_geocarb", mode = "first_call")
+record!(w, m; variant="J", component="S3", subcomponent="first run_geocarb", mode="first_call")
 m = measure(() -> run_geocarb(p, s.tp.center))
-record!(w, m; variant = "J", component = "S3", subcomponent = "run_geocarb", mode = "warm")
+record!(w, m; variant="J", component="S3", subcomponent="run_geocarb", mode="warm")

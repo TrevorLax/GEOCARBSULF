@@ -12,7 +12,7 @@
     @test glac.base == Distributions.Normal(2.0, 0.5)           # σ = two_sigma / 2
     u = 0.3                                                     # R: qnorm(u*(F(hi)-F(lo)) + F(lo))
     @test G.quantile_from_unit(glac, u) ==
-          Distributions.quantile(Distributions.Normal(2.0, 0.5), u * (glac.cdf_upper - glac.cdf_lower) + glac.cdf_lower)
+        Distributions.quantile(Distributions.Normal(2.0, 0.5), u * (glac.cdf_upper - glac.cdf_lower) + glac.cdf_lower)
 
     X = sample_constants(StableRNG(3), priors, 20_000)
     @test size(X) == (20_000, 56)

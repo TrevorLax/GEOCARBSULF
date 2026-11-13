@@ -28,6 +28,7 @@
     @test G.volcanic_weathering_factor(p.Xvolc_0, p) == 1.0
     @test G.update_oxygen(570.0, 25.0, src, bur, 10.0) == 25.0          # first step unchanged
     ox = G.update_oxygen(560.0, 25.0, src, bur, 10.0)
-    @test ox ≈ 25 + (bur.Fbg + 15 / 8 * bur.Fbp) * 10 - (src.Fwgy + src.Fwga + src.Fmg) * 10 -
-               15 / 8 * (src.Fwpy + src.Fwpa + src.Fmp) * 10
+    @test ox ≈
+        25 + (bur.Fbg + 15 / 8 * bur.Fbp) * 10 - (src.Fwgy + src.Fwga + src.Fmg) * 10 -
+          15 / 8 * (src.Fwpy + src.Fwpa + src.Fmp) * 10
 end

@@ -5,23 +5,45 @@ the **precalibration** workflow used by Wong et al. (2021), *A tighter constrain
 Earth-system sensitivity from long-term temperature and carbon-cycle observations*.
 It is a port of the R/Fortran code `GEOCARB-precalibration` by Tony Wong and Ying Cui.
 
+## Statement of need
+
+GEOCARB-type models are the standard tool for reconstructing Phanerozoic CO2 and
+for constraining Earth-system sensitivity from the geological record. The original
+precalibration code mixes R driver scripts with a compiled Fortran model, edits
+experiment settings in place, and is difficult to extend, test or run in parallel.
+GeocarbPrecalibration.jl gives the same model and workflow as one documented, tested
+Julia package. It reproduces the compiled Fortran to rounding error, which is checked
+continuously against the original code. Runs are deterministic across thread counts,
+experiments are declared in TOML files, and model variants are options rather than
+copies of the source.
+
 ## Quick start
 
-```julia
-using GeocarbPrecalibration
+```jldoctest quickstart
+julia> using GeocarbPrecalibration
 
-table = read_prior_table(datapath("GEOCARB_input_summaries_calib_all.csv"))
-arrays = read_time_arrays(datapath("GEOCARB_input_arrays_NewDegassing.csv"))
+julia> table = read_prior_table(datapath("GEOCARB_input_summaries_calib_all.csv"));
 
-p = mean_constants(table)          # the 56 constants at their prior means
-f = arrays.center                  # the 12 forcings at their central estimates
-r = run_geocarb(p, f)              # 570 Ma → present, 10 Myr steps
+julia> arrays = read_time_arrays(datapath("GEOCARB_input_arrays_NewDegassing.csv"));
 
-r.co2                              # ppmv; Inf on failed steps
-temperature(r)                     # °C, comparable with the Mills et al. (2019) windows
+julia> p = mean_constants(table);   # the 56 constants at their prior means
+
+julia> f = arrays.center;           # the 12 forcings at their central estimates
+
+julia> r = run_geocarb(p, f);       # 570 Ma → present, 10 Myr steps
+
+julia> succeeded(r)                 # every step converged
+true
+
+julia> round(r.co2[end]; digits = 1)            # present-day CO2, ppmv (Inf on failed steps)
+243.7
+
+julia> round(temperature(r)[end]; digits = 2)   # °C, comparable with the Mills et al. (2019) windows
+14.78
 ```
 
-Run a (small) precalibration experiment from a configuration file:
+Run a (small) precalibration experiment from a configuration file. This takes about a
+minute, so it is not run as a doctest:
 
 ```julia
 cfgs = load_experiments("experiments/example_small.toml")

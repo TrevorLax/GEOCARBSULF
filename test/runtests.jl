@@ -1,7 +1,7 @@
 # Test entry point. Select a group with the GROUP environment variable:
 #
-#   GROUP=all (default)  unit, io, sampling, constraints, workflow, regression, quality
-#   GROUP=unit | io | sampling | constraints | workflow | regression | quality
+#   GROUP=all (default)  unit, io, sampling, constraints, workflow, regression, quality, doctests
+#   GROUP=unit | io | sampling | constraints | workflow | regression | quality | doctests
 #   GROUP=legacy         compare with the original R/Fortran code (needs R and the
 #                        compiled Fortran; see test/legacy_comparison/README.md)
 #
@@ -13,6 +13,7 @@ using GeocarbPrecalibration
 using ForwardDiff
 using HypothesisTests
 using Aqua
+using Documenter
 
 const GROUP = lowercase(get(ENV, "GROUP", isempty(ARGS) ? "all" : ARGS[1]))
 const G = GeocarbPrecalibration
@@ -68,6 +69,11 @@ rungroup(g) = GROUP == "all" ? g != "legacy" : GROUP == g
         @testset "quality" begin
             include("quality/test_aqua.jl")
         end
+    end
+    if rungroup("doctests")
+        # jldoctest blocks in docstrings; the manual pages are doctested by docs/make.jl
+        DocMeta.setdocmeta!(GeocarbPrecalibration, :DocTestSetup, :(using GeocarbPrecalibration); recursive=true)
+        doctest(GeocarbPrecalibration; manual=false)
     end
     if rungroup("legacy")
         include("legacy_comparison/run_comparison.jl")

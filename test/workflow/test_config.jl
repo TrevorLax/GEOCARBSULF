@@ -29,13 +29,13 @@
     @test build_rule(cret) isa AllOf && length(build_rule(cret).rules) == 3
 
     # errors
-    @test_throws ArgumentError load_experiments(tmpfile("nmae = \"typo\"\n"; ext = ".toml"))
-    @test_throws ArgumentError load_experiments(tmpfile("[grid]\nthreshhold = [0.3]\n"; ext = ".toml"))
-    @test_throws ArgumentError load_experiments(tmpfile("[model]\ngym_fac = 0.5\n"; ext = ".toml"))
-    @test_throws ArgumentError load_experiments(tmpfile("data_choice = \"PR2011\"\n"; ext = ".toml"))
-    @test_throws ArgumentError validate(small_config(threshold = 0.0))
-    @test_throws ArgumentError validate(small_config(constraint = :o2))
-    @test_throws ArgumentError validate(small_config(prior_file = "nope.csv"))
-    @test_throws ArgumentError validate(with_overrides(small_config(); seed = -1))
+    @test_throws ArgumentError load_experiments(tmpfile("nmae = \"typo\"\n"; ext=".toml"))
+    @test_throws ArgumentError load_experiments(tmpfile("[grid]\nthreshhold = [0.3]\n"; ext=".toml"))
+    @test_throws ArgumentError load_experiments(tmpfile("[model]\ngym_fac = 0.5\n"; ext=".toml"))
+    @test_throws ArgumentError load_experiments(tmpfile("data_choice = \"PR2011\"\n"; ext=".toml"))
+    @test_throws ArgumentError validate(small_config(; threshold=0.0))
+    @test_throws ArgumentError validate(small_config(; constraint=:o2))
+    @test_throws ArgumentError validate(small_config(; prior_file="nope.csv"))
+    @test_throws ArgumentError validate(with_overrides(small_config(); seed=-1))
     @test default_tag(:temp, 0.35) == "t_out35"
 end

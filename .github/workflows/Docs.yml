@@ -1,0 +1,62 @@
+# Documentation with Documenter.jl: jldoctests, HTML build, deployment to gh-pages.
+# main -> "dev" docs, tags v* -> versioned/"stable" docs, same-repo PRs -> previews
+# (previews/PR<n>). Fork PRs build and doctest but cannot deploy; download the
+# "docs-html" artifact instead.
+name: Docs
+
+on:
+  push:
+    branches: ["**"]
+    tags: ["v*"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  docs:
+    name: Documentation
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write # push to gh-pages
+      pull-requests: write # preview links
+      statuses: write # Documenter reports the preview deployment as a commit status
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Documenter deploys with GITHUB_TOKEN (env below), not with the checkout's
+          # stored credentials, so they need not stay in .git/config.
+          persist-credentials: false
+      - uses: julia-actions/setup-julia@da908477b5db94c10ffce8cfea9f2b3b9d5db687 # v3.0.3
+        with:
+          version: "1"
+      - uses: julia-actions/cache@9353db09a0f2bbbdec6f41791918c75d37391b36 # v3.5.0
+      - name: Instantiate the docs environment
+        run: julia --project=docs -e 'using Pkg; Pkg.develop(PackageSpec(path = pwd())); Pkg.instantiate()'
+      # Fast, separate signal for docstring doctests; the manual pages' doctests run in
+      # makedocs below (doctest = true), which fails the build on any doctest error.
+      - name: Doctests (docstrings)
+        run: |
+          julia --project=docs --color=yes -e '
+            using Documenter: DocMeta, doctest
+            using GeocarbPrecalibration
+            DocMeta.setdocmeta!(GeocarbPrecalibration, :DocTestSetup, :(using GeocarbPrecalibration); recursive = true)
+            doctest(GeocarbPrecalibration; manual = false)'
+      - name: Build (with manual doctests) and deploy
+        run: julia --project=docs --color=yes docs/make.jl
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload the HTML
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: docs-html
+          path: docs/build/
+          retention-days: 7
+          if-no-files-found: ignore

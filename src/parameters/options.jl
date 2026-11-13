@@ -48,31 +48,43 @@ struct ModelOptions
 end
 
 _pair(x) = (length(x) == 2 || throw(ArgumentError("expected a pair of numbers, got $x"));
-            (Float64(x[1]), Float64(x[2])))
+(Float64(x[1]), Float64(x[2])))
 
 function ModelOptions(;
-    dt::Real = 10.0,
-    glacial_intervals = [(260.0, 330.0), (-Inf, 40.0)],
-    gym_angio_transition = (130.0, 80.0),
-    gym_factor::Real = 1.0,
-    dT2X_ramp::Bool = false,
-    dT2X_ramp_interval = (130.0, 40.0),
-    iteration_threshold::Integer = 10,
-    convergence_tol::Real = 0.01,
-    newton_damping::Real = 0.9,
-    newton_shrink::Real = 0.2,
-    rco2_bounds = (0.6, 200.0),
-    present_day_o2_percent = (19.0, 23.0),
-    present_day_rco2 = (0.8, 1.2),
-    corrected_newton_derivative::Bool = false,
-    fortran_single_literals::Bool = true,
+    dt::Real=10.0,
+    glacial_intervals=[(260.0, 330.0), (-Inf, 40.0)],
+    gym_angio_transition=(130.0, 80.0),
+    gym_factor::Real=1.0,
+    dT2X_ramp::Bool=false,
+    dT2X_ramp_interval=(130.0, 40.0),
+    iteration_threshold::Integer=10,
+    convergence_tol::Real=0.01,
+    newton_damping::Real=0.9,
+    newton_shrink::Real=0.2,
+    rco2_bounds=(0.6, 200.0),
+    present_day_o2_percent=(19.0, 23.0),
+    present_day_rco2=(0.8, 1.2),
+    corrected_newton_derivative::Bool=false,
+    fortran_single_literals::Bool=true,
 )
     gi = Tuple{Float64,Float64}[_pair(g) for g in glacial_intervals]
-    o = ModelOptions(Float64(dt), gi, _pair(gym_angio_transition), Float64(gym_factor),
-        dT2X_ramp, _pair(dT2X_ramp_interval), Int(iteration_threshold),
-        Float64(convergence_tol), Float64(newton_damping), Float64(newton_shrink),
-        _pair(rco2_bounds), _pair(present_day_o2_percent), _pair(present_day_rco2),
-        corrected_newton_derivative, fortran_single_literals)
+    o = ModelOptions(
+        Float64(dt),
+        gi,
+        _pair(gym_angio_transition),
+        Float64(gym_factor),
+        dT2X_ramp,
+        _pair(dT2X_ramp_interval),
+        Int(iteration_threshold),
+        Float64(convergence_tol),
+        Float64(newton_damping),
+        Float64(newton_shrink),
+        _pair(rco2_bounds),
+        _pair(present_day_o2_percent),
+        _pair(present_day_rco2),
+        corrected_newton_derivative,
+        fortran_single_literals,
+    )
     validate(o)
     return o
 end
@@ -97,18 +109,20 @@ function validate(o::ModelOptions)
     o.convergence_tol > 0 || throw(ArgumentError("convergence_tol must be positive"))
     0 < o.newton_damping <= 1 || throw(ArgumentError("newton_damping must be in (0, 1]"))
     0 < o.newton_shrink < 1 || throw(ArgumentError("newton_shrink must be in (0, 1)"))
-    for (nm, (lo, hi)) in (("rco2_bounds", o.rco2_bounds),
-                           ("present_day_o2_percent", o.present_day_o2_percent),
-                           ("present_day_rco2", o.present_day_rco2))
+    for (nm, (lo, hi)) in (
+        ("rco2_bounds", o.rco2_bounds),
+        ("present_day_o2_percent", o.present_day_o2_percent),
+        ("present_day_rco2", o.present_day_rco2),
+    )
         lo < hi || throw(ArgumentError("$nm must be (lower, upper) with lower < upper"))
     end
     return o
 end
 
-Base.:(==)(a::ModelOptions, b::ModelOptions) =
-    all(getfield(a, f) == getfield(b, f) for f in fieldnames(ModelOptions))
-Base.hash(o::ModelOptions, h::UInt) =
-    foldl((acc, f) -> hash(getfield(o, f), acc), fieldnames(ModelOptions); init = hash(:ModelOptions, h))
+Base.:(==)(a::ModelOptions, b::ModelOptions) = all(getfield(a, f) == getfield(b, f) for f in fieldnames(ModelOptions))
+function Base.hash(o::ModelOptions, h::UInt)
+    return foldl((acc, f) -> hash(getfield(o, f), acc), fieldnames(ModelOptions); init=hash(:ModelOptions, h))
+end
 
 "The default options (the behaviour of `run_geocarb.f90`)."
 const DEFAULT_MODEL_OPTIONS = ModelOptions()
@@ -124,8 +138,7 @@ function model_options_from_dict(d::AbstractDict)
     kw = Dict{Symbol,Any}()
     for (k, v) in d
         s = Symbol(k)
-        s in allowed || throw(ArgumentError(
-            "unknown model option '$k'; allowed: " * join(String.(allowed), ", ")))
+        s in allowed || throw(ArgumentError("unknown model option '$k'; allowed: " * join(String.(allowed), ", ")))
         kw[s] = v
     end
     return ModelOptions(; kw...)
@@ -140,14 +153,26 @@ function options_dict(o::ModelOptions)
     d = Dict{String,Any}()
     for f in fieldnames(ModelOptions)
         v = getfield(o, f)
-        d[String(f)] = v isa Tuple ? collect(v) :
-                       v isa AbstractVector ? [collect(x) for x in v] : v
+        d[String(f)] = if v isa Tuple
+            collect(v)
+        elseif v isa AbstractVector
+            [collect(x) for x in v]
+        else
+            v
+        end
     end
     return d
 end
 
-# Numerical constants actually used by the model, after optional rounding through
-# Float32 (finding F-05: gfortran stores default-REAL literals in single precision).
+"""
+    ResolvedConstants
+
+Numerical constants actually used by the model (`ln 2`, solver tolerance and
+damping, Sr offset, RCO2 bounds, present-day checks), built from a
+[`ModelOptions`](@ref) by `resolve_constants`. When `fortran_single_literals = true`
+each value is rounded through `Float32`, as gfortran stores default-REAL literals in
+single precision (finding F-05). Internal; not part of the public API.
+"""
 struct ResolvedConstants
     ln2::Float64
     tol::Float64
@@ -167,10 +192,16 @@ end
 @inline function resolve_constants(o::ModelOptions)
     s = o.fortran_single_literals
     return ResolvedConstants(
-        _lit(log(2.0), s), _lit(o.convergence_tol, s), _lit(o.newton_damping, s),
-        _lit(o.newton_shrink, s), _lit(SR_OFFSET, s),
-        _lit(o.rco2_bounds[1], s), _lit(o.rco2_bounds[2], s),
-        _lit(o.present_day_o2_percent[1], s), _lit(o.present_day_o2_percent[2], s),
-        _lit(o.present_day_rco2[1], s), _lit(o.present_day_rco2[2], s),
+        _lit(log(2.0), s),
+        _lit(o.convergence_tol, s),
+        _lit(o.newton_damping, s),
+        _lit(o.newton_shrink, s),
+        _lit(SR_OFFSET, s),
+        _lit(o.rco2_bounds[1], s),
+        _lit(o.rco2_bounds[2], s),
+        _lit(o.present_day_o2_percent[1], s),
+        _lit(o.present_day_o2_percent[2], s),
+        _lit(o.present_day_rco2[1], s),
+        _lit(o.present_day_rco2[2], s),
     )
 end

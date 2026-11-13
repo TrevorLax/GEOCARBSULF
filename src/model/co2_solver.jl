@@ -48,8 +48,14 @@ end
     fw = (tf * nanpow(R, g)) * nanpow(1 + R, -p.FERT) * nanpow(base, p.exp_fD) * e1 * e2
     W = tf * g * nanpow(R, g - 1) * nanpow(1 + R, -p.FERT) * nanpow(base, p.exp_fD) * e1 * e2
     V = (-p.FERT * nanpow(1 + R, -(1 + p.FERT))) * (tf * nanpow(R, g)) * nanpow(base, p.exp_fD) * e1 * e2
-    X = p.exp_fD * nanpow(base, -(1 - p.exp_fD)) * (RT * gcm / R) * (tf * nanpow(R, g)) *
-        nanpow(1 + R, -p.FERT) * e1 * e2
+    X =
+        p.exp_fD *
+        nanpow(base, -(1 - p.exp_fD)) *
+        (RT * gcm / R) *
+        (tf * nanpow(R, g)) *
+        nanpow(1 + R, -p.FERT) *
+        e1 *
+        e2
     return fw, W, V, X
 end
 
@@ -65,8 +71,9 @@ Fortran (f90:431-521). In particular, convergence is judged on the *relative ste
 (`abs(RCO2/RCO2_old − 1) ≤ tol`), and the iteration at which `count ==
 iteration_threshold` is counted as a failure.
 """
-@inline function solve_rco2(t::Real, rco2, fwsi_nc, gcm, RT, GEOG, p::ConstantParams,
-                            o::ModelOptions, k::ResolvedConstants)
+@inline function solve_rco2(
+    t::Real, rco2, fwsi_nc, gcm, RT, GEOG, p::ConstantParams, o::ModelOptions, k::ResolvedConstants
+)
     rco2_old = 2 * rco2   # guarantees at least one iteration (f90:431)
     count = 0
     status = Converged
@@ -93,8 +100,9 @@ iteration_threshold` is counted as a failure.
             fwo, Wo, Vo = _nonvascular_terms(rco2, t, RT, GEOG, gcm, p, o.corrected_newton_derivative, true)
             fwn, Wn, Vn, Xn = _vascular_terms(rco2, t, RT, GEOG, gcm, p)
             fw = (t - AGE_GYMNOSPERM) / BLEND_DENOMINATOR * fwo + (BLEND_UPPER - t) / BLEND_DENOMINATOR * fwn
-            slope = (t - AGE_GYMNOSPERM) / BLEND_DENOMINATOR * (Wo + Vo) +
-                    (BLEND_UPPER - t) / BLEND_DENOMINATOR * (Wn + Vn + Xn)
+            slope =
+                (t - AGE_GYMNOSPERM) / BLEND_DENOMINATOR * (Wo + Vo) +
+                (BLEND_UPPER - t) / BLEND_DENOMINATOR * (Wn + Vn + Xn)
             nan = isnan(fwo + Wo + Vo + fwn + Wn + Vn + Xn + fw + slope)
             if nan || count == o.iteration_threshold
                 status = nan ? NaNEncountered : NotConverged

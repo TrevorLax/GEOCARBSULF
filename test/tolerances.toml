@@ -1,0 +1,15 @@
+# Tolerances for agreement with the original Fortran: the single source for
+# test/legacy_comparison/compare.jl (live R/Fortran comparison) and
+# test/regression/test_fortran_golden.jl (golden-master fixtures).
+#
+# Finite values a (Julia) and b (legacy) must satisfy
+#     |a - b| <= atol + rtol * max(|a|, |b|)
+# with rtol_clean before a run's first failed step and rtol_post at or after it.
+# See docs/src/testing.md for why the two differ (finding F-08).
+#
+# Changing this file needs a CHANGELOG entry that uses the word "tolerance" and says
+# why (checked by scripts/ci/check_changes.jl).
+
+rtol_clean = 1e-8
+rtol_post = 1e-4
+atol = 1e-10

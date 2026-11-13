@@ -1,5 +1,9 @@
 # The model
 
+```@meta
+DocTestSetup = :(using GeocarbPrecalibration)
+```
+
 GEOCARBSULFvolc (Berner 2004, 2006a, 2006b, 2008; Royer et al. 2014) tracks the long-term
 carbon and sulfur cycles from 570 Ma to the present in 10 Myr steps. At each step it
 solves for the atmospheric CO2 level that balances silicate weathering against the
@@ -39,8 +43,17 @@ accept failed runs in the R code (finding F-04; see `reject_failed_runs`).
 [`ModelOptions`](@ref) replaces the second Fortran subroutine `run_geocarb_supp.f90`.
 For example, the "gym+timing+dT2X" experiment is
 
-```julia
-ModelOptions(gym_angio_transition = (110, 60), gym_factor = 0.25, dT2X_ramp = true)
+```jldoctest
+julia> table = read_prior_table(datapath("GEOCARB_input_summaries_calib_all.csv"));
+
+julia> f = read_time_arrays(datapath("GEOCARB_input_arrays_NewDegassing.csv")).center;
+
+julia> opts = ModelOptions(gym_angio_transition = (110, 60), gym_factor = 0.25, dT2X_ramp = true);
+
+julia> r = run_geocarb(mean_constants(table), f; options = opts);
+
+julia> succeeded(r), round(r.co2[end]; digits = 1)
+(true, 243.6)
 ```
 
 Two options control numerics that deliberately follow the legacy code by default:

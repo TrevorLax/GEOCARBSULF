@@ -17,9 +17,9 @@
     @test_throws ArgumentError read_csv_table(tmpfile("a,b\n\"1,2\n"))
     @test_throws ArgumentError read_csv_table("this/file/does/not/exist.csv")
     tn = read_csv_table(tmpfile("x,y\n1.5,inf\n_inf,NA\n"))
-    @test G.numeric_column(tn, "x"; allow_missing = true)[1] == 1.5
-    @test G.numeric_column(tn, "y"; allow_missing = true)[1] == Inf
-    @test isnan(G.numeric_column(tn, "y"; allow_missing = true)[2])
+    @test G.numeric_column(tn, "x"; allow_missing=true)[1] == 1.5
+    @test G.numeric_column(tn, "y"; allow_missing=true)[1] == Inf
+    @test isnan(G.numeric_column(tn, "y"; allow_missing=true)[2])
     @test G.parse_number("_inf") == -Inf
     @test_throws ArgumentError G.numeric_column(tn, "y")    # NA not allowed by default
     @test_throws ArgumentError G.numeric_column(tn, "z")    # missing column
@@ -27,6 +27,6 @@
     vals = [0.1, 1 / 3, -2.5e-300, Inf, NaN]
     path = G.write_csv(tmpfile(""), ["v", "s"], [vals, ["a", "b,c", "d", "e", "f"]])
     back = read_csv_table(path)
-    @test isequal(G.numeric_column(back, "v"; allow_missing = true), vals)
+    @test isequal(G.numeric_column(back, "v"; allow_missing=true), vals)
     @test G.column(back, "s")[2] == "b,c"
 end

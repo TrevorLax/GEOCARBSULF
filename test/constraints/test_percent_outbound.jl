@@ -18,6 +18,6 @@
     @test_throws ArgumentError percent_outbound(r, cw, :o2)
     bad = GeocarbResult(r.age, copy(r.co2), copy(r.o2), copy(r.temp), copy(r.status), copy(r.iterations))
     bad.status[10] = NotConverged
-    @test percent_outbound(bad, tw, :temp; reject_failed = true) == 1      # finding F-04 fix
+    @test percent_outbound(bad, tw, :temp; reject_failed=true) == 1      # finding F-04 fix
     @test percent_outbound(bad, tw, :temp) == percent_outbound(r, tw, :temp)
 end

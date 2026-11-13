@@ -34,8 +34,9 @@ end
 `reject_failed = true`, any run with a failed step scores `1.0`, whatever the
 variable. With `false` (the default), the result equals [`legacy_percent_outbound`](@ref).
 """
-function percent_outbound(r::GeocarbResult, w::Windows, variable::Symbol;
-                          T0::Real = PRESENT_TEMPERATURE, reject_failed::Bool = false)
+function percent_outbound(
+    r::GeocarbResult, w::Windows, variable::Symbol; T0::Real=PRESENT_TEMPERATURE, reject_failed::Bool=false
+)
     reject_failed && !succeeded(r) && return 1.0
     if variable == :co2
         return legacy_percent_outbound(r.co2, w)

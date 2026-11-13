@@ -13,6 +13,18 @@ f = TimeForcings(age; Sr = sr, d13C = d13c, ...)
 f[:GEOG]                                                     # access by Symbol
 ```
 
+# Examples
+
+```jldoctest
+julia> f = read_time_arrays(datapath("GEOCARB_input_arrays_NewDegassing.csv")).center;
+
+julia> length(f.age), f.age[1], f.age[end]
+(58, 570.0, 0.0)
+
+julia> f[:GEOG] === f.GEOG
+true
+```
+
 The vectors are mutable, so the samplers can overwrite them in place
 ([`sample_time_forcings!`](@ref)).
 """
@@ -36,8 +48,7 @@ struct TimeForcings{T<:Real}
         _check_age_grid_shape(a)
         n = length(a)
         for (name, s) in zip(TIME_FORCING_NAMES, series)
-            length(s) == n || throw(ArgumentError(
-                "forcing :$name has $(length(s)) values but the age grid has $n"))
+            length(s) == n || throw(ArgumentError("forcing :$name has $(length(s)) values but the age grid has $n"))
         end
         vs = map(s -> collect(T, s), series)
         return new{T}(a, vs...)
@@ -48,9 +59,8 @@ function _check_age_grid_shape(age::Vector{Float64})
     length(age) >= 1 || throw(ArgumentError("the age grid is empty"))
     for (i, t) in enumerate(age)
         isfinite(t) || throw(ArgumentError("age[$i] = $t is not finite"))
-        (0.0 <= t <= AGE_MAX) || throw(ArgumentError(
-            "age[$i] = $t is outside the model range [0, $(AGE_MAX)] Myr ago"))
-        if i > 1 && !(t < age[i-1])
+        (0.0 <= t <= AGE_MAX) || throw(ArgumentError("age[$i] = $t is outside the model range [0, $(AGE_MAX)] Myr ago"))
+        if i > 1 && !(t < age[i - 1])
             throw(ArgumentError("ages must be strictly decreasing (age[$(i-1)] = $(age[i-1]), age[$i] = $t)"))
         end
     end
@@ -65,14 +75,12 @@ Build from a mapping name → vector. All 12 names in [`TIME_FORCING_NAMES`](@re
 be present and no others. With `check_finite = true` (the default) every value must be
 finite.
 """
-function TimeForcings(age::AbstractVector{<:Real}, d::AbstractDict; check_finite::Bool = true)
+function TimeForcings(age::AbstractVector{<:Real}, d::AbstractDict; check_finite::Bool=true)
     keyset = Set(Symbol(k) for k in keys(d))
     missing_names = [n for n in TIME_FORCING_NAMES if !(n in keyset)]
-    isempty(missing_names) ||
-        throw(ArgumentError("missing time forcing(s): " * join(missing_names, ", ")))
+    isempty(missing_names) || throw(ArgumentError("missing time forcing(s): " * join(missing_names, ", ")))
     unknown = [k for k in keyset if !(k in TIME_FORCING_NAMES)]
-    isempty(unknown) ||
-        throw(ArgumentError("unknown time forcing(s): " * join(sort!(String.(unknown)), ", ")))
+    isempty(unknown) || throw(ArgumentError("unknown time forcing(s): " * join(sort!(String.(unknown)), ", ")))
     lookup(n) = haskey(d, n) ? d[n] : d[String(n)]
     series = ntuple(i -> lookup(TIME_FORCING_NAMES[i]), Val(N_FORCINGS))
     T = float(mapreduce(eltype, promote_type, series))
@@ -81,8 +89,9 @@ function TimeForcings(age::AbstractVector{<:Real}, d::AbstractDict; check_finite
     return f
 end
 
-TimeForcings(age::AbstractVector{<:Real}; check_finite::Bool = true, kwargs...) =
-    TimeForcings(age, Dict{Symbol,Any}(kwargs); check_finite = check_finite)
+function TimeForcings(age::AbstractVector{<:Real}; check_finite::Bool=true, kwargs...)
+    return TimeForcings(age, Dict{Symbol,Any}(kwargs); check_finite=check_finite)
+end
 
 function _check_finite(f::TimeForcings)
     for n in TIME_FORCING_NAMES
@@ -114,12 +123,15 @@ function Base.copyto!(dest::TimeForcings, src::TimeForcings)
     return dest
 end
 
-Base.:(==)(a::TimeForcings, b::TimeForcings) =
-    a.age == b.age && all(getfield(a, n) == getfield(b, n) for n in TIME_FORCING_NAMES)
-Base.isequal(a::TimeForcings, b::TimeForcings) =
-    isequal(a.age, b.age) && all(isequal(getfield(a, n), getfield(b, n)) for n in TIME_FORCING_NAMES)
-Base.hash(f::TimeForcings, h::UInt) =
-    foldl((acc, n) -> hash(getfield(f, n), acc), TIME_FORCING_NAMES; init = hash(f.age, hash(:TimeForcings, h)))
+function Base.:(==)(a::TimeForcings, b::TimeForcings)
+    return a.age == b.age && all(getfield(a, n) == getfield(b, n) for n in TIME_FORCING_NAMES)
+end
+function Base.isequal(a::TimeForcings, b::TimeForcings)
+    return isequal(a.age, b.age) && all(isequal(getfield(a, n), getfield(b, n)) for n in TIME_FORCING_NAMES)
+end
+function Base.hash(f::TimeForcings, h::UInt)
+    return foldl((acc, n) -> hash(getfield(f, n), acc), TIME_FORCING_NAMES; init=hash(f.age, hash(:TimeForcings, h)))
+end
 
 """
     forcing_matrix(f::TimeForcings) -> Matrix

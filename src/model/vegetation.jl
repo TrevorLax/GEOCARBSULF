@@ -54,8 +54,9 @@ non-vascular and vascular expressions are blended linearly.
         fBB = A * nanpow(rco2, p.exp_fnBb)
     end
     if t <= AGE_VASCULAR_RAMP_START && t > AGE_GYMNOSPERM
-        fBB = ((AGE_VASCULAR_RAMP_START - t) / VASCULAR_RAMP_LENGTH) * (A * nanpow(2 * rco2 / (1 + rco2), p.FERT)) +
-              ((t - AGE_GYMNOSPERM) / VASCULAR_RAMP_LENGTH) * A * nanpow(rco2, p.exp_fnBb)
+        fBB =
+            ((AGE_VASCULAR_RAMP_START - t) / VASCULAR_RAMP_LENGTH) * (A * nanpow(2 * rco2 / (1 + rco2), p.FERT)) +
+            ((t - AGE_GYMNOSPERM) / VASCULAR_RAMP_LENGTH) * A * nanpow(rco2, p.exp_fnBb)
     end
     if t <= AGE_GYMNOSPERM
         fBB = A * nanpow(2 * rco2 / (1 + rco2), p.FERT)

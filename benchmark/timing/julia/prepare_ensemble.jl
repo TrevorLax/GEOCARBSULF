@@ -11,15 +11,26 @@
 using GeocarbPrecalibration
 out, n, thr, seed = ARGS[1], parse(Int, ARGS[2]), parse(Float64, ARGS[3]), parse(Int, ARGS[4])
 mkpath(out)
-cfg = ExperimentConfig(; name = "ensemble", tag = "ensemble", constraint = :both, threshold = thr,
-                       n_sample = 200_000_000, n_per_chunk = 10_000, n_accept_min = n, seed = seed,
-                       time_sampler = :multivariate_t, constant_design = :chunked_lhs)
-t = @elapsed r = run_precalibration(cfg; verbose = true)
+cfg = ExperimentConfig(;
+    name="ensemble",
+    tag="ensemble",
+    constraint=:both,
+    threshold=thr,
+    n_sample=200_000_000,
+    n_per_chunk=10_000,
+    n_accept_min=n,
+    seed=seed,
+    time_sampler=:multivariate_t,
+    constant_design=:chunked_lhs,
+)
+t = @elapsed r = run_precalibration(cfg; verbose=true)
 n_accepted(r) == n || error("ensemble: only $(n_accepted(r)) samples accepted")
 save_result(joinpath(out, "result.jld2"), r)
 write(joinpath(out, "constants.f64"), r.constants)                          # n × 56, column major
 write(joinpath(out, "time_series.f64"), r.time_series)                      # 58 × n × 12
-write(joinpath(out, "co2.f64"), r.co2); write(joinpath(out, "temp.f64"), r.temp); write(joinpath(out, "o2.f64"), r.o2)
+write(joinpath(out, "co2.f64"), r.co2);
+write(joinpath(out, "temp.f64"), r.temp);
+write(joinpath(out, "o2.f64"), r.o2);
 write(joinpath(out, "prcout.f64"), hcat(r.prcout_co2, r.prcout_temp))
 open(io -> println(io, join(String.(r.constant_names), ",")), joinpath(out, "constant_names.txt"), "w")
 open(io -> println(io, join(String.(r.forcing_names), ",")), joinpath(out, "forcing_names.txt"), "w")

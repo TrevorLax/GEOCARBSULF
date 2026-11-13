@@ -1,0 +1,51 @@
+# Repository metadata that JOSS and Zenodo rely on:
+#   * CITATION.cff is valid (Zenodo and GitHub's "Cite this repository" read it);
+#   * the AI usage disclosure exists in all three places (AI_USAGE.md, the docs page,
+#     the paper's "AI usage disclosure" section);
+#   * Project.toml and CITATION.cff agree on the version.
+# No path filter: this is a required check, and required checks skipped by a path
+# filter block merging.
+name: Metadata
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  metadata:
+    name: Metadata
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Validate CITATION.cff
+        uses: citation-file-format/cffconvert-github-action@4cf11baa70a673bfdf9dad0acc7ee33b3f4b6084 # 2.0.0
+        with:
+          args: --validate
+      - name: AI usage disclosure is present
+        run: |
+          fail=0
+          [ -s AI_USAGE.md ] || { echo "::error file=AI_USAGE.md::AI_USAGE.md is missing or empty"; fail=1; }
+          grep -q '"ai_usage.md"' docs/make.jl || { echo "::error file=docs/make.jl::the AI usage page is not in the documentation"; fail=1; }
+          grep -qiE '^#{1,2} +AI usage disclosure' paper/paper.md || { echo "::error file=paper/paper.md::paper.md has no 'AI usage disclosure' section"; fail=1; }
+          if grep -n 'TODO' AI_USAGE.md paper/paper.md; then
+            echo "::warning::AI_USAGE.md or paper.md still contains TODO placeholders (Release.yml refuses to release with them)"
+          fi
+          exit $fail
+      - name: Versions agree (Project.toml, CITATION.cff)
+        run: |
+          pv=$(sed -n 's/^version *= *"\(.*\)"/\1/p' Project.toml)
+          cv=$(sed -n 's/^version: *"\{0,1\}\([^"]*\)"\{0,1\}$/\1/p' CITATION.cff)
+          echo "Project.toml: $pv   CITATION.cff: $cv"
+          [ -n "$pv" ] && [ "$pv" = "$cv" ] || { echo "::error::version mismatch between Project.toml ($pv) and CITATION.cff ($cv)"; exit 1; }
