@@ -2,7 +2,11 @@
 # same file. Set up once per clone:
 #
 #   prek install                      # installs the pre-commit and pre-push hooks
-#   SKIP=legacy-untouched prek run --all-files
+#   then run every hook once on all files, skipping the legacy/ guard:
+#     cmd:        set "SKIP=legacy-untouched" & prek run --all-files & set "SKIP="
+#     PowerShell: $env:SKIP="legacy-untouched"; prek run --all-files; Remove-Item Env:SKIP
+#     bash/zsh:   SKIP=legacy-untouched prek run --all-files
+#   (SKIP=hook-id command is bash syntax; in cmd and PowerShell always clear SKIP again.)
 #
 # pre-commit stage: file hygiene, workflow linting, JuliaFormatter, legacy/ guard.
 # pre-push stage:   CHANGELOG/AI-usage check, golden regression tests, the live
@@ -28,11 +32,16 @@ repos:
     rev: 3e8a8703264a2f4a69428a0aa4dcb512790b2c8c # v6.0.0
     hooks:
       # legacy/ holds the original R/Fortran code and must stay byte-identical.
+      # The pre-commit-hooks manifest gives trailing-whitespace, end-of-file-fixer and
+      # check-added-large-files the pre-push stage too, which overrides default_stages;
+      # `stages: [pre-commit]` keeps them to commits.
       - id: trailing-whitespace
         exclude: ^legacy/
         args: [--markdown-linebreak-ext=md]
+        stages: [pre-commit]
       - id: end-of-file-fixer
         exclude: ^legacy/
+        stages: [pre-commit]
       - id: mixed-line-ending
         exclude: ^legacy/|\.bat$ # batch files are CRLF (.gitattributes)
         args: [--fix=lf]
@@ -41,6 +50,7 @@ repos:
       - id: check-merge-conflict
       - id: check-added-large-files
         args: [--maxkb=1000]
+        stages: [pre-commit]
       - id: detect-private-key
 
   - repo: https://github.com/rhysd/actionlint
@@ -63,12 +73,14 @@ repos:
         types: [julia]
 
       - id: legacy-untouched
-        name: legacy/ stays unmodified (override with SKIP=legacy-untouched)
+        name: legacy/ stays unmodified (to override, skip the hook legacy-untouched)
         language: fail
         entry: >-
           legacy/ holds the original R/Fortran code and must stay unmodified. If the
-          change is intended, commit with SKIP=legacy-untouched and name legacy/ in
-          the CHANGELOG entry.
+          change is intended, name legacy/ in the CHANGELOG entry and commit with this
+          hook skipped. cmd: set "SKIP=legacy-untouched" & git commit & set "SKIP=" --
+          PowerShell: $env:SKIP="legacy-untouched"; git commit; Remove-Item Env:SKIP --
+          bash: SKIP=legacy-untouched git commit
         files: ^legacy/
 
       # ---- pre-push stage -------------------------------------------------------

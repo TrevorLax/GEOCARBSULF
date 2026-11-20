@@ -39,8 +39,30 @@ The hooks in `.pre-commit-config.yaml` run with [prek](https://github.com/j178/p
 
 ```text
 prek install                               # pre-commit and pre-push hooks
-SKIP=legacy-untouched prek run --all-files # first run over everything
 ```
+
+Then run every hook once over all files. The `legacy/` guard has to be skipped for that
+run, and the syntax for setting `SKIP` depends on the shell:
+
+```bat
+rem cmd.exe
+set "SKIP=legacy-untouched"
+prek run --all-files
+set "SKIP="
+```
+
+```powershell
+# PowerShell
+$env:SKIP = "legacy-untouched"; prek run --all-files; Remove-Item Env:SKIP
+```
+
+```sh
+# bash, zsh (Git Bash, Linux, macOS)
+SKIP=legacy-untouched prek run --all-files
+```
+
+In cmd and PowerShell, `SKIP` stays set until you clear it, and while it is set every
+later commit skips that hook too. Always clear it, as above.
 
 - **On commit:** whitespace, end-of-file and line-ending fixes, YAML/TOML checks,
   actionlint and zizmor on the workflows, JuliaFormatter, and a guard that refuses
@@ -55,8 +77,9 @@ The formatter is JuliaFormatter 2.x, pinned exactly in `tools/format/Project.tom
 hook and the "Formatting" CI check use that environment, so they always agree. To
 format everything by hand: `prek run juliaformatter --all-files`.
 
-Hooks can be skipped (`git commit --no-verify`, `SKIP=hook-id`), but CI runs the same
-checks and `main` requires them.
+Hooks can be skipped (`git commit --no-verify`, or the `SKIP` variable set to a
+comma-separated list of hook ids as above), but CI runs the same checks and `main`
+requires them.
 
 ## AI-assisted contributions
 
