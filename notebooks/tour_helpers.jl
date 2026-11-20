@@ -272,7 +272,9 @@ function detect_environment()
 end
 
 "Level C needs R with its packages and either compiled Fortran libraries or a compiler."
-level_c_possible(env) = env.rscript !== nothing && env.rpackages && (env.fortran_libs !== nothing || env.gfortran !== nothing)
+function level_c_possible(env)
+    return env.rscript !== nothing && env.rpackages && (env.fortran_libs !== nothing || env.gfortran !== nothing)
+end
 
 "Table of the detected environment."
 function environment_table(env)
@@ -364,7 +366,16 @@ function test_results_table(results)
     rows = map(results) do r
         s = r.summary
         c(k) = s === nothing ? "–" : string(getfield(s, k))
-        [r.group, BADGE[r.status], c(:pass), c(:fail), c(:error), c(:broken), c(:total), @sprintf("%.0f s", r.seconds)]
+        return [
+            r.group,
+            BADGE[r.status],
+            c(:pass),
+            c(:fail),
+            c(:error),
+            c(:broken),
+            c(:total),
+            @sprintf("%.0f s", r.seconds),
+        ]
     end
     return html_table(
         ["group", "result", "pass", "fail", "error", "broken", "total", "wall time"],
@@ -483,9 +494,11 @@ function golden_master_checks(; tol=read_tolerances())
             num(name) = GP.parse_number(row[findfirst(==(name), t.header)])
             p = ConstantParams(collect(CONSTANT_PARAMETER_NAMES), [num(String(n)) for n in CONSTANT_PARAMETER_NAMES])
             d = Dict{Symbol,Vector{Float64}}(n => [num("$(n)_$k") for k in 1:nt] for n in TIME_FORCING_NAMES)
-            (p, TimeForcings(age, d; check_finite=false), Int(num("iteration_threshold")))
+            return (p, TimeForcings(age, d; check_finite=false), Int(num("iteration_threshold")))
         end
-        variants = Tuple{String,Function}[("main", thr -> ModelOptions(; fortran_single_literals=single, iteration_threshold=thr))]
+        variants = Tuple{String,Function}[(
+            "main", thr -> ModelOptions(; fortran_single_literals=single, iteration_threshold=thr)
+        )]
         for (nm, ramp_ages, g, ramp) in GOLDEN_VARIANTS
             isfile(joinpath(FIXTURE_DIR, "$(label)_supp_$(nm)_co2.csv")) || continue
             mk =
@@ -533,7 +546,9 @@ end
 
 "Files written by `run_legacy.R` (inputs and outputs of the original code)."
 function export_files(dir::AbstractString)
-    keep(f) = (startswith(f, "legacy_") && (endswith(f, ".csv") || endswith(f, ".txt"))) || f in ("constants.csv", "time_series.csv")
+    keep(f) =
+        (startswith(f, "legacy_") && (endswith(f, ".csv") || endswith(f, ".txt"))) ||
+        f in ("constants.csv", "time_series.csv")
     return filter(keep, readdir(dir))
 end
 
@@ -585,7 +600,9 @@ Level C: run the unmodified R/Fortran code with `test/legacy_comparison/run_lega
 into a scratch folder, then compare. The R step may compile the Fortran in
 `legacy/fortran` (with `R CMD SHLIB`) if no compiled library is there yet.
 """
-function run_live_legacy(env; workdir::AbstractString=mktempdir(), n::Integer=1000, n_supp::Integer=200, seed::Integer=2026)
+function run_live_legacy(
+    env; workdir::AbstractString=mktempdir(), n::Integer=1000, n_supp::Integer=200, seed::Integer=2026
+)
     script = joinpath(COMPARISON_DIR, "run_legacy.R")
     cmd = `$(env.rscript) $script $LEGACY_DIR $workdir $n $n_supp $seed`
     rlog = joinpath(workdir, "run_legacy_R.log")
@@ -594,7 +611,15 @@ function run_live_legacy(env; workdir::AbstractString=mktempdir(), n::Integer=10
         proc = run(pipeline(ignorestatus(cmd); stdout=io, stderr=io))
     end
     if proc.exitcode != 0
-        return (; dir=workdir, checks=NamedTuple[], error="R exited with code $(proc.exitcode); see $rlog", seconds=t, report="", log=rlog, r_seconds=t)
+        return (;
+            dir=workdir,
+            checks=NamedTuple[],
+            error="R exited with code $(proc.exitcode); see $rlog",
+            seconds=t,
+            report="",
+            log=rlog,
+            r_seconds=t,
+        )
     end
     res = run_comparison(workdir)
     return merge(res, (; r_seconds=t, r_log=rlog))
@@ -667,8 +692,15 @@ end
 
 function checks_table(checks; collapsed=nothing)
     rows = [
-        [_esc(c.label), string(c.n), fmt(c.max_rel), isnan(c.rtol) ? "identical" : fmt(c.rtol), string(c.mismatches), string(c.n_bad), badge(c.passed)]
-        for c in checks
+        [
+            _esc(c.label),
+            string(c.n),
+            fmt(c.max_rel),
+            isnan(c.rtol) ? "identical" : fmt(c.rtol),
+            string(c.mismatches),
+            string(c.n_bad),
+            badge(c.passed),
+        ] for c in checks
     ]
     return html_table(
         ["check", "cells", "largest rel. difference", "tolerance", "Inf/NaN mismatches", "out of tolerance", ""],
@@ -735,7 +767,9 @@ function plot_forcings(tprior)
     fig = Figure(; size=(1100, 820))
     for (j, nm) in enumerate(TIME_FORCING_NAMES)
         r, c = divrem(j - 1, 3)
-        ax = Axis(fig[r + 1, c + 1]; title=String(nm), ylabel=parameter_units(nm), xlabel=r == 3 ? "Time [Myr ago]" : "")
+        ax = Axis(
+            fig[r + 1, c + 1]; title=String(nm), ylabel=parameter_units(nm), xlabel=r == 3 ? "Time [Myr ago]" : ""
+        )
         μ = getfield(tprior.center, nm)
         σ = getfield(tprior.sigma, nm)
         band!(ax, x, μ .- σ, μ .+ σ; color=(PALETTE.julia, 0.25))
@@ -837,7 +871,9 @@ function sensitivity_table(res)
     p = s.probs
     row(name, q) = [name; [@sprintf("%.2f", v) for v in q]]
     rows = [row("ΔT2x [°C]", s.deltaT2X), row("GLAC [–]", s.GLAC), row("ΔT2x·GLAC (glacial) [°C]", s.deltaT2X_glacial)]
-    tbl = html_table(["", [@sprintf("%g %%", 100 * x) for x in p]...], rows; caption="Quantiles over $(s.n) accepted samples")
+    tbl = html_table(
+        ["", [@sprintf("%g %%", 100 * x) for x in p]...], rows; caption="Quantiles over $(s.n) accepted samples"
+    )
     ex = join([@sprintf("Pr(ΔT2x ≥ %g °C) = %.3f", k, v) for (k, v) in sort(collect(s.prob_exceed))], "; ")
     return tbl, ex
 end
@@ -878,8 +914,22 @@ function plot_carbon_cycle_schematic()
     box(0.02, 0.06, 0.27, 0.20, "Carbonate rocks", "Ca and Mg carbonates", PALETTE.legacy)
     box(0.365, 0.06, 0.27, 0.20, "Mantle and crust", "volcanism, metamorphism", PALETTE.post)
     box(0.71, 0.06, 0.27, 0.20, "Organic carbon", "buried in sediments", PALETTE.ok)
-    arrow((0.40, 0.70), (0.24, 0.26), "silicate weathering\n→ carbonate burial\n(removes CO₂)", PALETTE.julia; offset=(0.02, 0.02), align=(:left, :center))
-    arrow((0.08, 0.26), (0.36, 0.76), "carbonate\nweathering", PALETTE.legacy; offset=(-0.06, 0.04), align=(:right, :center))
+    arrow(
+        (0.40, 0.70),
+        (0.24, 0.26),
+        "silicate weathering\n→ carbonate burial\n(removes CO₂)",
+        PALETTE.julia;
+        offset=(0.02, 0.02),
+        align=(:left, :center),
+    )
+    arrow(
+        (0.08, 0.26),
+        (0.36, 0.76),
+        "carbonate\nweathering",
+        PALETTE.legacy;
+        offset=(-0.06, 0.04),
+        align=(:right, :center),
+    )
     arrow((0.50, 0.26), (0.50, 0.70), "degassing\n(fSR, fC)", PALETTE.post; offset=(0.015, 0.0), align=(:left, :center))
     arrow((0.60, 0.70), (0.76, 0.26), "organic\nburial", PALETTE.ok; offset=(-0.02, 0.02), align=(:right, :center))
     arrow((0.92, 0.26), (0.64, 0.76), "organic\nweathering", PALETTE.ok; offset=(0.06, 0.04), align=(:left, :center))
@@ -907,7 +957,10 @@ function plot_literal_effect(single, double)
     flips = 0
     for (a, b) in zip(single, double)
         flips += succeeded(a) != succeeded(b)
-        stop = min(something(findfirst(!isfinite, a.co2), length(a.co2) + 1), something(findfirst(!isfinite, b.co2), length(b.co2) + 1))
+        stop = min(
+            something(findfirst(!isfinite, a.co2), length(a.co2) + 1),
+            something(findfirst(!isfinite, b.co2), length(b.co2) + 1),
+        )
         for j in 1:(stop - 1)
             x, y = a.co2[j], b.co2[j]
             push!(rel, log10(max(abs(x - y) / max(abs(x), abs(y)), 1e-18)))
@@ -995,11 +1048,16 @@ function level_status(res, level::Symbol, env, setting)
         else
             missing_parts = String[]
             env.rscript === nothing && push!(missing_parts, "R (`Rscript`)")
-            env.rscript !== nothing && !env.rpackages && push!(missing_parts, "the R packages lhs, CholWishart, abind, MASS")
-            env.fortran_libs === nothing && env.gfortran === nothing && push!(missing_parts, "a Fortran compiler (gfortran; Rtools on Windows)")
+            env.rscript !== nothing &&
+                !env.rpackages &&
+                push!(missing_parts, "the R packages lhs, CholWishart, abind, MASS")
+            env.fortran_libs === nothing &&
+                env.gfortran === nothing &&
+                push!(missing_parts, "a Fortran compiler (gfortran; Rtools on Windows)")
             return callout(
                 :warn,
-                "Level C skipped: it needs " * join(missing_parts, ", ", " and ") *
+                "Level C skipped: it needs " *
+                join(missing_parts, ", ", " and ") *
                 ". See *Setup* for how to install them, then re-run this cell (or set `RUN_LEVEL_C = true`).",
             )
         end
@@ -1008,7 +1066,13 @@ function level_status(res, level::Symbol, env, setting)
         return callout(:danger, "Level $level did not complete: $(res.error). Logs: `$(res.log)`.")
     end
     s = summarize_checks(res.checks)
-    meta = level == :B && !isempty(env.exports.meta) ? " The exports were made with: " * join(filter(l -> occursin(r"^(R|seed|n_sample|n_supp):", l), env.exports.meta), "; ") * "." : ""
+    meta = if level == :B && !isempty(env.exports.meta)
+        " The exports were made with: " *
+        join(filter(l -> occursin(r"^(R|seed|n_sample|n_supp):", l), env.exports.meta), "; ") *
+        "."
+    else
+        ""
+    end
     if s.passed == s.n
         return callout(
             :ok,
@@ -1017,7 +1081,10 @@ function level_status(res, level::Symbol, env, setting)
             "$(fmt(s.worst_after)) at or after one.$meta Report: `$(res.report)`.",
         )
     end
-    return callout(:danger, "**Level $level: $(s.n - s.passed) of $(s.n) checks fail.** See the table below and `$(res.report)`.$meta")
+    return callout(
+        :danger,
+        "**Level $level: $(s.n - s.passed) of $(s.n) checks fail.** See the table below and `$(res.report)`.$meta",
+    )
 end
 
 "Headroom figure of a level, or a note when the level was skipped or did not complete."
@@ -1056,17 +1123,27 @@ The conclusion, computed from the results above.
 """
 function overall_verdict(test_results, golden, resB, resC)
     tests_ok = all(r -> r.status == :pass, test_results)
-    levels = [("A", summarize_checks(golden)), ("B", resB === nothing ? nothing : summarize_checks(resB.checks)), ("C", resC === nothing ? nothing : summarize_checks(resC.checks))]
+    levels = [
+        ("A", summarize_checks(golden)),
+        ("B", resB === nothing ? nothing : summarize_checks(resB.checks)),
+        ("C", resC === nothing ? nothing : summarize_checks(resC.checks)),
+    ]
     ran = filter(l -> l[2] !== nothing, levels)
     levels_ok = all(l -> l[2].passed == l[2].n, ran)
     skipped = [l[1] for l in levels if l[2] === nothing]
     groups = join([r.group for r in test_results], ", ")
-    note = isempty(skipped) ? "" : " Level(s) " * join(skipped, " and ") * " did not run on this machine (see 2.5 and 2.6)."
+    note = if isempty(skipped)
+        ""
+    else
+        " Level(s) " * join(skipped, " and ") * " did not run on this machine (see 2.5 and 2.6)."
+    end
     if tests_ok && levels_ok
         return callout(
             :ok,
             "**Verified on this machine.** The test groups ($groups) pass, and the Julia port agrees with the original " *
-            "R/Fortran code within `test/tolerances.toml` at level(s) " * join(first.(ran), ", ") * ": the same steps fail, " *
+            "R/Fortran code within `test/tolerances.toml` at level(s) " *
+            join(first.(ran), ", ") *
+            ": the same steps fail, " *
             "% outbound is identical, and values agree to rounding error.$note",
         )
     end

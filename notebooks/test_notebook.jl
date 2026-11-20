@@ -64,7 +64,8 @@ function copy_exports(src_root, dst_root)
     to = mkpath(joinpath(dst_root, "test", "legacy_comparison", "output"))
     n = 0
     for f in readdir(from)
-        keep = (startswith(f, "legacy_") && (endswith(f, ".csv") || endswith(f, ".txt"))) ||
+        keep =
+            (startswith(f, "legacy_") && (endswith(f, ".csv") || endswith(f, ".txt"))) ||
             f in ("constants.csv", "time_series.csv")
         keep || continue
         cp(joinpath(from, f), joinpath(to, f))
@@ -81,12 +82,18 @@ function step(title, cmd)
 end
 
 function main()
-    work = mktempdir(; cleanup=!KEEP)
+    work = mktempdir(; cleanup=(!KEEP))
     repo = joinpath(work, "repo")
     println("Julia ", VERSION, " · ", FULL ? "full" : "quick", " mode · scratch copy: ", repo)
     copy_tree(SRC, repo)
     nexp = copy_exports(SRC, repo)
-    println(nexp > 0 ? "copied $nexp stored R export files (level B will run)" : "no stored R exports (level B will be skipped)")
+    println(
+        if nexp > 0
+            "copied $nexp stored R export files (level B will run)"
+        else
+            "no stored R exports (level B will be skipped)"
+        end,
+    )
     nb = joinpath(repo, "notebooks")
     out = mkpath(joinpath(work, "out"))
 

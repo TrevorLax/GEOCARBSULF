@@ -128,4 +128,6 @@ function main(args)
 end
 
 # run as a script; notebooks/setup.jl includes this file and calls main itself
-abspath(PROGRAM_FILE) == @__FILE__ && main(ARGS)
+if abspath(PROGRAM_FILE) == @__FILE__
+    main(ARGS)
+end

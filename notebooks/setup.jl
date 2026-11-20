@@ -47,11 +47,9 @@ println("4/4  notebook")
 include(joinpath(NB, "build.jl"))
 Base.invokelatest(main, String[])
 
-println(
-    """
+println("""
 
-    Done. Open notebooks/GeocarbPrecalibration_tour.ipynb in JupyterLab or VS Code and choose the
-    kernel "GeocarbPrecalibration". Without a Jupyter installation:
-        julia --project=notebooks -e "using IJulia; jupyterlab(dir=pwd())"
-    """,
-)
+        Done. Open notebooks/GeocarbPrecalibration_tour.ipynb in JupyterLab or VS Code and choose the
+        kernel "GeocarbPrecalibration". Without a Jupyter installation:
+            julia --project=notebooks -e "using IJulia; jupyterlab(dir=pwd())"
+        """)

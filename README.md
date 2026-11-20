@@ -35,11 +35,11 @@ and model variants are copies of the Fortran. This package gives researchers in
 paleoclimate and Earth-system science the same model and workflow as one documented,
 tested library. Experiments are declared in files, variants are options, ensembles
 are deterministic and threaded, and results are checked continuously against the
-original code. The additional benefit to porting the code to a modern, faster, 
-optimized langauge is that it is set up for further improvements, which include
-both bugfixes as well as more substantial improvements in compuational technique 
+original code. The additional benefit to porting the code to a modern, faster,
+optimized language is that it is set up for further improvements, which include
+both bugfixes as well as more substantial improvements in computational technique
 and expansions in methodology. (better sampling, different distributions, actual
-bayesian calibration, etc.....more to come) 
+bayesian calibration, etc.....more to come)
 
 ## Installation
 

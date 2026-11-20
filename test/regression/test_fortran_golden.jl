@@ -69,8 +69,24 @@
             post = cumsum(isinf.(ref["co2"]); dims=2) .> 0
             same(x, y) = (isnan(x) == isnan(y)) && (isinf(x) == isinf(y)) && (!isinf(x) || x == y)
             within(x, y, rtol) = !(isfinite(x) && isfinite(y)) || abs(x - y) <= atol + rtol * max(abs(x), abs(y))
+            relerr(x, y) = isfinite(x) && isfinite(y) ? abs(x - y) / max(abs(x), abs(y), floatmin()) : 0.0
             for q in ("co2", "o2", "temp15")
                 J, R = jl[q], ref[q]
+                rel = relerr.(J, R)
+                clean_max = maximum(rel[.!post]; init=0.0)
+                post_max = maximum(rel[post]; init=0.0)
+                over = clean_max > rtol_clean || post_max > rtol_post ? "   <-- over" : ""
+                println(
+                    rpad("  golden $label $name $q ", 47),
+                    G.@sprintf(
+                        "max rel before failure %.3e (tol %.0e)   at/after %.3e (tol %.0e)",
+                        clean_max,
+                        rtol_clean,
+                        post_max,
+                        rtol_post
+                    ),
+                    over,
+                )
                 @test all(same(J[I], R[I]) for I in CartesianIndices(J))
                 @test all(within(J[I], R[I], post[I] ? rtol_post : rtol_clean) for I in CartesianIndices(J))
             end
