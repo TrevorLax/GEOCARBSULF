@@ -86,3 +86,17 @@ Known differences from the R/Fortran code are listed in `docs/src/porting_notes.
   days before proposing a release; batch files are checked out with CRLF.
 - These changes were drafted with an AI coding assistant (Claude Code, Claude Opus 5.5;
   see `AI_USAGE.md`).
+
+### Maintenance
+
+- `.git-blame-ignore-revs` no longer lists `d994cb4`. That SHA was the JuliaFormatter
+  2.x reformat on the pull-request branch and was never on `main` (the squash merge
+  replaced it with `260ba37`, which also holds the CI/CD work and can't be ignored).
+  The file now says so, and says how to record future reformat-only commits.
+- `CONTRIBUTING.md` and `.pre-commit-config.yaml` give the `SKIP` syntax for cmd and
+  PowerShell as well as bash.
+- The `trailing-whitespace`, `end-of-file-fixer` and `check-added-large-files` hooks
+  run on commit only. The pre-commit-hooks manifest also gave them the pre-push stage.
+- `CI_CD_PLAN.md` replaced by the updated plan (state as of 19 November 2026).
+- These changes were drafted with an AI coding assistant (Claude Code, Claude Opus 5.5;
+  see `AI_USAGE.md`).
