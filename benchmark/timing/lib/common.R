@@ -136,7 +136,7 @@ component <- function(w, variant, name, f, workload = "") {
 ## Inf/NaN positions identical; finite values equal (exact) or within tolerances
 ## (rtol before a run's first failed step, rtol_post after it). The defaults match
 ## test/tolerances.toml; keep them in step with it.
-check_outputs <- function(label, got, ref, exact = TRUE, rtol = 1e-8, rtol_post = 1e-6, atol = 1e-10) {
+check_outputs <- function(label, got, ref, exact = TRUE, rtol = 1e-8, rtol_post = 1e-4, atol = 1e-10) {
   check(all(dim(got) == dim(ref)), paste0(label, ": dimensions differ"))
   special <- !is.finite(got) | !is.finite(ref)
   same_special <- (is.nan(got) == is.nan(ref)) & (is.na(got) == is.na(ref)) &

@@ -2,7 +2,7 @@
 #
 # Runs the original R driver and the Fortran model (compiled here with R CMD SHLIB and
 # gfortran) on 1000 prior samples and six supplemental variants, then requires Julia to
-# reproduce every output within test/tolerances.toml (rtol 1e-8; 1e-6 after a run's
+# reproduce every output within test/tolerances.toml (rtol 1e-8; 1e-4 after a run's
 # first failed step; identical Inf/NaN positions and % outbound). Then it regenerates
 # the golden fixtures from the freshly compiled Fortran and runs the golden test on
 # them. See test/legacy_comparison/README.md.

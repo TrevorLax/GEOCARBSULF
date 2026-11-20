@@ -6,13 +6,13 @@
 #     |a - b| <= atol + rtol * max(|a|, |b|)
 # with rtol_clean before a run's first failed step and rtol_post at or after it.
 # See docs/src/testing.md for why the two differ (finding F-08).
-# rtol_post was 1e-4 until November 2026. It was tightened to 1e-6 because the
-# largest relative difference ever observed after a failed step is 7.3e-8
-# (1000-sample live comparison of 30 October 2026).
+# Do not tighten rtol_post to 1e-6: that was tried in November 2026 and failed. The
+# golden fixtures regenerated from the Fortran compiled in CI differ by up to 9.0e-6
+# relative after a failed step (20 November 2026); 1e-4 is about 11 times that.
 #
 # Changing this file needs a CHANGELOG entry that uses the word "tolerance" and says
 # why (checked by scripts/ci/check_changes.jl).
 
 rtol_clean = 1e-8
-rtol_post = 1e-6
+rtol_post = 1e-4
 atol = 1e-10

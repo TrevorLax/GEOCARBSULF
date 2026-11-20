@@ -433,9 +433,9 @@ html_table(
 # > conditioned: a last-bit difference stays a last-bit difference (below about 4e-9).
 # > When a step fails, the legacy code writes `Inf` into CO₂ and O₂ but **keeps
 # > integrating** from the invalid state. The steps after that are badly conditioned,
-# > and the same last-bit differences grow, to at most 7.3e-8 in the 1000-sample
-# > comparison of 30 October 2026. The limit after a failure was 1e-4 until November
-# > 2026 and is now 1e-6, about 14 times the largest difference seen. A real porting
+# > and the same last-bit differences grow, up to 9.0e-6 relative so far (golden
+# > fixtures from the Fortran compiled in CI, November 2026). The limit after a
+# > failure is 1e-4, about 11 times the largest difference seen. A real porting
 # > error is still caught: it changes valid steps by far more than 1e-8, or moves a
 # > failure, or changes a % outbound, and all three are checked separately.
 #
@@ -492,7 +492,7 @@ plot_headroom(golden; title="Level A: Julia against the stored output of the com
 # is the tolerance; the shaded zone is where the check would fail. Left: cells before
 # a run's first failed step (limit 1e-8). Right: cells at or after it, where the
 # legacy code integrates from an invalid state (finding F-08, section 2.1) and the
-# limit is 1e-6. Rows labelled "pass/fail positions" are not drawn: they require the
+# limit is 1e-4. Rows labelled "pass/fail positions" are not drawn: they require the
 # failed steps to be in identical places, and their result is in the table.
 
 checks_table(golden; collapsed="All $(length(golden)) level-A checks (click to expand)")

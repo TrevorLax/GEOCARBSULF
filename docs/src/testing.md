@@ -33,20 +33,21 @@ Both tests judge every run in two regions, split at the run's **first failed ste
 | `Inf`/`NaN` positions | identical (the same steps fail) |
 | % outbound | identical |
 | values before the first failed step | `abs(a − b) ≤ 1e-10 + 1e-8·max(abs(a), abs(b))` |
-| values at or after the first failed step | `abs(a − b) ≤ 1e-10 + 1e-6·max(abs(a), abs(b))` |
+| values at or after the first failed step | `abs(a − b) ≤ 1e-10 + 1e-4·max(abs(a), abs(b))` |
 
 Why two regions: Julia's `exp`, `log` and `^` and the C runtime used by gfortran
 occasionally round the last bit differently. Two builds of the *same* Fortran (the
 main and supplemental libraries) already differ by up to 8e-10 for that reason. In a
 valid step the model is well conditioned and the difference stays below about 4e-9.
 After a failed step the legacy code keeps integrating from an invalid state (finding
-F-08), the next steps are badly conditioned, and the same last-bit difference grows:
-in the 1000-sample comparison of 30 October 2026 the largest *relative* difference
-there was 7.3e-8 (the largest *absolute* difference, 1.3e-6 in a temperature, is
-where the figure of "about 1e-6" in earlier versions of this page came from). The
-tolerance after a failure was 1e-4 until November 2026 and is now 1e-6, about 14
-times the largest difference seen. A real porting error is still caught: it changes
-valid steps far more than 1e-8, or moves a failure, or changes a % outbound.
+F-08), the next steps are badly conditioned, and the same last-bit difference grows.
+The largest *relative* difference seen there is 9.0e-6, in a temperature of the
+golden fixtures regenerated from the Fortran compiled in CI (20 November 2026); the
+1000-sample live comparison reached 7.6e-7 the same day. The tolerance after a
+failure is 1e-4, about 11 times the largest difference seen. Tightening it to 1e-6
+was tried in November 2026 and failed on those fixtures. A real porting error is
+still caught: it changes valid steps far more than 1e-8, or moves a failure, or
+changes a % outbound.
 
 The report (`test/legacy_comparison/output/comparison_report.txt`) lists the worst
 cells of each region with their run, age, step status, solver iterations and the

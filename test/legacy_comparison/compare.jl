@@ -21,9 +21,9 @@
 #     within rtol_clean (default 1e-8). This is the machine-noise criterion: injecting
 #     1-ulp errors into exp/log/pow moves these values by at most ~4e-9.
 #   * Values at or after a run's first failed step must agree within rtol_post
-#     (default 1e-6). The legacy model keeps integrating from an invalid state after a
+#     (default 1e-4). The legacy model keeps integrating from an invalid state after a
 #     failure (finding F-08), and there 1-ulp differences between maths libraries grow
-#     to at most 7.3e-8 relative so far. Even two builds of the same Fortran differ there.
+#     up to 9.0e-6 relative so far. Even two builds of the same Fortran differ there.
 #
 # The comparison uses ModelOptions(fortran_single_literals = true), i.e. the literals
 # of the compiled code (finding F-05). Float64 literals are reported for information.

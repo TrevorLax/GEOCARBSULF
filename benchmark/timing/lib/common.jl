@@ -268,7 +268,7 @@ end
 
 "Inf/NaN positions identical; finite values within rtol before the first failure and rtol_post after."
 function check_outputs(
-    label, got::AbstractMatrix, ref::AbstractMatrix; rtol=1e-8, rtol_post=1e-6, atol=1e-10, exact::Bool=false
+    label, got::AbstractMatrix, ref::AbstractMatrix; rtol=1e-8, rtol_post=1e-4, atol=1e-10, exact::Bool=false
 )
     check(size(got) == size(ref), "$label: size $(size(got)) vs $(size(ref))")
     post = cumsum(isinf.(ref); dims=2) .> 0

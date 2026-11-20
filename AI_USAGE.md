@@ -56,7 +56,7 @@ integration runs all of them on every push and pull request:
 1. **Live comparison with the original code** (`test/legacy_comparison/`). The
    unmodified R/Fortran code is run on 1000 prior samples and six supplemental
    variants. Julia must reproduce CO2, O2 and temperature at every step within
-   `rtol = 1e-8`, or `1e-6` after a run's first failed step. The positions of failed
+   `rtol = 1e-8`, or `1e-4` after a run's first failed step. The positions of failed
    steps must be identical, and % outbound must be equal.
 2. **Golden-master fixtures** from the compiled Fortran (`test/regression/`), checked
    on Linux, macOS and Windows.

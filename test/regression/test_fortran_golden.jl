@@ -4,7 +4,7 @@
 # needs neither R nor a Fortran compiler. Judged like the legacy comparison:
 #   * pass/fail (Inf/NaN) positions identical;
 #   * values before a run's first failed step within rtol_clean (1e-8);
-#   * values at/after a failed step within rtol_post (1e-6; rounding differences between
+#   * values at/after a failed step within rtol_post (1e-4; rounding differences between
 #     maths libraries are amplified there; see docs/src/testing.md).
 # The tolerances are read from test/tolerances.toml, shared with the legacy comparison.
 # Temperatures are stored and compared as temp + 15, the quantity R exports.

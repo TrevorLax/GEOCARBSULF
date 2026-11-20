@@ -101,18 +101,17 @@ Known differences from the R/Fortran code are listed in `docs/src/porting_notes.
 - These changes were drafted with an AI coding assistant (Claude Code, Claude Opus 5.5;
   see `AI_USAGE.md`).
 
-### Notebook tour and tighter tolerance
+### Notebook tour
 
-- **Tolerance change:** `rtol_post` in `test/tolerances.toml` (the tolerance at or after
-  a run's first failed step) is tightened from 1e-4 to 1e-6. The largest relative
-  difference ever observed there is 7.3e-8 (1000-sample live comparison, 30 October
-  2026), so 1e-4 was about 1400 times looser than needed; 1e-6 keeps a margin of about
-  14. The documentation said differences there grow "to about 1e-6"; that figure was
-  the largest *absolute* difference (1.3e-6, a temperature), and the text now gives the
-  relative one. The correctness guards of the timing benchmark
-  (`benchmark/timing/lib/common.jl` and `common.R`) had their own copy of the old value
-  and now use 1e-6 too. Not yet checked: Julia against Fortran built on Linux and macOS (the
-  Legacy workflow and the golden test in CI will show it).
+- **Tolerance unchanged:** `rtol_post` in `test/tolerances.toml` (the tolerance at or
+  after a run's first failed step) stays at 1e-4. Tightening it to 1e-6 was tried and
+  failed: the golden fixtures regenerated from the Fortran compiled in CI differ by up
+  to 9.0e-6 relative there (a temperature in the `supp_gym` variant; the 1000-sample
+  live comparison reached 7.6e-7). `test/tolerances.toml` now says so in a comment, and
+  the documentation gives these measured values instead of "about 1e-6" and 7.3e-8.
+- The golden-master test prints the largest relative difference before and after a
+  failed step for each fixture set, variant and quantity, so a tolerance failure shows
+  by how much.
 - New notebook tour, `notebooks/tour.jl` (Literate.jl source), generating
   `notebooks/GeocarbPrecalibration_tour.ipynb` and the "Notebook tour" documentation
   page. Part 1 introduces the model and package and runs them; Part 2 runs the test
