@@ -23,7 +23,7 @@
 #   * Values at or after a run's first failed step must agree within rtol_post
 #     (default 1e-4). The legacy model keeps integrating from an invalid state after a
 #     failure (finding F-08), and there 1-ulp differences between maths libraries grow
-#     to ~1e-6. Even two builds of the same Fortran differ there.
+#     up to 9.0e-6 relative so far. Even two builds of the same Fortran differ there.
 #
 # The comparison uses ModelOptions(fortran_single_literals = true), i.e. the literals
 # of the compiled code (finding F-05). Float64 literals are reported for information.

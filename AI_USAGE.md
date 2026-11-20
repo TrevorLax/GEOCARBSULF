@@ -42,6 +42,7 @@ person, or mostly AI-generated and reviewed.
 | documentation | `docs/src/`, `README.md` | TODO |
 | benchmarks | `benchmark/` | TODO |
 | CI/CD, git hooks, doctests, community files, JOSS scaffolding | `.github/`, `.pre-commit-config.yaml`, `scripts/ci/`, `scripts/dev/`, `tools/format/`, `test/tolerances.toml`, jldoctest blocks, `paper/` skeleton, `CODE_OF_CONDUCT.md`, this file's structure | drafted with Claude Code (Claude Opus 5.5) in November 2026; reviewed by the authors. Commits carry a `Co-Authored-By` trailer. |
+| notebook tour | `notebooks/`, `.github/workflows/Notebook.yml` | drafted with Claude Code (Claude Opus 5.5) in November 2026. TODO (authors): review, run it, and record the review here. |
 | paper text | `paper/paper.md` | TODO |
 
 The original R and Fortran code in `legacy/` was written by its authors before this

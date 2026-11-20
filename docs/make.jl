@@ -14,6 +14,7 @@
 #       doctest(GeocarbPrecalibration; fix=true)'
 using Documenter
 using GeocarbPrecalibration
+using Literate
 
 const ROOT = normpath(joinpath(@__DIR__, ".."))
 const ONCI = get(ENV, "CI", "false") == "true"
@@ -31,12 +32,26 @@ let src = joinpath(ROOT, "AI_USAGE.md"), dst = joinpath(@__DIR__, "src", "ai_usa
         """ * read(src, String))
 end
 
+# The notebook tour (notebooks/tour.jl, Literate.jl format) is also a page of the
+# documentation. Its code is shown but not run: running it takes many minutes, needs
+# CairoMakie and runs the test suite. The generated page is git-ignored.
+Literate.markdown(
+    joinpath(ROOT, "notebooks", "tour.jl"),
+    joinpath(@__DIR__, "src", "generated");
+    name="notebook_tour",
+    flavor=Literate.DocumenterFlavor(),
+    codefence="```julia" => "```",
+    execute=false,
+    credit=false,
+)
+
 makedocs(;
     sitename="GeocarbPrecalibration.jl",
     modules=[GeocarbPrecalibration],
     format=Documenter.HTML(; prettyurls=ONCI, edit_link="main"),
     pages=[
         "Home" => "index.md",
+        "Notebook tour" => "generated/notebook_tour.md",
         "The model" => "model.md",
         "Parameters" => "parameters.md",
         "Precalibration" => "precalibration.md",

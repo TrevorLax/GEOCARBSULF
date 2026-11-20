@@ -56,5 +56,6 @@ label except `real8`, which uses `false`. For each quantity it requires
 The split exists because Julia's `exp`/`log`/`^` and the C runtime used by gfortran
 round differently in the last bit now and then. In a healthy run that stays below
 about 4e-9 relative. After a failed step the legacy model keeps integrating from an
-invalid state, which amplifies those last-bit differences up to about 1e-6. See
+invalid state, which amplifies those last-bit differences (up to 9.0e-6 relative so
+far, in fixtures regenerated from the Fortran compiled in CI). See
 `docs/src/testing.md` for details.

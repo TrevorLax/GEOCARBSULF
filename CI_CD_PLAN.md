@@ -424,7 +424,7 @@ margin = 120
 `test/tolerances.toml`
 ```toml
 rtol_clean = 1e-8   # before a run's first failed step
-rtol_post = 1e-4    # at or after it (finding F-08)
+rtol_post = 1e-4    # at or after it (finding F-08; 1e-6 was tried and failed, November 2026)
 atol = 1e-10
 ```
 

@@ -40,9 +40,14 @@ occasionally round the last bit differently. Two builds of the *same* Fortran (t
 main and supplemental libraries) already differ by up to 8e-10 for that reason. In a
 valid step the model is well conditioned and the difference stays below about 4e-9.
 After a failed step the legacy code keeps integrating from an invalid state (finding
-F-08), the next steps are badly conditioned, and the same last-bit difference grows
-to about 1e-6. A real porting error is still caught: it changes valid steps far more
-than 1e-8, or moves a failure, or changes a % outbound.
+F-08), the next steps are badly conditioned, and the same last-bit difference grows.
+The largest *relative* difference seen there is 9.0e-6, in a temperature of the
+golden fixtures regenerated from the Fortran compiled in CI (20 November 2026); the
+1000-sample live comparison reached 7.6e-7 the same day. The tolerance after a
+failure is 1e-4, about 11 times the largest difference seen. Tightening it to 1e-6
+was tried in November 2026 and failed on those fixtures. A real porting error is
+still caught: it changes valid steps far more than 1e-8, or moves a failure, or
+changes a % outbound.
 
 The report (`test/legacy_comparison/output/comparison_report.txt`) lists the worst
 cells of each region with their run, age, step status, solver iterations and the
@@ -56,6 +61,16 @@ figures of these differences into `test/legacy_comparison/output/figures/` (see
 The comparison also reports, for information only, how far Julia with
 `fortran_single_literals = false` is from the legacy output (pass/fail flips and
 relative differences).
+
+## The notebook tour
+
+`notebooks/tour.jl` (also the "Notebook tour" page) runs the test groups one by one,
+repeats the golden-master comparison with its statistics kept, replays stored R exports
+if `test/legacy_comparison/output` has any, and runs the live comparison if R and a
+Fortran compiler are found. For every check it plots the largest relative difference
+against its tolerance. `notebooks/test_notebook.jl` runs the whole notebook on a scratch
+copy of the repository; the `Notebook.yml` workflow runs it on Julia 1.10 and the newest
+release.
 
 ## Continuous integration
 
@@ -75,8 +90,10 @@ GitHub Actions (`.github/workflows/`) runs on every push and pull request:
 | `Lint.yml` | Lint | the pre-commit hooks on all files: file hygiene, actionlint, zizmor |
 | `Metadata.yml` | Metadata | `CITATION.cff` validity, presence of the AI usage disclosure, matching versions |
 | `Paper.yml` | | JOSS paper PDF (when `paper/` changes) |
+| `PublishNotebook.yml` | | called by `Release.yml`: runs the notebook tour in full at the release tag (Julia 1.12.5, with R and gfortran, so level C runs) and produces the executed `.ipynb` and a self-contained `.html`; manual runs attach them to an existing release, never replacing files already there |
+| `Notebook.yml` | | the notebook tour in quick mode on Julia 1.10 and 1, and that the committed `.ipynb` matches `notebooks/tour.jl` (when the notebook, sources or tests change; not required) |
 | `Weekly.yml` | | Mondays: tests with the newest dependencies, legacy comparison with the newest R/CRAN/runner, documentation link check, JET |
-| `Release.yml` | | tag `vX.Y.Z`: checks versions, CHANGELOG and placeholders, publishes a GitHub release (archived by Zenodo) |
+| `Release.yml` | | tag `vX.Y.Z`: checks versions, CHANGELOG and placeholders, runs `PublishNotebook.yml`, then creates the GitHub release as a draft with the notebook attached and publishes it (archived by Zenodo) |
 
 Branch protection on `main` should require *CI result*, *Legacy comparison*,
 *Documentation*, *Formatting*, *Metadata*, *Changelog and AI usage* and *Lint*.

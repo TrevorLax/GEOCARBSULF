@@ -100,3 +100,37 @@ Known differences from the R/Fortran code are listed in `docs/src/porting_notes.
 - `CI_CD_PLAN.md` replaced by the updated plan (state as of 19 November 2026).
 - These changes were drafted with an AI coding assistant (Claude Code, Claude Opus 5.5;
   see `AI_USAGE.md`).
+
+### Notebook tour
+
+- **Tolerance unchanged:** `rtol_post` in `test/tolerances.toml` (the tolerance at or
+  after a run's first failed step) stays at 1e-4. Tightening it to 1e-6 was tried and
+  failed: the golden fixtures regenerated from the Fortran compiled in CI differ by up
+  to 9.0e-6 relative there (a temperature in the `supp_gym` variant; the 1000-sample
+  live comparison reached 7.6e-7). `test/tolerances.toml` now says so in a comment, and
+  the documentation gives these measured values instead of "about 1e-6" and 7.3e-8.
+- The golden-master test prints the largest relative difference before and after a
+  failed step for each fixture set, variant and quantity, so a tolerance failure shows
+  by how much.
+- New notebook tour, `notebooks/tour.jl` (Literate.jl source), generating
+  `notebooks/GeocarbPrecalibration_tour.ipynb` and the "Notebook tour" documentation
+  page. Part 1 introduces the model and package and runs them; Part 2 runs the test
+  groups in subprocesses and compares Julia with the original code at three levels
+  (golden master; replay of stored R exports in a scratch copy; live R/Fortran run if
+  R and a Fortran compiler are found), plotting each check against its tolerance.
+  `notebooks/setup.jl` sets it up, `notebooks/build.jl` regenerates it,
+  `notebooks/test_notebook.jl` runs it on a scratch copy of the repository, and the new
+  `Notebook.yml` workflow runs that on Julia 1.10 and 1.
+- `notebooks/build.jl` options: `--execute` (run every cell into the git-ignored
+  `notebooks/executed/`), `--hide-home` (replace the home folder with `~` in the
+  outputs) and `--html` (one self-contained HTML file via
+  `jupyter nbconvert --to html --embed-images`). New workflow `PublishNotebook.yml`:
+  at a release tag, with Julia 1.12.5 and the pinned R/gfortran toolchain of
+  `Legacy.yml` so that level C runs, it runs the notebook with these three options.
+  `Release.yml` now calls it first and creates the release as a draft with the `.ipynb`
+  and `.html` attached before publishing it, so the release is complete when it is
+  published; a failed notebook run blocks the release. A manual run attaches the files
+  to an existing release and refuses to replace files of the same name.
+- `docs` environment: new dependency Literate.
+- These changes were drafted with an AI coding assistant (Claude Code, Claude Opus 5.5;
+  see `AI_USAGE.md`).

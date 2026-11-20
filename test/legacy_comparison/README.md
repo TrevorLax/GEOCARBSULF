@@ -53,8 +53,8 @@ and
 
 Julia's `exp`/`log`/`^` and the C runtime used by gfortran sometimes round the last
 bit differently. That stays below about 4e-9 in valid steps, but the legacy model
-keeps integrating after a failed step (finding F-08), which amplifies it to about
-1e-6. `docs/src/testing.md` explains this in detail. The random numbers themselves
+keeps integrating after a failed step (finding F-08), which amplifies it (up to
+9.0e-6 relative so far). `docs/src/testing.md` explains this in detail. The random numbers themselves
 are not compared: R and Julia use different generators, which is why the Julia code
 is fed R's samples.
 
