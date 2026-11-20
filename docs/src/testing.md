@@ -89,10 +89,10 @@ GitHub Actions (`.github/workflows/`) runs on every push and pull request:
 | `Lint.yml` | Lint | the pre-commit hooks on all files: file hygiene, actionlint, zizmor |
 | `Metadata.yml` | Metadata | `CITATION.cff` validity, presence of the AI usage disclosure, matching versions |
 | `Paper.yml` | | JOSS paper PDF (when `paper/` changes) |
-| `PublishNotebook.yml` | | manual: runs the notebook tour in full on a release tag (with R and gfortran, so level C runs) and attaches the executed `.ipynb` and a self-contained `.html` to the release |
+| `PublishNotebook.yml` | | called by `Release.yml`: runs the notebook tour in full at the release tag (Julia 1.12.5, with R and gfortran, so level C runs) and produces the executed `.ipynb` and a self-contained `.html`; manual runs attach them to an existing release, never replacing files already there |
 | `Notebook.yml` | | the notebook tour in quick mode on Julia 1.10 and 1, and that the committed `.ipynb` matches `notebooks/tour.jl` (when the notebook, sources or tests change; not required) |
 | `Weekly.yml` | | Mondays: tests with the newest dependencies, legacy comparison with the newest R/CRAN/runner, documentation link check, JET |
-| `Release.yml` | | tag `vX.Y.Z`: checks versions, CHANGELOG and placeholders, publishes a GitHub release (archived by Zenodo) |
+| `Release.yml` | | tag `vX.Y.Z`: checks versions, CHANGELOG and placeholders, runs `PublishNotebook.yml`, then creates the GitHub release as a draft with the notebook attached and publishes it (archived by Zenodo) |
 
 Branch protection on `main` should require *CI result*, *Legacy comparison*,
 *Documentation*, *Formatting*, *Metadata*, *Changelog and AI usage* and *Lint*.

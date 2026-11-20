@@ -29,8 +29,9 @@
 # (`using IJulia; jupyterlab()` offers to install it).
 #
 # The "Publish notebook" workflow (.github/workflows/PublishNotebook.yml) runs
-# `--execute --hide-home --html` on a release tag, with R and gfortran installed so that
-# level C runs, and attaches the .ipynb and the .html to that release.
+# `--execute --hide-home --html` on a release tag with Julia 1.12.5, R and gfortran
+# installed so that level C runs. Release.yml calls it before creating the release and
+# attaches the .ipynb and the .html to the release before publishing it.
 
 using Literate
 

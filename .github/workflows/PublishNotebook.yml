@@ -1,0 +1,160 @@
+# Run the notebook tour in full at a release tag and produce the executed notebook and its
+# self-contained HTML, for the GitHub release of that tag.
+#
+# Two ways in:
+#
+#  - workflow_call from Release.yml (the normal path). Release.yml calls this workflow
+#    BEFORE the release exists, then creates the release as a draft with both files
+#    attached and publishes it. The release is therefore complete at the moment it is
+#    published, which is when Zenodo's webhook fires and when GitHub's immutable releases
+#    (if switched on) freeze its assets. Only the `run` job runs on this path.
+#
+#  - workflow_dispatch (Actions → "Publish notebook" → Run workflow, give the tag): a
+#    backfill for a release that already exists but lacks the notebook. The `attach` job
+#    uploads WITHOUT --clobber, so it fails rather than replace a file of the same name:
+#    a published notebook never changes silently (delete the old asset by hand first if a
+#    replacement is really intended). Files attached after publication are not in the
+#    Zenodo record of that release.
+#
+# What `run` does:
+#  1. checks out refs/tags/<tag>, so the results belong to exactly that version;
+#  2. installs Julia 1.12.5 and the pinned toolchain of Legacy.yml (R 4.6.1, CRAN
+#     snapshot, gfortran), so level C of the notebook (a live run of the unmodified
+#     R/Fortran code) runs; level B is skipped (a fresh checkout has no stored R exports)
+#     and the notebook says so;
+#  3. `julia --project=notebooks notebooks/build.jl --execute --hide-home --html`:
+#     runs every cell into notebooks/executed/, replaces the runner's home folder with
+#     "~", and converts the notebook to one self-contained HTML file with
+#     `jupyter nbconvert --to html --embed-images`;
+#  4. uploads both files as a workflow artifact, whose name is the `artifact` output.
+#
+# The tag must contain notebooks/build.jl with the --hide-home and --html options.
+name: Publish notebook
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        description: Release tag to run the notebook at (for example v0.1.0)
+        required: true
+        type: string
+    outputs:
+      artifact:
+        description: Name of the workflow artifact holding the .ipynb and the .html
+        value: ${{ jobs.run.outputs.artifact }}
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing release tag to run the notebook at and attach the results to (for example v0.1.0)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: publish-notebook-${{ inputs.tag }}
+  cancel-in-progress: false
+
+jobs:
+  run:
+    name: Run the notebook
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    permissions:
+      actions: write # julia-actions/cache prunes its superseded caches
+      contents: read
+    outputs:
+      artifact: notebook-${{ github.run_id }}
+    env:
+      CRAN_SNAPSHOT: https://packagemanager.posit.co/cran/__linux__/noble/2026-11-10
+      JULIA_NUM_THREADS: auto
+    steps:
+      - name: Check the tag name
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          [[ "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "::error::'$TAG' is not a release tag vX.Y.Z"; exit 1; }
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/tags/${{ inputs.tag }}
+          persist-credentials: false
+      - uses: julia-actions/setup-julia@da908477b5db94c10ffce8cfea9f2b3b9d5db687 # v3.0.3
+        with:
+          version: "1.12.5"
+      - uses: julia-actions/cache@9353db09a0f2bbbdec6f41791918c75d37391b36 # v3.5.0
+      - uses: r-lib/actions/setup-r@f9a764fea8d5c63df6ef9a5c7795bf7deb5d7e05 # v2
+        with:
+          r-version: "4.6.1"
+          use-public-rspm: true
+      - name: Install gfortran (R CMD SHLIB compiles the legacy Fortran)
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends gfortran
+      - name: Install the R packages used by the legacy code
+        run: |
+          Rscript -e '
+            pkgs <- c("lhs", "CholWishart", "abind")
+            install.packages(pkgs, repos = commandArgs(TRUE)[1])
+            ok <- vapply(c(pkgs, "MASS"), requireNamespace, logical(1), quietly = TRUE)
+            if (!all(ok)) stop("could not install: ", paste(names(ok)[!ok], collapse = ", "))
+            print(installed.packages()[c(pkgs, "MASS"), "Version"])' "$CRAN_SNAPSHOT"
+      - name: Install nbconvert
+        run: |
+          python3 -m venv "$RUNNER_TEMP/nbconvert"
+          "$RUNNER_TEMP/nbconvert/bin/python" -m pip install --quiet "nbconvert==7.17.2"
+          echo "$RUNNER_TEMP/nbconvert/bin" >> "$GITHUB_PATH"
+      - name: Toolchain versions
+        run: |
+          R --version | head -1
+          gfortran --version | head -1
+          julia --version
+          jupyter nbconvert --version
+      - name: Instantiate the package and notebook environments
+        run: |
+          julia --project=. --color=yes -e 'using Pkg; Pkg.instantiate()'
+          julia --project=notebooks --color=yes -e 'using Pkg; Pkg.develop(PackageSpec(path = pwd())); Pkg.instantiate()'
+      - name: Run every cell, hide the home folder, convert to HTML
+        run: julia --project=notebooks --color=yes notebooks/build.jl --execute --hide-home --html
+      - name: Upload the results
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: notebook-${{ github.run_id }}
+          path: |
+            notebooks/executed/GeocarbPrecalibration_tour.ipynb
+            notebooks/executed/GeocarbPrecalibration_tour.html
+          retention-days: 30
+          if-no-files-found: warn
+          overwrite: true # a re-run of this job replaces the artifact of the failed attempt
+
+  attach:
+    name: Attach to the existing release (manual backfill)
+    if: github.event_name == 'workflow_dispatch'
+    needs: run
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write # gh release view (drafts included) and gh release upload
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: ${{ needs.run.outputs.artifact }}
+          path: executed
+      - name: Attach the notebook and its HTML to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          ls -l executed
+          # checked here, with a write token, because a read-only token cannot see draft releases
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json tagName,name,isDraft \
+            --jq '"release: \(.tagName) \(.name) (draft: \(.isDraft))"'
+          # no --clobber: fails if a file of the same name is already attached
+          gh release upload "$TAG" executed/GeocarbPrecalibration_tour.html executed/GeocarbPrecalibration_tour.ipynb \
+            --repo "$GITHUB_REPOSITORY"
+          {
+            echo "## Notebook attached to $TAG"
+            echo "- GeocarbPrecalibration_tour.html (open in a browser)"
+            echo "- GeocarbPrecalibration_tour.ipynb (open in Jupyter)"
+            echo
+            echo "https://github.com/$GITHUB_REPOSITORY/releases/tag/$TAG"
+          } >> "$GITHUB_STEP_SUMMARY"

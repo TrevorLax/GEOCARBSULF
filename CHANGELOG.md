@@ -125,10 +125,13 @@ Known differences from the R/Fortran code are listed in `docs/src/porting_notes.
 - `notebooks/build.jl` options: `--execute` (run every cell into the git-ignored
   `notebooks/executed/`), `--hide-home` (replace the home folder with `~` in the
   outputs) and `--html` (one self-contained HTML file via
-  `jupyter nbconvert --to html --embed-images`). New manual workflow
-  `PublishNotebook.yml`: on a given release tag, with the pinned R/gfortran toolchain
-  of `Legacy.yml` so that level C runs, it runs the notebook with these three options
-  and attaches the `.ipynb` and `.html` to the release.
+  `jupyter nbconvert --to html --embed-images`). New workflow `PublishNotebook.yml`:
+  at a release tag, with Julia 1.12.5 and the pinned R/gfortran toolchain of
+  `Legacy.yml` so that level C runs, it runs the notebook with these three options.
+  `Release.yml` now calls it first and creates the release as a draft with the `.ipynb`
+  and `.html` attached before publishing it, so the release is complete when it is
+  published; a failed notebook run blocks the release. A manual run attaches the files
+  to an existing release and refuses to replace files of the same name.
 - `docs` environment: new dependency Literate.
 - These changes were drafted with an AI coding assistant (Claude Code, Claude Opus 5.5;
   see `AI_USAGE.md`).
