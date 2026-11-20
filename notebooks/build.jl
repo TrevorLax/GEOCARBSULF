@@ -112,7 +112,9 @@ function main(args)
     elseif hide || html
         joinpath(EXECUTED_DIR, NB_NAME * ".ipynb")   # work on the executed notebook already there
     else
-        Literate.notebook(NB_SRC, NB_DIR; name=NB_NAME, execute=false, credit=false)
+        p = Literate.notebook(NB_SRC, NB_DIR; name=NB_NAME, execute=false, credit=false)
+        endswith(read(p, String), '\n') || open(io -> write(io, '\n'), p, "a")   # end-of-file-fixer hook
+        p
     end
     isfile(target) || error("$target does not exist; run with --execute first (or save an executed copy there)")
     println("notebook: ", target)
