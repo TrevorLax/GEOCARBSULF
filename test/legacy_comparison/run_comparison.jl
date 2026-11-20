@@ -12,7 +12,7 @@
 #   --n-supp N         samples re-run for each supplemental variant (default 200)
 #   --seed S           R random seed (default 2026)
 #   --rtol-clean X     tolerance before a run's first failed step (default 1e-8)
-#   --rtol-post X      tolerance at/after a run's first failed step (default 1e-4)
+#   --rtol-post X      tolerance at/after a run's first failed step (default 1e-6)
 #   --atol X           absolute tolerance (default 1e-10)
 #                      The defaults are read from test/tolerances.toml. CI and the
 #                      pre-push hook never pass these three options.

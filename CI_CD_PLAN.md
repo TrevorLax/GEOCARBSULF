@@ -206,7 +206,7 @@ There are three layers of protection:
      the fresh Fortran output.
 
    Julia must reproduce CO2, O2 and temperature at every step within `rtol = 1e-8`, or
-   `1e-4` after a run's first failed step, with `atol = 1e-10`. Inf/NaN positions must
+   `1e-6` after a run's first failed step, with `atol = 1e-10`. Inf/NaN positions must
    be identical and % outbound must be equal. Any mismatch fails the job. The report
    goes to the job summary, and the full output is uploaded as an artifact.
 3. **Golden-master fixtures (`test/regression`, permanent).** These are outputs of the
@@ -221,7 +221,7 @@ Today the same numbers are written twice: `const RTOL_CLEAN/RTOL_POST/ATOL` in
 
 ```toml
 rtol_clean = 1e-8   # before a run's first failed step
-rtol_post  = 1e-4   # at or after it (finding F-08)
+rtol_post  = 1e-6   # at or after it (finding F-08; 1e-4 until November 2026)
 atol       = 1e-10
 ```
 

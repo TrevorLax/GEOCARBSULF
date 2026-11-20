@@ -1,0 +1,61 @@
+# The notebook tour (notebooks/tour.jl) run from top to bottom in quick mode, on Julia
+# 1.10 (the [compat] floor) and on the newest release, with notebooks/test_notebook.jl.
+# It also fails if the committed notebooks/GeocarbPrecalibration_tour.ipynb no longer
+# matches tour.jl. Levels B and C of the notebook are skipped here (no stored R exports,
+# no R). Not a required check. The 1.10 result decides JULIA_110_STATUS in
+# notebooks/tour_helpers.jl, which sets the warning 1.10 users see.
+name: Notebook
+
+on:
+  push:
+    branches: ["**"]
+    paths:
+      - "notebooks/**"
+      - "src/**"
+      - "ext/**"
+      - "test/**"
+      - "data/**"
+      - "experiments/**"
+      - "Project.toml"
+      - ".github/workflows/Notebook.yml"
+  pull_request:
+    paths:
+      - "notebooks/**"
+      - "src/**"
+      - "ext/**"
+      - "test/**"
+      - "data/**"
+      - "experiments/**"
+      - "Project.toml"
+      - ".github/workflows/Notebook.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  notebook:
+    name: Notebook · Julia ${{ matrix.version }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      actions: write # julia-actions/cache prunes its superseded caches
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        version: ["1.10", "1"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: julia-actions/setup-julia@da908477b5db94c10ffce8cfea9f2b3b9d5db687 # v3.0.3
+        with:
+          version: ${{ matrix.version }}
+      - uses: julia-actions/cache@9353db09a0f2bbbdec6f41791918c75d37391b36 # v3.5.0
+      - name: Run every cell of the notebook (quick mode)
+        run: julia --color=yes notebooks/test_notebook.jl

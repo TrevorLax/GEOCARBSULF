@@ -51,10 +51,11 @@ label except `real8`, which uses `false`. For each quantity it requires
 
 * the positions of `inf`/`NaN` to be identical (same steps fail);
 * values **before** a run's first failed step to agree within `rtol = 1e-8`;
-* values **at or after** the first failed step to agree within `rtol = 1e-4`.
+* values **at or after** the first failed step to agree within `rtol = 1e-6`.
 
 The split exists because Julia's `exp`/`log`/`^` and the C runtime used by gfortran
 round differently in the last bit now and then. In a healthy run that stays below
 about 4e-9 relative. After a failed step the legacy model keeps integrating from an
-invalid state, which amplifies those last-bit differences up to about 1e-6. See
+invalid state, which amplifies those last-bit differences (to at most 7.3e-8 relative
+in the 1000-sample live comparison). See
 `docs/src/testing.md` for details.

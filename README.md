@@ -35,7 +35,11 @@ and model variants are copies of the Fortran. This package gives researchers in
 paleoclimate and Earth-system science the same model and workflow as one documented,
 tested library. Experiments are declared in files, variants are options, ensembles
 are deterministic and threaded, and results are checked continuously against the
-original code.
+original code. The additional benefit to porting the code to a modern, faster, 
+optimized langauge is that it is set up for further improvements, which include
+both bugfixes as well as more substantial improvements in compuational technique 
+and expansions in methodology. (better sampling, different distributions, actual
+bayesian calibration, etc.....more to come) 
 
 ## Installation
 
@@ -68,6 +72,15 @@ r.co2, temperature(r)
 res = run_precalibration(only(load_experiments("experiments/example_small.toml")))
 climate_sensitivity_summary(res)
 ```
+
+## Notebook tour
+
+[`notebooks/GeocarbPrecalibration_tour.ipynb`](notebooks/GeocarbPrecalibration_tour.ipynb)
+introduces the model and the package, runs it, and then runs the test suite and the
+comparison with the original R/Fortran code, with figures of how close the agreement
+is. Set it up once with `julia notebooks/setup.jl` and open it in JupyterLab or VS Code
+(kernel "GeocarbPrecalibration"). Its source is `notebooks/tour.jl`; it is also the
+"Notebook tour" page of the documentation.
 
 ## Reproducing the paper
 

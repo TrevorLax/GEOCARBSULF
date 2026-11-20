@@ -49,12 +49,12 @@ Finite values must satisfy `|a − b| ≤ atol + rtol·max(|a|, |b|)` with `atol
 and
 
 - `rtol = 1e-8` **before** a run's first failed step,
-- `rtol = 1e-4` **at or after** it.
+- `rtol = 1e-6` **at or after** it.
 
 Julia's `exp`/`log`/`^` and the C runtime used by gfortran sometimes round the last
 bit differently. That stays below about 4e-9 in valid steps, but the legacy model
-keeps integrating after a failed step (finding F-08), which amplifies it to about
-1e-6. `docs/src/testing.md` explains this in detail. The random numbers themselves
+keeps integrating after a failed step (finding F-08), which amplifies it (at most
+7.3e-8 relative so far). `docs/src/testing.md` explains this in detail. The random numbers themselves
 are not compared: R and Julia use different generators, which is why the Julia code
 is fed R's samples.
 

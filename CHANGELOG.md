@@ -86,3 +86,35 @@ Known differences from the R/Fortran code are listed in `docs/src/porting_notes.
   days before proposing a release; batch files are checked out with CRLF.
 - These changes were drafted with an AI coding assistant (Claude Code, Claude Opus 5.5;
   see `AI_USAGE.md`).
+
+### Notebook tour and tighter tolerance
+
+- **Tolerance change:** `rtol_post` in `test/tolerances.toml` (the tolerance at or after
+  a run's first failed step) is tightened from 1e-4 to 1e-6. The largest relative
+  difference ever observed there is 7.3e-8 (1000-sample live comparison, 30 October
+  2026), so 1e-4 was about 1400 times looser than needed; 1e-6 keeps a margin of about
+  14. The documentation said differences there grow "to about 1e-6"; that figure was
+  the largest *absolute* difference (1.3e-6, a temperature), and the text now gives the
+  relative one. The correctness guards of the timing benchmark
+  (`benchmark/timing/lib/common.jl` and `common.R`) had their own copy of the old value
+  and now use 1e-6 too. Not yet checked: Julia against Fortran built on Linux and macOS (the
+  Legacy workflow and the golden test in CI will show it).
+- New notebook tour, `notebooks/tour.jl` (Literate.jl source), generating
+  `notebooks/GeocarbPrecalibration_tour.ipynb` and the "Notebook tour" documentation
+  page. Part 1 introduces the model and package and runs them; Part 2 runs the test
+  groups in subprocesses and compares Julia with the original code at three levels
+  (golden master; replay of stored R exports in a scratch copy; live R/Fortran run if
+  R and a Fortran compiler are found), plotting each check against its tolerance.
+  `notebooks/setup.jl` sets it up, `notebooks/build.jl` regenerates it,
+  `notebooks/test_notebook.jl` runs it on a scratch copy of the repository, and the new
+  `Notebook.yml` workflow runs that on Julia 1.10 and 1.
+- `notebooks/build.jl` options: `--execute` (run every cell into the git-ignored
+  `notebooks/executed/`), `--hide-home` (replace the home folder with `~` in the
+  outputs) and `--html` (one self-contained HTML file via
+  `jupyter nbconvert --to html --embed-images`). New manual workflow
+  `PublishNotebook.yml`: on a given release tag, with the pinned R/gfortran toolchain
+  of `Legacy.yml` so that level C runs, it runs the notebook with these three options
+  and attaches the `.ipynb` and `.html` to the release.
+- `docs` environment: new dependency Literate.
+- These changes were drafted with an AI coding assistant (Claude Code, Claude Opus 5.5;
+  see `AI_USAGE.md`).

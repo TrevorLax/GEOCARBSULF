@@ -97,7 +97,7 @@ end
 function tolerances(stats)
     clean = findfirst(s -> occursin("[before any failure]", s.label), stats)
     post = findfirst(s -> occursin("[at/after a failure]", s.label), stats)
-    return (clean=clean === nothing ? 1e-8 : stats[clean].rtol, post=post === nothing ? 1e-4 : stats[post].rtol)
+    return (clean=clean === nothing ? 1e-8 : stats[clean].rtol, post=post === nothing ? 1e-6 : stats[post].rtol)
 end
 
 reldiff(x, y) = (isfinite(x) && isfinite(y)) ? (max(abs(x), abs(y)) > 0 ? abs(x - y) / max(abs(x), abs(y)) : 0.0) : NaN
