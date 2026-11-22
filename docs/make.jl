@@ -14,7 +14,6 @@
 #       doctest(GeocarbPrecalibration; fix=true)'
 using Documenter
 using GeocarbPrecalibration
-using Literate
 
 const ROOT = normpath(joinpath(@__DIR__, ".."))
 const ONCI = get(ENV, "CI", "false") == "true"
@@ -33,17 +32,41 @@ let src = joinpath(ROOT, "AI_USAGE.md"), dst = joinpath(@__DIR__, "src", "ai_usa
 end
 
 # The notebook tour (notebooks/tour.jl, Literate.jl format) is also a page of the
-# documentation. Its code is shown but not run: running it takes many minutes, needs
-# CairoMakie and runs the test suite. The generated page is git-ignored.
-Literate.markdown(
-    joinpath(ROOT, "notebooks", "tour.jl"),
-    joinpath(@__DIR__, "src", "generated");
-    name="notebook_tour",
-    flavor=Literate.DocumenterFlavor(),
-    codefence="```julia" => "```",
-    execute=false,
-    credit=false,
-)
+# documentation, with its outputs and figures. Running it takes 15-30 minutes, CairoMakie,
+# the whole test suite and (for level C) R, so the build does not run it: the page in
+# docs/src/generated/ is produced on a developer's machine with
+#   julia --project=notebooks -t auto notebooks/build.jl --docs-page
+# and committed. This check FAILS the build if tour.jl or tour_helpers.jl changed since
+# then (or the page was made in quick mode), and warns if src/, ext/, data/,
+# experiments/, test/ or Project.toml changed (see notebooks/tour_stamp.jl).
+include(joinpath(ROOT, "notebooks", "tour_stamp.jl"))
+let (errors, warnings) = TourStamp.check(ROOT)
+    TourStamp.report(errors, warnings)
+    isempty(errors) || error("the notebook-tour page is stale or missing; see the message above")
+end
+
+# The API reference is split into pages that select docstrings by source file
+# (`Pages = [...]` in their `@autodocs` blocks; Documenter matches with `endswith`).
+# checkdocs = :exports only catches missing exported names, so fail here if any
+# docstring, public or internal, comes from a file that no API page lists.
+let api_dir = joinpath(@__DIR__, "src", "api")
+    api_pages = [joinpath(@__DIR__, "src", "api.md"); filter(endswith(".md"), readdir(api_dir; join=true))]
+    listed = String[]
+    for f in api_pages, m in eachmatch(r"Pages\s*=\s*\[([^\]]*)\]", read(f, String))
+        append!(listed, [normpath(q[1]) for q in eachmatch(r"\"([^\"]+)\"", m[1])])
+    end
+    unlisted = Set{String}()
+    for multidoc in values(Docs.meta(GeocarbPrecalibration)), docstr in values(multidoc.docs)
+        raw = string(get(docstr.data, :path, ""))
+        path = isempty(raw) ? "" : normpath(raw)
+        any(p -> endswith(path, p), listed) || push!(unlisted, isempty(path) ? "(unknown file)" : relpath(path, ROOT))
+    end
+    isempty(unlisted) || error(
+        "docstrings in source files that no API page lists; add them to a `Pages = [...]` " *
+        "list in docs/src/api.md or docs/src/api/*.md: " *
+        join(sort!(collect(unlisted)), ", "),
+    )
+end
 
 makedocs(;
     sitename="GeocarbPrecalibration.jl",
@@ -61,7 +84,15 @@ makedocs(;
         "Performance" => "performance.md",
         "Porting notes" => "porting_notes.md",
         "AI usage" => "ai_usage.md",
-        "API" => "api.md",
+        "API" => [
+            "Overview" => "api.md",
+            "Model" => "api/model.md",
+            "Parameters and priors" => "api/parameters.md",
+            "Samplers" => "api/sampling.md",
+            "Input data and output files" => "api/data.md",
+            "Constraints and precalibration" => "api/constraints.md",
+            "Analysis and plotting" => "api/analysis.md",
+        ],
     ],
     doctest=true,
     linkcheck=get(ENV, "LINKCHECK", "false") == "true",

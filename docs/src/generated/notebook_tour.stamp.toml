@@ -1,0 +1,20 @@
+# Written by `notebooks/build.jl --docs-page`; checked by notebooks/tour_stamp.jl
+# (docs/make.jl and the pre-push hook tour-page-stamp). Do not edit by hand.
+commit = "c29fe6d9f3f74e8c204049d833b85915c72f951a"
+generated = "2026-11-22"
+julia = "1.12.7"
+package_version = "0.1.0"
+quick = false
+threads = 32
+uncommitted = ["CHANGELOG.md", "docs/make.jl", "docs/src/api.md", "notebooks/tour_helpers.jl"]
+
+[package_inputs]
+files = 114
+sha256 = "2f3d9fb6bace710e1e4f16ee973da29cb612da3fcd0a4c709b4f409e758e183f"
+
+[[page_sources]]
+path = "notebooks/tour.jl"
+sha256 = "299a9a9934904c634fb6af26878b172f67299ac2d53181552695ce679eaa5d96"
+[[page_sources]]
+path = "notebooks/tour_helpers.jl"
+sha256 = "c46ac4e921aab86019e943162d07512c5e5b26507ba24617bb7751c2c7185b9a"

@@ -80,7 +80,10 @@ introduces the model and the package, runs it, and then runs the test suite and 
 comparison with the original R/Fortran code, with figures of how close the agreement
 is. Set it up once with `julia notebooks/setup.jl` and open it in JupyterLab or VS Code
 (kernel "GeocarbPrecalibration"). Its source is `notebooks/tour.jl`; it is also the
-"Notebook tour" page of the documentation.
+"Notebook tour" page of the documentation, which shows the outputs and figures of one
+full run made with `julia --project=notebooks -t auto notebooks/build.jl --docs-page`
+and committed in `docs/src/generated/`. The documentation build fails if `tour.jl` or
+`notebooks/tour_helpers.jl` changes without that page being regenerated.
 
 ## Reproducing the paper
 

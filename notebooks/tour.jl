@@ -3,10 +3,8 @@
 # *The GEOCARBSULFvolc long-term carbon-cycle model in Julia: what it is, how to set
 # it up and run it, and the evidence that it reproduces the original R/Fortran code.*
 #
-#md # > This page is generated from `notebooks/tour.jl` with Literate.jl. The code is
-#md # > shown but **not run** here, so there are no figures. To see the outputs, download
-#md # > [the notebook](https://github.com/TrevorLax/GEOCARBSULF/blob/main/notebooks/GeocarbPrecalibration_tour.ipynb)
-#md # > and run it as described under *Setup*.
+#md # > This page is generated from `notebooks/tour.jl` with Literate.jl.
+#md # > {{TOUR_RUN_INFO}}
 #md #
 #nb # > This notebook is generated from `notebooks/tour.jl` with Literate.jl; edit that
 #nb # > file, not the `.ipynb`, and regenerate with `julia --project=notebooks notebooks/build.jl`.
@@ -364,13 +362,12 @@ println("saved:\n  ", join(vcat(joinpath(resdir, "result.jld2"), written), "\n  
 # The headline numbers of the paper are quantiles of ΔT2x and of the glacial
 # sensitivity ΔT2x·GLAC over the accepted samples:
 
-if n_accepted(res) > 0
-    tbl, exceed = sensitivity_table(res)
-    display(tbl)
-    callout(:note, exceed)
-else
-    callout(:warn, "No sample was accepted; increase `n_sample` in the cell above.")
-end
+tbl, exceed = n_accepted(res) > 0 ? sensitivity_table(res) : (nothing, nothing)
+isnothing(tbl) ? callout(:warn, "No sample was accepted; increase `n_sample` in the cell above.") : tbl
+
+#-
+
+isnothing(exceed) ? nothing : callout(:note, exceed)
 
 # Prior and posterior of ΔT2x, with the estimate of Park & Royer (2011) for comparison:
 
