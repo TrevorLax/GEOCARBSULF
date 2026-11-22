@@ -76,12 +76,27 @@ fmt(x::Real) = x == 0 ? "0" : (isnan(x) ? "–" : @sprintf("%.2e", x))
 fmt(x) = string(x)
 
 const BADGE = Dict(
-    :pass => "<span style=\"color:#1a7f37;font-weight:600\">✔ pass</span>",
-    :fail => "<span style=\"color:#cf222e;font-weight:600\">✘ FAIL</span>",
-    :skip => "<span style=\"color:#6e7781\">– skipped</span>",
-    :error => "<span style=\"color:#cf222e;font-weight:600\">✘ error</span>",
+    :pass => "<span class=\"gc-pass\">✔ pass</span>",
+    :fail => "<span class=\"gc-fail\">✘ FAIL</span>",
+    :skip => "<span class=\"gc-skip\">– skipped</span>",
+    :error => "<span class=\"gc-fail\">✘ error</span>",
 )
 badge(ok::Bool) = BADGE[ok ? :pass : :fail]
+
+# Styles of `html_table` and the badges. They were inline `style` attributes on every
+# cell, which made the documentation page exceed Documenter's 200 KiB HTML limit (61% of
+# the page was repeated styles). One copy now goes out with each table, so every table
+# is styled on its own in Documenter and in Jupyter. `!important` reproduces the old
+# inline precedence over the Documenter themes' `.content table td/th` rules (the dark
+# theme's selectors are more specific than a class), so the tables look the same.
+const TABLE_STYLE =
+    "<style>" *
+    "table.gc-tour{border-collapse:collapse!important;font-size:92%!important;margin:4px 0!important}" *
+    "table.gc-tour caption{text-align:left;font-weight:600}" *
+    "table.gc-tour th{text-align:left!important;padding:3px 10px!important;border-bottom:2px solid #d0d7de!important}" *
+    "table.gc-tour td{padding:3px 10px!important;border-bottom:1px solid #eaeef2!important}" *
+    ".gc-pass{color:#1a7f37;font-weight:600}.gc-fail{color:#cf222e;font-weight:600}.gc-skip{color:#6e7781}" *
+    "</style>"
 
 """
     html_table(header, rows; caption = "", collapsed = nothing) -> HTML
@@ -91,18 +106,19 @@ A small styled table. `rows` holds already formatted cells (HTML allowed). With
 """
 function html_table(header, rows; caption::AbstractString="", collapsed=nothing)
     io = IOBuffer()
+    print(io, TABLE_STYLE)
     collapsed === nothing || print(io, "<details><summary>", collapsed, "</summary>")
-    print(io, "<table style=\"border-collapse:collapse;font-size:92%;margin:4px 0\">")
-    isempty(caption) || print(io, "<caption style=\"text-align:left;font-weight:600\">", caption, "</caption>")
+    print(io, "<table class=\"gc-tour\">")
+    isempty(caption) || print(io, "<caption>", caption, "</caption>")
     print(io, "<thead><tr>")
     for h in header
-        print(io, "<th style=\"text-align:left;padding:3px 10px;border-bottom:2px solid #d0d7de\">", h, "</th>")
+        print(io, "<th>", h, "</th>")
     end
     print(io, "</tr></thead><tbody>")
     for r in rows
         print(io, "<tr>")
         for c in r
-            print(io, "<td style=\"padding:3px 10px;border-bottom:1px solid #eaeef2\">", c, "</td>")
+            print(io, "<td>", c, "</td>")
         end
         print(io, "</tr>")
     end

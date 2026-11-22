@@ -147,3 +147,21 @@ Known differences from the R/Fortran code are listed in `docs/src/porting_notes.
 - `docs` environment: dependency Literate removed again (the build no longer runs it).
 - These changes were drafted with an AI coding assistant (Claude Code, Claude Opus 5.5;
   see `AI_USAGE.md`).
+
+### Documentation page sizes
+
+- The "Notebook tour" page exceeded Documenter's 200 KiB HTML limit (246 KiB) and failed
+  the build: 61% of it was the same inline `style` attributes repeated on every table
+  cell. `html_table` and the pass/fail badges in `notebooks/tour_helpers.jl` now use
+  CSS classes (`gc-tour`, `gc-pass`, `gc-fail`, `gc-skip`) with one `<style>` block per
+  table, so each table is styled on its own in Documenter and in Jupyter. The rules use
+  `!important` to keep the old inline precedence over the Documenter themes, so the
+  tables look as before. The page must be regenerated (`notebooks/build.jl --docs-page`)
+  because `tour_helpers.jl` changed.
+- The API reference (`api.md`, 167 KiB, close to the same limit) is split into an
+  overview and six pages by area under `docs/src/api/`: model, parameters and priors,
+  samplers, input data and output files, constraints and precalibration, analysis and
+  plotting. Each `@autodocs` block selects docstrings by source file. `docs/make.jl` now
+  fails if a docstring comes from a source file that no API page lists.
+- These changes were drafted with an AI coding assistant (Claude Code, Claude Opus 5.5;
+  see `AI_USAGE.md`).

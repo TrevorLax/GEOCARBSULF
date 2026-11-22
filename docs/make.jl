@@ -45,6 +45,29 @@ let (errors, warnings) = TourStamp.check(ROOT)
     isempty(errors) || error("the notebook-tour page is stale or missing; see the message above")
 end
 
+# The API reference is split into pages that select docstrings by source file
+# (`Pages = [...]` in their `@autodocs` blocks; Documenter matches with `endswith`).
+# checkdocs = :exports only catches missing exported names, so fail here if any
+# docstring, public or internal, comes from a file that no API page lists.
+let api_dir = joinpath(@__DIR__, "src", "api")
+    api_pages = [joinpath(@__DIR__, "src", "api.md"); filter(endswith(".md"), readdir(api_dir; join=true))]
+    listed = String[]
+    for f in api_pages, m in eachmatch(r"Pages\s*=\s*\[([^\]]*)\]", read(f, String))
+        append!(listed, [normpath(q[1]) for q in eachmatch(r"\"([^\"]+)\"", m[1])])
+    end
+    unlisted = Set{String}()
+    for multidoc in values(Docs.meta(GeocarbPrecalibration)), docstr in values(multidoc.docs)
+        raw = string(get(docstr.data, :path, ""))
+        path = isempty(raw) ? "" : normpath(raw)
+        any(p -> endswith(path, p), listed) || push!(unlisted, isempty(path) ? "(unknown file)" : relpath(path, ROOT))
+    end
+    isempty(unlisted) || error(
+        "docstrings in source files that no API page lists; add them to a `Pages = [...]` " *
+        "list in docs/src/api.md or docs/src/api/*.md: " *
+        join(sort!(collect(unlisted)), ", "),
+    )
+end
+
 makedocs(;
     sitename="GeocarbPrecalibration.jl",
     modules=[GeocarbPrecalibration],
@@ -61,7 +84,15 @@ makedocs(;
         "Performance" => "performance.md",
         "Porting notes" => "porting_notes.md",
         "AI usage" => "ai_usage.md",
-        "API" => "api.md",
+        "API" => [
+            "Overview" => "api.md",
+            "Model" => "api/model.md",
+            "Parameters and priors" => "api/parameters.md",
+            "Samplers" => "api/sampling.md",
+            "Input data and output files" => "api/data.md",
+            "Constraints and precalibration" => "api/constraints.md",
+            "Analysis and plotting" => "api/analysis.md",
+        ],
     ],
     doctest=true,
     linkcheck=get(ENV, "LINKCHECK", "false") == "true",
