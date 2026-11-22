@@ -26,7 +26,11 @@ Ask usage questions in GitHub Discussions, or open an issue. The documentation
 4. Build the documentation (`julia --project=docs docs/make.jl`). This also runs every
    `jldoctest`. After an intended change of output, regenerate the expected output
    with `doctest(GeocarbPrecalibration; fix = true)` (see the header of `docs/make.jl`)
-   and review the diff.
+   and review the diff. If you changed `notebooks/tour.jl` or
+   `notebooks/tour_helpers.jl`, first regenerate the "Notebook tour" page with
+   `julia --project=notebooks -t auto notebooks/build.jl --docs-page` (15-30 minutes;
+   level C needs R and a Fortran compiler) and commit `docs/src/generated/` and
+   `notebooks/GeocarbPrecalibration_tour.ipynb`; otherwise the build fails.
 5. Open the pull request and fill in the template, including exactly one of the two AI
    boxes. CI must be green. The required checks are "CI result", "Legacy comparison",
    "Documentation", "Formatting", "Metadata", "Changelog and AI usage" and "Lint".

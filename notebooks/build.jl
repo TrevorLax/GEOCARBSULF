@@ -24,6 +24,22 @@
 # Without --execute, --hide-home and --html work on the executed notebook already in
 # notebooks/executed/ (for example one you ran in JupyterLab and saved there).
 #
+# The "Notebook tour" page of the documentation, with outputs and figures:
+#
+#   julia --project=notebooks -t auto notebooks/build.jl --docs-page [--quick]
+#       runs every cell (15-30 min; `-t auto` makes the precalibration faster) into
+#       docs/src/generated/notebook_tour.md, with one PNG file per figure
+#       (notebook_tour-<n>.png) and the stamp notebook_tour.stamp.toml; replaces the
+#       home folder with "~" in the page; and rewrites the .ipynb without outputs as
+#       above. Commit everything in docs/src/generated/ together with the .ipynb.
+#       The Docs workflow only renders the committed page; docs/make.jl fails if
+#       tour.jl or tour_helpers.jl changed since the page was generated (see
+#       notebooks/tour_stamp.jl). Levels B and C run if this machine can run them,
+#       as in the notebook, so the page shows what this machine found.
+#   --quick      with --docs-page: quick mode (GEOCARB_NOTEBOOK_FAST=true), a few
+#                minutes, to try the pipeline. docs/make.jl rejects a quick page, so
+#                run without --quick before committing.
+#
 # --html needs Jupyter's nbconvert: the program named by the JUPYTER environment
 # variable, else `jupyter` on the PATH, else the private Jupyter that IJulia installs
 # (`using IJulia; jupyterlab()` offers to install it).
@@ -34,12 +50,23 @@
 # attaches the .ipynb and the .html to the release before publishing it.
 
 using Literate
+using TOML
 
 const NB_DIR = @__DIR__
 const NB_NAME = "GeocarbPrecalibration_tour"
 const NB_SRC = joinpath(NB_DIR, "tour.jl")
 const EXECUTED_DIR = joinpath(NB_DIR, "executed")
-const OPTIONS = ("--execute", "--hide-home", "--html")
+const OPTIONS = ("--execute", "--hide-home", "--html", "--docs-page", "--quick")
+
+const REPO_ROOT = normpath(joinpath(NB_DIR, ".."))
+const DOCS_GEN = joinpath(REPO_ROOT, "docs", "src", "generated")
+const DOCS_NAME = "notebook_tour"
+const DOCS_FIGURE = Regex("^" * DOCS_NAME * raw"-\d+\.(png|svg|jpeg)$")
+const DOCS_EDIT_URL = replace(relpath(NB_SRC, DOCS_GEN), '\\' => '/')   # "Edit on GitHub" link of the page
+const RUN_INFO_MARK = "{{TOUR_RUN_INFO}}"   # placeholder in the `#md` note of tour.jl
+const MAX_FIGURE_KB = 1000                  # check-added-large-files in .pre-commit-config.yaml
+
+include(joinpath(NB_DIR, "tour_stamp.jl"))  # module TourStamp
 
 """
     hide_home!(path) -> Int
@@ -102,19 +129,188 @@ function to_html(notebook::AbstractString)
     return splitext(notebook)[1] * ".html"
 end
 
+"The notebook without outputs, notebooks/GeocarbPrecalibration_tour.ipynb (the committed one)."
+function plain_notebook()
+    p = Literate.notebook(NB_SRC, NB_DIR; name=NB_NAME, execute=false, credit=false)
+    endswith(read(p, String), '\n') || open(io -> write(io, '\n'), p, "a")   # end-of-file-fixer hook
+    return p
+end
+
+"""
+    png_only!()
+
+Make CairoMakie figures showable only as PNG. CairoMakie also offers `text/html` (a
+base64 `<img>`) and SVG, and Literate's Documenter flavour tries `text/html` first, so
+without this every figure would be embedded in the Markdown file instead of written
+to its own PNG file (and an SVG of a 58 000-point scatter plot is several MB).
+"""
+function png_only!()
+    @eval using CairoMakie
+    # the binding was created in a newer world than this call: reach it with invokelatest
+    return Base.invokelatest(_png_only!, Base.invokelatest(getfield, @__MODULE__, :CairoMakie))
+end
+
+function _png_only!(cm::Module)
+    others = filter(!=("image/png"), collect(cm.SUPPORTED_MIMES))
+    cm.disable_mime!(others...)
+    fig = cm.Figure()
+    ok = showable(MIME("image/png"), fig) && !any(m -> showable(MIME(m), fig), others)
+    ok || error("could not restrict CairoMakie to PNG output; the page would embed figures as HTML or SVG")
+    return nothing
+end
+
+"""
+    git_state(root) -> (commit, uncommitted)
+
+HEAD, and the tracked files (other than the generated page and the notebook it
+rewrites) that differ from it; `[\"unknown\"]` if git cannot tell.
+"""
+function git_state(root)
+    git(args...) = readchomp(pipeline(Cmd(`git $(collect(args))`; dir=root); stderr=devnull))
+    commit = try
+        git("rev-parse", "HEAD")
+    catch
+        "unknown"
+    end
+    uncommitted = try
+        out = git(
+            "status",
+            "--porcelain",
+            "--untracked-files=no",
+            "--",
+            ".",
+            ":(exclude)docs/src/generated",
+            ":(exclude)notebooks/$NB_NAME.ipynb",
+        )
+        # "XY path" or "XY old -> new"; paths with spaces are quoted
+        [strip(last(split(l[4:end], " -> ")), '"') for l in split(out, '\n') if length(l) > 3]
+    catch
+        ["unknown"]
+    end
+    return commit, String.(uncommitted)
+end
+
+"The sentence that replaces `RUN_INFO_MARK` at the top of the page."
+function run_info_text(; generated, commit, uncommitted, quick, julia, threads, package_version)
+    c = commit == "unknown" ? "an unknown commit" : "commit `$(first(commit, 10))`"
+    if !isempty(uncommitted)
+        files = length(uncommitted) <= 3 ? join(["`$f`" for f in uncommitted], ", ") : "$(length(uncommitted)) files"
+        c *= " plus uncommitted changes to $files"
+    end
+    mode = quick ? "**quick mode** (demo-sized results, not for publication)" : "full mode"
+    return "This page shows the outputs of one run of the notebook, in $mode, on $generated with " *
+           "GeocarbPrecalibration $package_version at $c, Julia $julia and $threads threads, on " *
+           "$(Sys.KERNEL == :NT ? "Windows" : string(Sys.KERNEL)). " *
+           "Levels B and C of Part 2 depend on what that machine had installed (section 2.2 says what ran). " *
+           "To run it yourself, download " *
+           "[the notebook](https://github.com/TrevorLax/GEOCARBSULF/blob/main/notebooks/$NB_NAME.ipynb) " *
+           "and follow *Setup*."
+end
+
+"""
+    docs_page(; quick) -> String
+
+Run every cell of tour.jl into the documentation page with its figures, write the
+stamp, and rewrite the notebook without outputs. Returns the path of the page.
+"""
+function docs_page(; quick::Bool)
+    root = REPO_ROOT
+    before = TourStamp.current(root)
+    commit, uncommitted = git_state(root)
+    info = (;
+        generated=Libc.strftime("%Y-%m-%d", time()),
+        commit,
+        uncommitted,
+        quick,
+        julia=string(VERSION),
+        threads=Threads.nthreads(),
+        package_version=string(TOML.parsefile(joinpath(root, "Project.toml"))["version"]),
+    )
+    Threads.nthreads() == 1 && @warn "Julia runs with one thread; start it with `-t auto` for a faster precalibration"
+
+    png_only!()
+
+    # Run in a scratch folder (Literate also makes it the working directory), and move
+    # the page and its figures into docs/src/generated/ only if everything succeeded:
+    # a failed run leaves the committed page untouched, and files the tour writes into
+    # its working directory never reach the repository.
+    stage = mktempdir()
+    function postprocess(s)
+        occursin(RUN_INFO_MARK, s) || error("$RUN_INFO_MARK not found in the `#md` note of tour.jl")
+        occursin(r"EditURL = \"[^\"]*\"", s) || error("no EditURL in the generated page")
+        s = replace(s, r"EditURL = \"[^\"]*\"" => "EditURL = \"$DOCS_EDIT_URL\"")   # relative to docs/src/generated
+        return replace(s, RUN_INFO_MARK => run_info_text(; info...))
+    end
+    println("running every cell of tour.jl into the documentation page (", quick ? "quick" : "full", " mode)")
+    page = withenv("GEOCARB_NOTEBOOK_FAST" => (quick ? "true" : "false")) do
+        return Literate.markdown(
+            NB_SRC,
+            stage;
+            name=DOCS_NAME,
+            flavor=Literate.DocumenterFlavor(),
+            execute=true,
+            credit=false,
+            image_formats=[(MIME("image/png"), ".png")],
+            postprocess,
+        )
+    end
+    println("home folder replaced by ~ in $(hide_home!(page)) place(s) of the page")
+
+    text = read(page, String)
+    occursin("data:image", text) && error("the page embeds an image as base64; figures must be separate PNG files")
+    refs = [m[1] for m in eachmatch(r"!\[[^\]]*\]\(([^)\s]+)\)", text)]
+    missing_refs = filter(r -> !isfile(joinpath(stage, r)), refs)
+    isempty(missing_refs) || error("the page links figures that were not written: $(join(missing_refs, ", "))")
+    fignum(f) = parse(Int, match(r"-(\d+)\.", f)[1])
+    figures = sort(filter(f -> occursin(DOCS_FIGURE, f), readdir(stage)); by=fignum)
+    isempty(figures) && error("the run produced no figures; check that CairoMakie displays figures as PNG")
+    figures == sort(refs; by=fignum) || error("figure files and figure links of the page differ: $(figures) vs $(refs)")
+    sizes = [f => filesize(joinpath(stage, f)) / 1024 for f in figures]
+    println(length(figures), " figures, ", round(Int, sum(last, sizes; init=0.0)), " KB in total")
+    big = filter(p -> last(p) > MAX_FIGURE_KB, sizes)
+    isempty(big) || @warn "figures above $MAX_FIGURE_KB KB (the large-file limit of the pre-commit hook): " *
+        join(["$(first(p)) ($(round(Int, last(p))) KB)" for p in big], ", ")
+
+    after = TourStamp.current(root)
+    after.page_sources == before.page_sources ||
+        error("tour.jl or tour_helpers.jl changed during the run; run again so that the page matches them")
+    after.package_inputs == before.package_inputs ||
+        @warn "package files (src/, test/, ...) changed during the run; the stamp records them as at the start"
+
+    mkpath(DOCS_GEN)
+    for f in readdir(DOCS_GEN)   # the previous page and figures: none may be left behind
+        (occursin(DOCS_FIGURE, f) || f == DOCS_NAME * ".md") && rm(joinpath(DOCS_GEN, f))
+    end
+    for f in vcat(figures, DOCS_NAME * ".md")
+        cp(joinpath(stage, f), joinpath(DOCS_GEN, f))
+    end
+    page = joinpath(DOCS_GEN, DOCS_NAME * ".md")
+    println("stamp: ", TourStamp.write_stamp(root, before; info...))
+    println("notebook without outputs: ", plain_notebook())
+    quick && @warn "quick mode: docs/make.jl rejects this page; run without --quick before committing"
+    return page
+end
+
 function main(args)
     bad = filter(a -> !(a in OPTIONS), args)
     isempty(bad) || error("unknown option(s) $(join(bad, ", ")); valid: $(join(OPTIONS, ", "))")
     execute, hide, html = ("--execute" in args), ("--hide-home" in args), ("--html" in args)
+    docs, quick = ("--docs-page" in args), ("--quick" in args)
+
+    if docs || quick
+        (docs && quick && length(args) == 2) ||
+            (docs && length(args) == 1) ||
+            error("--docs-page combines only with --quick, and --quick needs --docs-page")
+        println("page: ", docs_page(; quick))
+        return nothing
+    end
 
     target = if execute
         Literate.notebook(NB_SRC, EXECUTED_DIR; name=NB_NAME, execute=true, credit=false)
     elseif hide || html
         joinpath(EXECUTED_DIR, NB_NAME * ".ipynb")   # work on the executed notebook already there
     else
-        p = Literate.notebook(NB_SRC, NB_DIR; name=NB_NAME, execute=false, credit=false)
-        endswith(read(p, String), '\n') || open(io -> write(io, '\n'), p, "a")   # end-of-file-fixer hook
-        p
+        plain_notebook()
     end
     isfile(target) || error("$target does not exist; run with --execute first (or save an executed copy there)")
     println("notebook: ", target)

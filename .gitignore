@@ -13,7 +13,6 @@
 *.Rhistory
 /logs/
 /docs/src/ai_usage.md
-/docs/src/generated/
 /notebooks/Manifest.toml
 /notebooks/executed/
 /paper/paper.pdf

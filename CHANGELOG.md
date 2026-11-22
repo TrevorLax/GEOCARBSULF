@@ -131,6 +131,19 @@ Known differences from the R/Fortran code are listed in `docs/src/porting_notes.
   and `.html` attached before publishing it, so the release is complete when it is
   published; a failed notebook run blocks the release. A manual run attaches the files
   to an existing release and refuses to replace files of the same name.
-- `docs` environment: new dependency Literate.
+- The "Notebook tour" documentation page now shows outputs and figures. New option
+  `notebooks/build.jl --docs-page` runs every cell locally (full mode) into
+  `docs/src/generated/notebook_tour.md` with one PNG per figure, replaces the home
+  folder with `~`, rewrites the `.ipynb`, and writes `notebook_tour.stamp.toml` with
+  hashes of what the page was made from. `docs/src/generated/` is now committed
+  (no longer git-ignored) and `docs/make.jl` no longer runs Literate: it checks the
+  stamp (`notebooks/tour_stamp.jl`) and fails if `tour.jl` or `tour_helpers.jl` changed
+  since the page was made, or if the page was made in quick mode (`--quick`); changes
+  to `src/`, `ext/`, `data/`, `experiments/`, `test/` or `Project.toml` only warn. New
+  pre-push hook `tour-page-stamp` runs the same check when the tour changes.
+- Section 1.12 of the tour no longer calls `display(tbl)`: Literate drops explicit
+  `display` calls from executed Markdown, so the quantile table is now the result of
+  its own cell and the exceedance note of the next.
+- `docs` environment: dependency Literate removed again (the build no longer runs it).
 - These changes were drafted with an AI coding assistant (Claude Code, Claude Opus 5.5;
   see `AI_USAGE.md`).

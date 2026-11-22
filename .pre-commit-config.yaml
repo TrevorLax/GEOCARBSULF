@@ -10,7 +10,8 @@
 #
 # pre-commit stage: file hygiene, workflow linting, JuliaFormatter, legacy/ guard.
 # pre-push stage:   CHANGELOG/AI-usage check, golden regression tests, the live
-#                   comparison with the original R/Fortran code (every push), and the
+#                   comparison with the original R/Fortran code (every push), the
+#                   notebook-tour page stamp when the tour changed, and the
 #                   documentation build when docs or docstrings may have changed.
 #
 # Hooks are a convenience: `git push --no-verify` skips them. The required checks on
@@ -24,8 +25,10 @@ default_install_hook_types: [pre-commit, pre-push]
 default_stages: [pre-commit]
 fail_fast: true
 
-# Golden data and generated output: never touched by any hook.
-exclude: ^(data/|test/fixtures/fortran/|test/legacy_comparison/output/|docs/build/)
+# Golden data and generated output: never touched by any hook. docs/src/generated/ is
+# the executed notebook-tour page (notebooks/build.jl --docs-page); notebooks/build.jl
+# warns about figures above the 1000 KB large-file limit itself.
+exclude: ^(data/|test/fixtures/fortran/|test/legacy_comparison/output/|docs/build/|docs/src/generated/)
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -107,6 +110,14 @@ repos:
         stages: [pre-push]
         pass_filenames: false
         always_run: true
+
+      - id: tour-page-stamp
+        name: notebook-tour page up to date with tour.jl (notebooks/tour_stamp.jl)
+        language: system
+        entry: julia --startup-file=no notebooks/tour_stamp.jl
+        stages: [pre-push]
+        pass_filenames: false
+        files: ^(notebooks/tour\.jl|notebooks/tour_helpers\.jl|notebooks/tour_stamp\.jl|docs/src/generated/)
 
       - id: docs-build
         name: documentation build with doctests
