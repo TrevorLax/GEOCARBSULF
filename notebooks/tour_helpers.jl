@@ -1041,7 +1041,7 @@ function levels_table(env, run_b, run_c)
             c_status,
         ],
     ]
-    return html_table(["level", "compares Julia against", "needs", "proves", "does not prove", "here"], rows)
+    return html_table(["level", "compares Julia against", "needs", "verifies", "does not verify", "here"], rows)
 end
 
 """
