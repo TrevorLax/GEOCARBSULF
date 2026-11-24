@@ -13,14 +13,14 @@ A Julia implementation of the **GEOCARBSULFvolc** long-term carbon-cycle model a
 Latin-hypercube **precalibration** of Wong et al. (2021), *A tighter constraint on
 Earth-system sensitivity from long-term temperature and carbon-cycle observations*
 (Nature Communications 12, 3173). It is a port of the R/Fortran code
-`GEOCARB-precalibration` by Tony Wong and Ying Cui. The original code is kept,
+[`GEOCARB-precalibration`](https://github.com/tonyewong/GEOCARB-precalibration) by Tony Wong and Ying Cui. The original code is kept,
 unmodified, in [`legacy/`](legacy/README.md).
 
 - **Faithful.** The model is a line-by-line port of `run_geocarb.f90`.
   `test/legacy_comparison` runs the original R/Fortran code and checks that Julia
-  reproduces it to rounding error.
+  reproduces it to within rounding error.
 - **Readable.** Parameters are referred to by name, the model is split into small
-  documented functions, and experiments are TOML files.
+  documented functions, and settings for the various experiments are contained and read from TOML files.
 - **Robust.** Inputs are validated with clear errors. Numerical failures are reported
   per time step and never crash an ensemble. Runs are deterministic regardless of the
   number of threads, and long runs can be checkpointed.
@@ -30,21 +30,22 @@ unmodified, in [`legacy/`](legacy/README.md).
 ## Statement of need
 
 The R/Fortran precalibration code of Wong et al. (2021) reproduces the paper but is
-hard to extend, test or run in parallel. Its experiments are set by editing scripts,
-and model variants are copies of the Fortran. This package gives researchers in
+difficult to extend, test or run in parallel due to machine-specific settings. Its experiments are set by editing scripts,
+and model variants are copies of the Fortran codes. This package gives researchers in
 paleoclimate and Earth-system science the same model and workflow as one documented,
 tested library. Experiments are declared in files, variants are options, ensembles
 are deterministic and threaded, and results are checked continuously against the
 original code. The additional benefit to porting the code to a modern, faster,
 optimized language is that it is set up for further improvements, which include
-both bugfixes as well as more substantial improvements in computational technique
-and expansions in methodology. (better sampling, different distributions, actual
-bayesian calibration, etc.....more to come)
+both bug fixes as well as more substantial improvements in computational technique
+and expansions in methodology. This may include improved statistical sampling, 
+considering different sampling distributions for the parameters, and improved
+Bayesian calibration methods, for example.
 
 ## Installation
 
-Requires Julia ≥ 1.10. The package is not yet in the General registry. Install it from
-GitHub:
+Requires Julia ≥ 1.10. The package is not yet in the General registry, but will be added following peer review. 
+You can install it from GitHub:
 
 ```julia
 using Pkg
@@ -59,7 +60,7 @@ cd GeocarbPrecalibration.jl
 julia --project=. -e "using Pkg; Pkg.instantiate()"
 ```
 
-## Ten-line example
+## Quick-start example
 
 ```julia
 using GeocarbPrecalibration
