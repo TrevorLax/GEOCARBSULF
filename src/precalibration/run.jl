@@ -304,7 +304,25 @@ function _assemble(setup::PrecalibrationSetup, outs::Vector{ChunkOutput}, n_simu
         total += max(k, 0)
         total >= keep && break
     end
-    cat3(f, dims) = isempty(parts) ? nothing : cat((f(o, r) for (o, r) in parts)...; dims=dims)
+    # preallocate to hopefully avoid stack overflow error in precalibration:
+    function cat3(f, dim)
+        isempty(parts) && return nothing
+
+        first_block = f(parts[1]...)
+        shape = collect(size(first_block))
+        shape[dim] = sum(length(r) for (_, r) in parts)
+        dest = similar(first_block, Tuple(shape))
+
+        offset = 0
+        for (o, r) in parts
+            block = f(o, r)
+            n = size(block, dim)
+            selectdim(dest, dim, (offset + 1):(offset + n)) .= block
+            offset += n
+        end
+
+        return dest
+    end
     constants = isempty(parts) ? zeros(0, N_CONSTANTS) : reduce(vcat, [o.constants[r, :] for (o, r) in parts])
     series = isempty(parts) ? zeros(nt, 0, N_FORCINGS) : cat3((o, r) -> o.series[:, r, :], 2)
     co2 = isempty(parts) ? zeros(nt, 0) : reduce(hcat, [o.co2[:, r] for (o, r) in parts])
