@@ -25,11 +25,13 @@ a centre column `X` and a standard-deviation column `eX`. This reproduces
 2. the centre of `fAw_fA` is divided by its present-day value (Krause et al. 2018);
    its standard deviation is *not* rescaled, as in the R code.
 
-The file must list ages from oldest to youngest.
+The file must list ages from oldest (570 Ma) to youngest (0 Ma, the present).
 """
 function read_time_arrays(path::AbstractString; use_godderis::Bool=true)
     t = read_csv_table(path)
     age = numeric_column(t, "age")
+    isempty(age) && throw(ArgumentError("$path: no rows"))
+    _check_model_grid(age, "$path: the age column")
     center = Dict{Symbol,Vector{Float64}}()
     sigma = Dict{Symbol,Vector{Float64}}()
     for name in TIME_FORCING_NAMES

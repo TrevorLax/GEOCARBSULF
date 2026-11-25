@@ -72,6 +72,7 @@ end
 for S in (:InverseWishartSampler, :MultivariateTSampler)
     @eval function $S(center::TimeForcings{T}, sigma::TimeForcings{T}, f_var_red::AbstractDict{Symbol,<:Real}) where {T}
         center.age == sigma.age || throw(ArgumentError("centre and sigma age grids differ"))
+        _check_model_grid(center.age, "the sampler's age grid")      # normalisation uses x[end]
         return $S{T}(center, sigma, inverse_wishart_dof(sigma, f_var_red))
     end
     @eval $S(prior::TimeArrayPrior, f_var_red::AbstractDict{Symbol,<:Real}=read_variance_reduction()) =

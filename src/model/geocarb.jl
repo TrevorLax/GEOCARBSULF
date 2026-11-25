@@ -7,8 +7,9 @@ This is a line-by-line port of `fortran/src/run_geocarb.f90` (and, through
 [`ModelOptions`](@ref), of `run_geocarb_supp.f90`). The model never throws because of
 the parameter values: numerical failures are reported per step in `result.status`
 (see [`StepStatus`](@ref)) with the Fortran output conventions (`co2 = o2 = Inf` on
-failed steps). Invalid *inputs* (for example an age grid whose spacing is not
-`options.dt`) raise an `ArgumentError` before the run starts.
+failed steps). Invalid *inputs* (for example an age grid that does not run from 570 Ma
+to the present, or whose spacing is not `options.dt`) raise an `ArgumentError` before
+the run starts.
 
 # Examples
 
@@ -57,6 +58,7 @@ function run_geocarb!(
     age = f.age
     n = length(age)
     length(out.co2) == n || throw(ArgumentError("output has $(length(out.co2)) steps but the forcings have $n"))
+    _check_model_grid(age)
     _check_dt(age, o.dt)
     k = resolve_constants(o)
     T = promote_type(_numtype(p), _numtype(f))

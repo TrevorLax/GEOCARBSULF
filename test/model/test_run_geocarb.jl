@@ -46,6 +46,10 @@
     end
 
     @testset "input validation" begin
+        # the grid must run from 570 Ma to the present (J-20)
+        dd(a) = Dict{Symbol,Vector{Float64}}(n => fill(1.0, length(a)) for n in TIME_FORCING_NAMES)
+        @test_throws ArgumentError run_geocarb(p, TimeForcings(collect(570.0:-10.0:10.0), dd(570.0:-10.0:10.0)))
+        @test_throws ArgumentError run_geocarb(p, TimeForcings(collect(560.0:-10.0:0.0), dd(560.0:-10.0:0.0)))
         age5 = collect(570.0:-5.0:0.0)
         d = Dict{Symbol,Vector{Float64}}(n => fill(1.0, length(age5)) for n in TIME_FORCING_NAMES)
         f5 = TimeForcings(age5, d)
