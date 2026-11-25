@@ -61,6 +61,20 @@ end
     o = ModelOptions()
     @test o == G.DEFAULT_MODEL_OPTIONS
     @test o.glacial_intervals == [(260.0, 330.0), (-Inf, 40.0)]
+    # options are immutable: the shared default cannot be changed in place (J-19)
+    @test_throws Exception G.DEFAULT_MODEL_OPTIONS.glacial_intervals[1] = (0.0, 1.0)
+    @test_throws Exception push!(G.DEFAULT_MODEL_OPTIONS.glacial_intervals, (0.0, 1.0))
+    @test G.DEFAULT_MODEL_OPTIONS == ModelOptions()
+    src = [(260.0, 330.0), (-Inf, 40.0)]
+    oc = ModelOptions(; glacial_intervals=src)
+    src[1] = (0.0, 1.0)                                  # the caller's vector is copied
+    @test oc.glacial_intervals[1] == (260.0, 330.0)
+    # isequal is consistent with hash (Dict/Set contract)
+    oz = ModelOptions(; dT2X_ramp_interval=(130.0, 0.0))
+    ozm = ModelOptions(; dT2X_ramp_interval=(130.0, -0.0))
+    @test oz == ozm && !isequal(oz, ozm) && hash(oz) != hash(ozm)
+    @test isequal(ModelOptions(), ModelOptions()) && hash(ModelOptions()) == hash(ModelOptions())
+    @test length(Set([ModelOptions(), ModelOptions()])) == 1
     @test o.gym_angio_transition == (130.0, 80.0) && o.gym_factor == 1.0 && !o.dT2X_ramp
     @test_throws ArgumentError ModelOptions(dt=-1)
     @test_throws ArgumentError ModelOptions(gym_angio_transition=(60, 110))

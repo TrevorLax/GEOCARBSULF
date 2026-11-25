@@ -1,4 +1,20 @@
 """
+    IntervalList <: AbstractVector{Tuple{Float64,Float64}}
+
+Read-only list of `(lower, upper)` age intervals (the `glacial_intervals` of
+[`ModelOptions`](@ref)). It behaves like a vector of pairs but cannot be modified in
+place, so options shared between runs (such as the default options) cannot be changed
+behind their back.
+"""
+struct IntervalList <: AbstractVector{Tuple{Float64,Float64}}
+    data::Vector{Tuple{Float64,Float64}}
+    IntervalList(itr) = new(Tuple{Float64,Float64}[_pair(g) for g in itr])
+end
+Base.size(v::IntervalList) = size(v.data)
+Base.@propagate_inbounds Base.getindex(v::IntervalList, i::Int) = v.data[i]
+Base.IndexStyle(::Type{IntervalList}) = IndexLinear()
+
+"""
     ModelOptions(; kwargs...)
 
 Structural options of the GEOCARBSULFvolc model. **The defaults reproduce
@@ -31,7 +47,7 @@ here the ramp is off unless asked for.
 """
 struct ModelOptions
     dt::Float64
-    glacial_intervals::Vector{Tuple{Float64,Float64}}
+    glacial_intervals::IntervalList
     gym_angio_transition::Tuple{Float64,Float64}
     gym_factor::Float64
     dT2X_ramp::Bool
@@ -70,10 +86,9 @@ function ModelOptions(;
     corrected_newton_derivative::Bool=false,
     fortran_single_literals::Bool=true,
 )
-    gi = Tuple{Float64,Float64}[_pair(g) for g in glacial_intervals]
     o = ModelOptions(
         Float64(dt),
-        gi,
+        IntervalList(glacial_intervals),
         _pair(gym_angio_transition),
         Float64(gym_factor),
         dT2X_ramp,
@@ -126,6 +141,10 @@ function validate(o::ModelOptions)
 end
 
 Base.:(==)(a::ModelOptions, b::ModelOptions) = all(getfield(a, f) == getfield(b, f) for f in fieldnames(ModelOptions))
+# `isequal` matches `hash` (both distinguish 0.0 from -0.0 and treat NaN as equal), as
+# Dict and Set require.
+Base.isequal(a::ModelOptions, b::ModelOptions) =
+    all(isequal(getfield(a, f), getfield(b, f)) for f in fieldnames(ModelOptions))
 function Base.hash(o::ModelOptions, h::UInt)
     return foldl((acc, f) -> hash(getfield(o, f), acc), fieldnames(ModelOptions); init=hash(:ModelOptions, h))
 end
@@ -161,7 +180,7 @@ function options_dict(o::ModelOptions)
         v = getfield(o, f)
         d[String(f)] = if v isa Tuple
             collect(v)
-        elseif v isa AbstractVector
+        elseif v isa IntervalList
             [collect(x) for x in v]
         else
             v
