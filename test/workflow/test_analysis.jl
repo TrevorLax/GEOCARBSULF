@@ -14,6 +14,24 @@
     @test hc.temp[:, 1] ≈ res.temp[:, 1] .+ 15 .+ forcing_series(res, :GEOG)[:, 1]
     hc2 = hindcast(res; options=ModelOptions())                         # re-run gives the same
     @test isequal(hc2.co2, hc.co2)
+    # the plotted temperature is the accepted quantity, temp + T0 without GEOG (J-13)
+    setup = G.prepare_precalibration(small_config(; n_sample=40, n_per_chunk=20))
+    acc = accepted_temperature(res)
+    @test hindcast(res; include_geog=false).temp == acc
+    @test [legacy_percent_outbound(acc[:, k], setup.ctx.temp_windows) for k in 1:n] == res.prcout_temp
+    @test accepted_temperature(res; T0=0) == res.temp
+
+    # run_on_time_centers results: the saved series did not drive the model (J-02)
+    rc = run_precalibration(small_config(; n_sample=20, n_per_chunk=20, run_on_time_centers=true); verbose=false)
+    if n_accepted(rc) > 0
+        @test_throws ArgumentError hindcast(rc)                              # would add sampled GEOG
+        @test_throws ArgumentError hindcast(rc; include_geog=false, options=ModelOptions())
+        @test hindcast(rc; include_geog=false).temp == accepted_temperature(rc)
+        ctr = setup.center
+        hcc = hindcast(rc; center=ctr)
+        @test hcc.temp[:, 1] ≈ rc.temp[:, 1] .+ 15 .+ ctr.GEOG
+        @test isequal(hindcast(rc; center=ctr, options=ModelOptions()).co2, hcc.co2)   # re-run on the centres
+    end
     rq = row_quantiles(hc.co2)
     @test size(rq) == (58, 9)
 

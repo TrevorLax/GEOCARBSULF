@@ -7,10 +7,16 @@
 # MethodError that points here.
 
 """
-    plot_model_vs_proxy(res, proxy::ProxyData, temp_windows::Windows; probs_bands = ...) -> Figure
+    plot_model_vs_proxy(res, proxy::ProxyData, temp_windows::Windows; xlims = (-425, 0)) -> Figure
 
 Hindcast CO2 and temperature bands against CO2 proxies and temperature windows (R
 figure `model_vs_proxy.pdf`). Requires a Makie backend (`using CairoMakie`).
+
+The temperature panel shows `temp + T0`, the quantity that precalibration compared with
+the windows ([`accepted_temperature`](@ref)). The R figure added each sample's GEOG term
+as well, which plots a different quantity against the same windows, so accepted runs
+could appear to miss them. Use [`hindcast`](@ref) with `include_geog = true` for that
+quantity.
 """
 function plot_model_vs_proxy end
 
