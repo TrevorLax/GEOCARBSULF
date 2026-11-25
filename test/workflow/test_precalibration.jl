@@ -27,6 +27,13 @@
     # stopping rule: exactly n_accept_min samples are kept
     few = run_precalibration(with_overrides(cfg; n_accept_min=5); max_parallel=1, verbose=false)
     @test n_accepted(few) == 5 && few.n_simulated == 20
+    # acceptance rates use the simulations up to the last kept sample (J-17)
+    @test few.n_evaluated == few.sample_keys[end, 2] <= 20
+    @test acceptance_rate(few) == 5 / few.n_evaluated
+    @test res.n_evaluated == res.n_simulated                     # target not reached
+    late = run_precalibration(with_overrides(cfg; n_accept_min=n - 1); max_parallel=2, verbose=false)
+    k = late.sample_keys[end, :]
+    @test late.n_evaluated == 20 * (k[1] - 1) + k[2]
     @test few.constants == res.constants[1:5, :]
 
     # a single chunk works (a stub in the R code, finding F-12)
@@ -102,6 +109,7 @@
     back = load_result(path)
     @test back.constants == res.constants && isequal(back.co2, res.co2) && back.time_series == res.time_series
     @test back.tag == res.tag && back.n_simulated == res.n_simulated && back.provenance == res.provenance
+    @test back.n_evaluated == res.n_evaluated
     # the stored configuration rebuilds the experiment and re-running reproduces it (J-16)
     @test config_summary(ExperimentConfig(back.config)) == config_summary(cfg)
     @test run_precalibration(ExperimentConfig(back.config); verbose=false).constants == res.constants
@@ -186,5 +194,5 @@
 
     # merging results
     m = merge_results([res, few])
-    @test n_accepted(m) == n + 5 && m.n_simulated == 80
+    @test n_accepted(m) == n + 5 && m.n_simulated == 80 && m.n_evaluated == res.n_evaluated + few.n_evaluated
 end

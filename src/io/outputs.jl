@@ -26,6 +26,7 @@ function save_result(path::AbstractString, res::PrecalibrationResult)
         prcout_temp=res.prcout_temp,
         sample_keys=res.sample_keys,
         n_simulated=res.n_simulated,
+        n_evaluated=res.n_evaluated,
         has_covariances=res.covariances !== nothing,
         covariances=res.covariances === nothing ? zeros(0, 0, 0, 0) : res.covariances,
         provenance_keys=collect(keys(res.provenance)),
@@ -66,6 +67,7 @@ function load_result(path::AbstractString)
         d["prcout_temp"],
         d["sample_keys"],
         d["n_simulated"],
+        get(d, "n_evaluated", d["n_simulated"]),     # files written before n_evaluated existed
         d["has_covariances"] ? d["covariances"] : nothing,
         prov,
     )
@@ -116,6 +118,8 @@ function write_summary_csvs(dir::AbstractString, res::PrecalibrationResult)
                 "tag" => res.tag,
                 "n_accepted" => n_accepted(res),
                 "n_simulated" => res.n_simulated,
+                "n_evaluated" => res.n_evaluated,
+                "acceptance_rate" => acceptance_rate(res),
                 "provenance" => res.provenance,
                 "config" => _tomlable(res.config),
             ),

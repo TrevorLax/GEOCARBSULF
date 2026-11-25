@@ -17,7 +17,8 @@ Accepted samples of a precalibration experiment.
 | `status` | `n_time × n` | `UInt8(StepStatus)` per step |
 | `prcout_co2`, `prcout_temp` | `n` | legacy % outbound of CO2 and of `temp + T0` |
 | `sample_keys` | `n × 2` | `(chunk, index within chunk)`: enough to regenerate any sample |
-| `n_simulated` | | number of simulations run |
+| `n_simulated` | | number of simulations run (work done, including the rest of the last chunk) |
+| `n_evaluated` | | simulations up to and including the last kept sample; use it for acceptance rates ([`acceptance_rate`](@ref)) |
 | `covariances` | `n_time × n_time × n × 12` or `nothing` | inverse-Wishart draws, only with `save_covariances = true` |
 | `provenance` | | package, Julia and dependency versions, active project and manifest hash ([`environment_provenance`](@ref)), git commit, timings, threads |
 """
@@ -38,14 +39,37 @@ struct PrecalibrationResult
     prcout_temp::Vector{Float64}
     sample_keys::Matrix{Int}
     n_simulated::Int
+    n_evaluated::Int
     covariances::Union{Nothing,Array{Float64,4}}
     provenance::Dict{String,String}
+end
+
+# Constructor without `n_evaluated` (the layout before it existed): every simulation
+# counts as evaluated.
+function PrecalibrationResult(
+    tag, config_text, config, age, constant_names, constants, forcing_names, time_series, co2, o2, temp, status,
+    prcout_co2, prcout_temp, sample_keys, n_simulated::Integer, covariances, provenance,
+)
+    return PrecalibrationResult(
+        tag, config_text, config, age, constant_names, constants, forcing_names, time_series, co2, o2, temp, status,
+        prcout_co2, prcout_temp, sample_keys, n_simulated, n_simulated, covariances, provenance,
+    )
 end
 
 """
     n_accepted(res::PrecalibrationResult) -> Int
 """
 n_accepted(res::PrecalibrationResult) = size(res.constants, 1)
+
+"""
+    acceptance_rate(res::PrecalibrationResult) -> Float64
+
+`n_accepted / n_evaluated`. The run stops once `n_accept_min` samples are accepted,
+but the rest of the last chunk is still simulated; those simulations are counted in
+`n_simulated` and would bias `n_accepted / n_simulated` low. The kept samples are the
+first accepted ones of each chunk, so `n_evaluated` gives an unbiased rate.
+"""
+acceptance_rate(res::PrecalibrationResult) = res.n_evaluated == 0 ? NaN : n_accepted(res) / res.n_evaluated
 
 """
     constant_column(res, name::Symbol) -> Vector{Float64}
@@ -88,7 +112,16 @@ end
 
 function Base.show(io::IO, ::MIME"text/plain", res::PrecalibrationResult)
     println(
-        io, "PrecalibrationResult \"", res.tag, "\": ", n_accepted(res), " accepted of ", res.n_simulated, " simulated"
+        io,
+        "PrecalibrationResult \"",
+        res.tag,
+        "\": ",
+        n_accepted(res),
+        " accepted of ",
+        res.n_evaluated,
+        " evaluated (",
+        res.n_simulated,
+        " simulated)",
     )
     return print(
         io,
@@ -104,7 +137,8 @@ end
 
 Concatenate the accepted samples of several results on the same age grid, for example
 the three seeds of the 30 % CO2 + temperature experiment (`analysis_and_plots.R:61-77`).
-`n_simulated` is summed; covariances are kept only if every result has them.
+`n_simulated` and `n_evaluated` are summed; covariances are kept only if every result
+has them.
 """
 function merge_results(results::AbstractVector{PrecalibrationResult}; tag::AbstractString=first(results).tag)
     isempty(results) && throw(ArgumentError("nothing to merge"))
@@ -136,6 +170,7 @@ function merge_results(results::AbstractVector{PrecalibrationResult}; tag::Abstr
         reduce(vcat, [r.prcout_temp for r in results]),
         reduce(vcat, [r.sample_keys for r in results]),
         sum(r.n_simulated for r in results),
+        sum(r.n_evaluated for r in results),
         covs,
         prov,
     )

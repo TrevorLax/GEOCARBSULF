@@ -114,6 +114,7 @@ export AcceptanceRule, OutboundRule, AllOf, CretaceousWindowRule, build_rule
 export PrecalibrationResult,
     run_precalibration,
     n_accepted,
+    acceptance_rate,
     constant_column,
     forcing_series,
     save_result,

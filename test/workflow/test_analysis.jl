@@ -45,7 +45,7 @@
     res_gone = G.PrecalibrationResult(
         res.tag, res.config_text, cfg_gone, res.age, res.constant_names, res.constants, res.forcing_names,
         res.time_series, res.co2, res.o2, res.temp, res.status, res.prcout_co2, res.prcout_temp, res.sample_keys,
-        res.n_simulated, res.covariances, res.provenance,
+        res.n_simulated, res.n_evaluated, res.covariances, res.provenance,
     )
     @test_throws ArgumentError result_inputs(res_gone)
     rq = row_quantiles(hc.co2)

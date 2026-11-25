@@ -368,6 +368,14 @@ function _assemble(setup::PrecalibrationSetup, outs::Vector{ChunkOutput}, n_simu
         covs = isempty(parts) ? zeros(nt, nt, 0, N_FORCINGS) : cat3((o, r) -> o.covariances[:, :, r, :], 3)
     end
     total == 0 && @warn "precalibration $(cfg.tag): no simulation was accepted"
+    # Simulations up to and including the last kept sample (J-17). When the target was
+    # not reached, every simulation was evaluated.
+    n_evaluated = if total >= keep && !isempty(parts)
+        olast, rlast = last(parts)
+        sum(o.n for o in outs if o.chunk < olast.chunk; init=0) + olast.idx[last(rlast)]
+    else
+        n_simulated
+    end
 
     prov = Dict{String,String}(
         "package_version" => string(something(pkgversion(@__MODULE__), "unknown")),
@@ -396,6 +404,7 @@ function _assemble(setup::PrecalibrationSetup, outs::Vector{ChunkOutput}, n_simu
         pt,
         keys_,
         n_simulated,
+        n_evaluated,
         covs,
         prov,
     )

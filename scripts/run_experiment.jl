@@ -86,7 +86,10 @@ function main(args)
         res = run_precalibration(cfg; checkpoint_dir=ckpt, verbose=(!quiet))
         save_result(joinpath(dir, "result.jld2"), res)
         write_summary_csvs(dir, res)
-        println("  $(n_accepted(res)) accepted of $(res.n_simulated) simulated in $(res.provenance["wall_seconds"]) s")
+        println(
+            "  $(n_accepted(res)) accepted of $(res.n_evaluated) evaluated ($(res.n_simulated) simulated) " *
+            "in $(res.provenance["wall_seconds"]) s",
+        )
     end
 end
 

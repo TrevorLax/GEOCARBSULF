@@ -45,6 +45,8 @@ for (tag, r) in results
     numbers[tag] = Dict(
         "n_accepted" => n_accepted(r),
         "n_simulated" => r.n_simulated,
+        "n_evaluated" => r.n_evaluated,
+        "acceptance_rate" => acceptance_rate(r),
         "deltaT2X_5_50_95" => s.deltaT2X,
         "GLAC_5_50_95" => s.GLAC,
         "deltaT2X_glacial_5_50_95" => s.deltaT2X_glacial,
