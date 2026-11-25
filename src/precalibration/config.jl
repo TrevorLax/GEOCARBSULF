@@ -228,6 +228,21 @@ function load_experiments(path::AbstractString)
         ),
     )
 
+    # A choice whose file is not in data_dir (the R code offered LENTON and PR2011 time
+    # arrays, which this repository does not ship; finding F-14) fails here, at load
+    # time, instead of later in validate (J-28).
+    for (key, choice, default_name, explicit) in (
+        ("fsr_choice", fsr_choice, _FSR_FILES[fsr_choice], "time_array_file"),
+        ("param_choice", param_choice, "GEOCARB_input_summaries_calib_$(param_choice).csv", "prior_file"),
+    )
+        (haskey(d, explicit) || isfile(joinpath(data_dir, default_name))) || throw(
+            ArgumentError(
+                "$path: $key '$choice' needs $default_name, which is not in $data_dir (finding F-14); " *
+                "use another $key or set $explicit",
+            ),
+        )
+    end
+
     files = (
         prior_file=_resolve_data_file(d, "prior_file", "GEOCARB_input_summaries_calib_$(param_choice).csv", data_dir),
         time_array_file=_resolve_data_file(d, "time_array_file", _FSR_FILES[fsr_choice], data_dir),
@@ -306,6 +321,16 @@ function load_experiments(path::AbstractString)
             end
         end
     end
+    # every experiment writes to output_dir/tag, so tags must be unique (J-28):
+    # default_tag rounds the threshold to a whole percent, and grid lists may repeat
+    tags = [c.tag for c in configs]
+    dups = sort!(unique(t for t in tags if count(==(t), tags) > 1))
+    isempty(dups) || throw(
+        ArgumentError(
+            "$path: several experiments would share the tag (and output directory) " *
+            join(dups, ", ") * "; remove duplicate grid entries or use thresholds that differ by at least 1 %",
+        ),
+    )
     return configs
 end
 
