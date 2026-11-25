@@ -11,7 +11,7 @@ copy of it.
 | `dt` | `10.0` | time step in Myr (`Dt`, f90:273); the age grid must have exactly this spacing |
 | `glacial_intervals` | `[(260, 330), (-Inf, 40)]` | closed age intervals (Myr ago) in which `GCM = GLAC*deltaT2X/ln 2` (f90:309) |
 | `gym_angio_transition` | `(130, 80)` | start and end of the gymnosperm → angiosperm ramp in `fE` (supp `age_gym_ang_beg/end`) |
-| `gym_factor` | `1.0` | multiplier on `GYM` during that ramp (supp `gym_fac`) |
+| `gym_factor` | `1.0` | multiplier on `GYM` at the start of that ramp (supp `gym_fac`); must be > 0, because `fE` divides the mass-balance silicate weathering |
 | `dT2X_ramp` | `false` | ramp ΔT2x from `deltaT2X` to `GLAC*deltaT2X` over `dT2X_ramp_interval` (supp `dT2X_fac ≥ 0`) |
 | `dT2X_ramp_interval` | `(130, 40)` | ages (Myr ago) at which the ramp factor is 1 and `GLAC` |
 | `iteration_threshold` | `10` | iteration at which the CO2 solve is declared failed (`parameterSetup.R:15`) |
@@ -104,8 +104,11 @@ function validate(o::ModelOptions)
     end
     b, e = o.gym_angio_transition
     b > e || throw(ArgumentError("gym_angio_transition must be (start, end) with start > end (Myr ago), got ($b, $e)"))
-    (isfinite(o.gym_factor) && o.gym_factor >= 0) ||
-        throw(ArgumentError("gym_factor must be finite and non-negative, got $(o.gym_factor)"))
+    # gym_factor = 0 makes fE = 0 at the start of the ramp, and fE divides the
+    # mass-balance silicate weathering (silicate_weathering_no_climate), so every run
+    # would fail there.
+    (isfinite(o.gym_factor) && o.gym_factor > 0) ||
+        throw(ArgumentError("gym_factor must be finite and positive, got $(o.gym_factor)"))
     a, z = o.dT2X_ramp_interval
     a > z || throw(ArgumentError("dT2X_ramp_interval must be (start, end) with start > end, got ($a, $z)"))
     o.iteration_threshold >= 1 || throw(ArgumentError("iteration_threshold must be ≥ 1"))

@@ -14,8 +14,11 @@ Effect of plants on the weathering rate at age `t` relative to the present
 
 `(start, end) = o.gym_angio_transition`, default `(130, 80)`. The Fortran checks the
 intervals one after another, with later checks overriding earlier ones; that order is
-kept. Unlike the Fortran supplemental code, `GYM` is never modified in place, so
-`gym_factor = 0` is well defined (finding F-09).
+kept. Unlike the Fortran supplemental code, `GYM` is never modified in place (finding
+F-09). `fE` divides the mass-balance silicate weathering
+(`silicate_weathering_no_climate`),
+so `fE = 0` would make the step fail; [`ModelOptions`](@ref) therefore requires
+`gym_factor > 0`.
 """
 @inline function vegetation_fE(t::Real, p::ConstantParams, o::ModelOptions)
     beg, en = o.gym_angio_transition
