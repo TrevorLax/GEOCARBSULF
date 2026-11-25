@@ -125,6 +125,7 @@ function _run_chunk(setup::PrecalibrationSetup, c::Int)
     out = GeocarbResult{Float64}(age)
     vals = copy(setup.base_values)
     cov = cfg.save_covariances ? Dict{Symbol,Matrix{Float64}}() : nothing
+    ws = SamplerWorkspace(nt)
 
     idx = Int[]
     cbuf = Float64[]
@@ -138,7 +139,7 @@ function _run_chunk(setup::PrecalibrationSetup, c::Int)
     covbuf = Float64[]
 
     for j in 1:nc
-        @timeit_debug TIMER "time series" sample_time_forcings!(rng, buf, setup.sampler; covariances=cov)
+        @timeit_debug TIMER "time series" sample_time_forcings!(rng, buf, setup.sampler; covariances=cov, workspace=ws)
         p = @timeit_debug TIMER "constants: assemble" begin
             for (q, ci) in enumerate(setup.calib_index)
                 vals[ci] = X[j, q]
@@ -352,20 +353,33 @@ function _assemble(setup::PrecalibrationSetup, outs::Vector{ChunkOutput}, n_simu
         total += max(k, 0)
         total >= keep && break
     end
-    cat3(f, dims) = isempty(parts) ? nothing : cat((f(o, r) for (o, r) in parts)...; dims=dims)
-    constants = isempty(parts) ? zeros(0, N_CONSTANTS) : reduce(vcat, [o.constants[r, :] for (o, r) in parts])
-    series = isempty(parts) ? zeros(nt, 0, N_FORCINGS) : cat3((o, r) -> o.series[:, r, :], 2)
-    co2 = isempty(parts) ? zeros(nt, 0) : reduce(hcat, [o.co2[:, r] for (o, r) in parts])
-    o2 = isempty(parts) ? zeros(nt, 0) : reduce(hcat, [o.o2[:, r] for (o, r) in parts])
-    temp = isempty(parts) ? zeros(nt, 0) : reduce(hcat, [o.temp[:, r] for (o, r) in parts])
-    status = isempty(parts) ? zeros(UInt8, nt, 0) : reduce(hcat, [o.status[:, r] for (o, r) in parts])
-    pc = isempty(parts) ? Float64[] : reduce(vcat, [o.prcout_co2[r] for (o, r) in parts])
-    pt = isempty(parts) ? Float64[] : reduce(vcat, [o.prcout_temp[r] for (o, r) in parts])
-    keys_ =
-        isempty(parts) ? zeros(Int, 0, 2) : reduce(vcat, [hcat(fill(o.chunk, length(r)), o.idx[r]) for (o, r) in parts])
-    covs = nothing
-    if cfg.save_covariances
-        covs = isempty(parts) ? zeros(nt, nt, 0, N_FORCINGS) : cat3((o, r) -> o.covariances[:, :, r, :], 3)
+    # Copy the kept samples into preallocated arrays: splatting thousands of chunks into
+    # `cat` was slow to compile and to run (J-31).
+    constants = Matrix{Float64}(undef, total, N_CONSTANTS)
+    series = Array{Float64,3}(undef, nt, total, N_FORCINGS)
+    co2 = Matrix{Float64}(undef, nt, total)
+    o2 = Matrix{Float64}(undef, nt, total)
+    temp = Matrix{Float64}(undef, nt, total)
+    status = Matrix{UInt8}(undef, nt, total)
+    pc = Vector{Float64}(undef, total)
+    pt = Vector{Float64}(undef, total)
+    keys_ = Matrix{Int}(undef, total, 2)
+    covs = cfg.save_covariances ? Array{Float64,4}(undef, nt, nt, total, N_FORCINGS) : nothing
+    j = 0
+    for (o, r) in parts
+        dst = (j + 1):(j + length(r))
+        constants[dst, :] .= view(o.constants, r, :)
+        series[:, dst, :] .= view(o.series, :, r, :)
+        co2[:, dst] .= view(o.co2, :, r)
+        o2[:, dst] .= view(o.o2, :, r)
+        temp[:, dst] .= view(o.temp, :, r)
+        status[:, dst] .= view(o.status, :, r)
+        pc[dst] .= view(o.prcout_co2, r)
+        pt[dst] .= view(o.prcout_temp, r)
+        keys_[dst, 1] .= o.chunk
+        keys_[dst, 2] .= view(o.idx, r)
+        covs === nothing || (covs[:, :, dst, :] .= view(o.covariances, :, :, r, :))
+        j = last(dst)
     end
     total == 0 && @warn "precalibration $(cfg.tag): no simulation was accepted"
     # Simulations up to and including the last kept sample (J-17). When the target was

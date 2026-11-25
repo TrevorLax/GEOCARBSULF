@@ -82,6 +82,15 @@ for S in (:InverseWishartSampler, :MultivariateTSampler)
         $S(prior.center, prior.sigma, f_var_red)
 end
 
+# Scratch arrays for the inverse-Wishart draw, reused across draws (J-31): allocating
+# them for every forcing of every sample was a large part of the sampling time. Not
+# shared between threads; the engine creates one per chunk.
+struct SamplerWorkspace
+    M::Matrix{Float64}
+    z::Vector{Float64}
+end
+SamplerWorkspace(p::Integer) = SamplerWorkspace(Matrix{Float64}(undef, p, p), Vector{Float64}(undef, p))
+
 """
     sample_time_forcings!(rng, out::TimeForcings, sampler; covariances = nothing) -> out
 
@@ -89,8 +98,15 @@ Overwrite `out` with one draw of all 12 forcings. With an `InverseWishartSampler
 `covariances` may be a `Dict{Symbol,Matrix{Float64}}` that receives the covariance draw
 of each forcing.
 """
-function sample_time_forcings!(rng::AbstractRNG, out::TimeForcings, s::TimeSeriesSampler; covariances=nothing)
+function sample_time_forcings!(
+    rng::AbstractRNG,
+    out::TimeForcings,
+    s::TimeSeriesSampler;
+    covariances=nothing,
+    workspace::SamplerWorkspace=SamplerWorkspace(length(out.age)),
+)
     out.age == s.center.age || throw(ArgumentError("output and sampler age grids differ"))
+    length(workspace.z) == length(out.age) || throw(ArgumentError("workspace size differs from the age grid"))
     for name in TIME_FORCING_NAMES
         x = getfield(out, name)
         μ = getfield(s.center, name)
@@ -99,7 +115,7 @@ function sample_time_forcings!(rng::AbstractRNG, out::TimeForcings, s::TimeSerie
         cov = covariances === nothing ? nothing : get!(covariances, name) do
             return Matrix{Float64}(undef, length(μ), length(μ))
         end
-        _draw_series!(rng, x, μ, σ, ν, s, cov)
+        _draw_series!(rng, x, μ, σ, ν, s, cov, workspace)
         _normalize!(x, name)
     end
     return out
@@ -119,10 +135,14 @@ end
 #   W = (L A)(L A)' ~ Wishart(ν, Ψ⁻¹),  L = diag(1/√ψᵢ), A lower triangular with
 #   A[i,i] = √χ²(ν−i+1) and A[i,j] ~ N(0,1) for i > j.
 #   Σ = W⁻¹ ~ InverseWishart(ν, Ψ), and x = μ + (L A)⁻ᵀ z has covariance Σ.
-function _draw_series!(rng::AbstractRNG, x::AbstractVector, μ, σ, ν::Int, ::InverseWishartSampler, cov)
+# The random numbers are drawn in the same order as before the workspace existed
+# (χ² and normals row by row, then the normal vector), so draws are unchanged.
+function _draw_series!(
+    rng::AbstractRNG, x::AbstractVector, μ, σ, ν::Int, ::InverseWishartSampler, cov, ws::SamplerWorkspace
+)
     p = length(μ)
     ν > p + 1 || throw(ArgumentError("inverse-Wishart dof ν = $ν must exceed p + 1 = $(p + 1)"))
-    M = zeros(p, p)
+    M = ws.M                      # only the lower triangle is written and read
     @inbounds for i in 1:p
         ψ = (ν - p - 1) * σ[i]^2
         sc = 1 / sqrt(ψ)
@@ -132,8 +152,8 @@ function _draw_series!(rng::AbstractRNG, x::AbstractVector, μ, σ, ν::Int, ::I
         end
     end
     Lm = LowerTriangular(M)
-    z = randn(rng, p)
-    y = transpose(Lm) \ z
+    y = Random.randn!(rng, ws.z)
+    LinearAlgebra.ldiv!(transpose(Lm), y)
     @inbounds for i in 1:p
         x[i] = μ[i] + y[i]
     end
@@ -145,7 +165,7 @@ function _draw_series!(rng::AbstractRNG, x::AbstractVector, μ, σ, ν::Int, ::I
 end
 
 # Multivariate-t draw: x = μ + σ ⊙ z · √((ν − p − 1)/u), u ~ χ²(ν − p + 1).
-function _draw_series!(rng::AbstractRNG, x::AbstractVector, μ, σ, ν::Int, ::MultivariateTSampler, cov)
+function _draw_series!(rng::AbstractRNG, x::AbstractVector, μ, σ, ν::Int, ::MultivariateTSampler, cov, _ws)
     cov === nothing || throw(ArgumentError("MultivariateTSampler cannot return covariance draws"))
     p = length(μ)
     ν > p + 1 || throw(ArgumentError("inverse-Wishart dof ν = $ν must exceed p + 1 = $(p + 1)"))
