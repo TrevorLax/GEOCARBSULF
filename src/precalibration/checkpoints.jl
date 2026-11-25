@@ -12,17 +12,35 @@
 const CHECKPOINT_MANIFEST = "checkpoint_manifest.toml"
 
 # Fields of the configuration that do not change the content of any chunk.
-#  - output_dir, description, overrides: labels only;
+#  - name, description, tag, index, output_dir, overrides: labels only;
 #  - n_accept_min: only decides how many chunks are consumed, so a run can be resumed
-#    with a larger target.
-const _CHECKPOINT_IGNORED_FIELDS = ("output_dir", "description", "overrides", "n_accept_min")
+#    with a larger target;
+#  - the input-file paths: their content is compared through SHA-256 hashes instead, so
+#    a project that was moved or synced to another machine can still resume.
+const _CHECKPOINT_IGNORED_FIELDS = (
+    "name",
+    "description",
+    "tag",
+    "index",
+    "output_dir",
+    "overrides",
+    "n_accept_min",
+    "prior_file",
+    "time_array_file",
+    "proxy_file",
+    "temperature_file",
+    "variance_reduction_file",
+    "time_center_from",
+)
 
 """
     checkpoint_manifest(cfg::ExperimentConfig) -> Dict{String,Any}
 
 Description of everything that determines the content of the chunks of `cfg`: a
-copy of the configuration summary (without labels such as `output_dir`) and its SHA-256,
-SHA-256 hashes of the input files and the package version. Written to
+copy of the configuration summary and its SHA-256, SHA-256 hashes of the input files
+and the package version. Labels (`name`, `tag`, `output_dir`, …), `n_accept_min` and
+the input-file *paths* are left out: inputs are compared by content, so a moved project
+can resume. Written to
 `checkpoint_manifest.toml` in a checkpoint directory and compared on resume.
 """
 function checkpoint_manifest(cfg::ExperimentConfig)

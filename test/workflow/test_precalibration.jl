@@ -156,6 +156,13 @@
         write(alt, read(TEMP_FILE, String) * "\n")
         m = msg(() -> run_precalibration(with_overrides(cfg; temperature_file=alt); checkpoint_dir=ck, verbose=false))
         @test occursin("inputs_sha256.temperature_file", m)
+        # the same content at another path (a moved or synced project) can resume
+        same = joinpath(mktempdir(), "temp.csv")
+        cp(TEMP_FILE, same)
+        e = run_precalibration(
+            with_overrides(cfg; temperature_file=same, tag="renamed"); checkpoint_dir=ck, verbose=false
+        )
+        @test e.constants == res.constants
         # a truncated chunk (e.g. a crash of an older version) is detected and recomputed
         f2 = G._chunk_file(ck, 2)
         bytes = read(f2)
