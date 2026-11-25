@@ -38,7 +38,7 @@ true
 julia> round(r.co2[end]; digits = 1)            # present-day CO2, ppmv (Inf on failed steps)
 243.7
 
-julia> round(temperature(r)[end]; digits = 2)   # °C, comparable with the Mills et al. (2019) windows
+julia> round(surface_temperature(r)[end]; digits = 2)   # °C, comparable with the Mills et al. (2019) windows
 14.78
 ```
 

@@ -107,7 +107,7 @@ function result_inputs(res::PrecalibrationResult)
         config=cfg,
         prior_table=read_prior_table(cfg.prior_file),
         proxy=proxy,
-        co2_windows=co2_windows(proxy, res.age; nsig=cfg.nsig),
+        co2_windows=co2_windows(proxy, res.age; nsig=cfg.nsig, dt=cfg.model.dt),
         temp_windows=temperature_windows(tdata, res.age; nsig=cfg.nsig),
         T0=cfg.T0,
     )

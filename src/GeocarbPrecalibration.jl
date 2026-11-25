@@ -84,13 +84,20 @@ include("analysis/correlations.jl")
 
 include("plotting.jl")
 
+# Names used by earlier versions. They were exported, but such generic names clash with
+# other packages (J-32); they still work when qualified, with a deprecation warning.
+Base.@deprecate update(p::ConstantParams; kwargs...) update_params(p; kwargs...) false
+Base.@deprecate temperature(r::GeocarbResult; kwargs...) surface_temperature(r; kwargs...) false
+Base.@deprecate validate(cfg::ExperimentConfig) validate_config(cfg) false
+Base.@deprecate validate(o::ModelOptions) validate_options(o) false
+
 # --- parameters -----------------------------------------------------------------
 export CONSTANT_PARAMETER_NAMES, TIME_FORCING_NAMES
 export ConstantParams, TimeForcings, ModelOptions
-export parameter_vector, update, parameter_description, parameter_units
+export parameter_vector, update_params, parameter_description, parameter_units
 # --- model ----------------------------------------------------------------------
 export StepStatus, Converged, NotConverged, NaNEncountered, RCO2OutOfRange, PresentDayCheckFailed, InvalidState
-export GeocarbResult, run_geocarb, run_geocarb!, succeeded, temperature
+export GeocarbResult, run_geocarb, run_geocarb!, succeeded, surface_temperature
 # --- inputs ---------------------------------------------------------------------
 export datapath,
     read_csv_table,
@@ -109,7 +116,7 @@ export TimeSeriesSampler,
 # --- constraints ----------------------------------------------------------------
 export Windows, co2_windows, temperature_windows, legacy_percent_outbound, percent_outbound
 # --- precalibration -------------------------------------------------------------
-export ExperimentConfig, load_experiments, validate, with_overrides, default_tag, config_summary
+export ExperimentConfig, load_experiments, validate_config, validate_options, with_overrides, default_tag, config_summary
 export AcceptanceRule, OutboundRule, AllOf, CretaceousWindowRule, build_rule
 export PrecalibrationResult,
     run_precalibration,

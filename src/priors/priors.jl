@@ -78,7 +78,8 @@ end
     quantile_from_cdf(p::TruncatedPrior, q) -> x
 
 Base quantile at an already-rescaled probability `q ∈ [F(lower), F(upper)]` (the
-`parameters_lhs` values of the R code).
+`parameters_lhs` values of the R code). Internal: used by the legacy comparison
+(`test/legacy_comparison`) and the timing benchmark to transform the R code's draws.
 """
 @inline quantile_from_cdf(p::TruncatedPrior, q::Real) = Distributions.quantile(p.base, q)
 

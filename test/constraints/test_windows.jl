@@ -22,6 +22,14 @@
     @test w2.high[i100] ≈ 4000
     @test co2_windows(d, age; bounds=(0.0, 1500.0)).high[i100] == 1500
     # the real data: every window is non-empty
+    # one binning rule for windows and proxy_step_index, dt explicit (J-32)
+    bins = G.proxy_step_index(d, age)
+    @test bins == [i100, i100, i200]
+    @test G.proxy_step_index(d, age; dt=10.0) == bins
+    @test co2_windows(d, age; dt=10.0).low == w.low
+    @test_throws ArgumentError co2_windows(d, [100.0])                     # one step: no spacing to guess
+    @test co2_windows(d, [100.0]; dt=10.0).high[1] ≈ 2000
+    @test G.proxy_step_index(d, [100.0]; dt=20.0) == [1, 1, nothing]
     real = co2_windows(read_proxy_data(PROXY_FILE), age)
     @test all(real.low .< real.high)
 end

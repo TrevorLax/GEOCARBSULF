@@ -4,14 +4,15 @@
     @test r isa GeocarbResult{Float64}
     @test length(r.co2) == length(r.o2) == length(r.temp) == length(r.status) == 58
     @test r.age == f.age
-    @test temperature(r) == r.temp .+ 15
-    @test temperature(r; geog=f.GEOG) ≈ r.temp .+ 15 .+ f.GEOG
-    @test temperature(r; remove_solar=p.Ws) ≈ r.temp .+ 15 .+ p.Ws .* r.age ./ 570
+    @test surface_temperature(r) == r.temp .+ 15
+    @test surface_temperature(r; geog=f.GEOG) ≈ r.temp .+ 15 .+ f.GEOG
+    @test surface_temperature(r; remove_solar=p.Ws) ≈ r.temp .+ 15 .+ p.Ws .* r.age ./ 570
     # removing the solar term leaves T0 + GCM·ln(RCO2), the CO2-only warming (J-15)
     gcm = [G.gcm_factor(t, p, ModelOptions(), G.resolve_constants(ModelOptions())) for t in r.age]
-    @test temperature(r; remove_solar=p.Ws) ≈ 15 .+ gcm .* log.(r.co2 ./ 250)
-    @test (@test_deprecated temperature(r; Ws=p.Ws)) == temperature(r; remove_solar=p.Ws)
-    @test_throws ArgumentError temperature(r; Ws=p.Ws, remove_solar=p.Ws)
+    @test surface_temperature(r; remove_solar=p.Ws) ≈ 15 .+ gcm .* log.(r.co2 ./ 250)
+    @test (@test_deprecated surface_temperature(r; Ws=p.Ws)) == surface_temperature(r; remove_solar=p.Ws)
+    @test_throws ArgumentError surface_temperature(r; Ws=p.Ws, remove_solar=p.Ws)
+    @test (@test_deprecated G.temperature(r)) == surface_temperature(r)
 
     @testset "status invariants on 200 prior draws" begin
         ok_fail = ok_conv = ok_nan = ok_present = true
@@ -84,7 +85,7 @@
         @test r32 isa GeocarbResult{Float32}
         @test succeeded(r32) && isapprox(r32.co2, run_geocarb(p, f).co2; rtol=1e-3)
         # derivatives through the whole run (including the CO2 solve) agree with finite differences (J-08)
-        h(x) = run_geocarb(update(p; deltaT2X=x), f).temp[end - 1]
+        h(x) = run_geocarb(update_params(p; deltaT2X=x), f).temp[end - 1]
         g = ForwardDiff.derivative(h, p.deltaT2X)
         fd = (h(p.deltaT2X + 1e-5) - h(p.deltaT2X - 1e-5)) / 2e-5
         @test g isa Float64 && isapprox(g, fd; rtol=1e-5)

@@ -18,7 +18,7 @@
     for (dir, _, files) in walkdir(joinpath(root, "experiments")), f in files
         endswith(f, ".toml") || continue
         for c in load_experiments(joinpath(dir, f))
-            @test validate(c) === c
+            @test validate_config(c) === c
         end
     end
     sup = only(load_experiments(joinpath(root, "experiments", "supplemental", "gym_timing_dT2X.toml")))
@@ -77,9 +77,10 @@
     @test only(load_experiments(tmpfile("fsr_choice = \"LENTON\"\ntime_array_file = \"$(escape_string(ARRAY_FILE))\"\n"; ext=".toml"))).time_array_file == ARRAY_FILE
     @test_throws ArgumentError load_experiments(tmpfile("[grid]\nthreshold = [0.3, 0.3]\n"; ext=".toml"))
     @test_throws ArgumentError load_experiments(tmpfile("[grid]\nthreshold = [0.301, 0.302]\n"; ext=".toml"))
-    @test_throws ArgumentError validate(small_config(; threshold=0.0))
-    @test_throws ArgumentError validate(small_config(; constraint=:o2))
-    @test_throws ArgumentError validate(small_config(; prior_file="nope.csv"))
-    @test_throws ArgumentError validate(with_overrides(small_config(); seed=-1))
+    @test_throws ArgumentError validate_config(small_config(; threshold=0.0))
+    @test_throws ArgumentError validate_config(small_config(; constraint=:o2))
+    @test_throws ArgumentError validate_config(small_config(; prior_file="nope.csv"))
+    @test_throws ArgumentError validate_config(with_overrides(small_config(); seed=-1))
+    @test (@test_deprecated G.validate(small_config())) isa ExperimentConfig
     @test default_tag(:temp, 0.35) == "t_out35"
 end

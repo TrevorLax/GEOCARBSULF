@@ -159,7 +159,8 @@ end
     forcing_matrix(f::TimeForcings) -> Matrix
 
 `n_time × 12` matrix with the forcings as columns in [`TIME_FORCING_NAMES`](@ref)
-order (the layout of the Fortran `Matrix_12`).
+order (the layout of the Fortran `Matrix_12`). Internal: used to call the compiled
+Fortran in the legacy comparison (`test/legacy_comparison/fortran_ffi.jl`).
 """
 function forcing_matrix(f::TimeForcings{T}) where {T}
     m = Matrix{T}(undef, length(f.age), N_FORCINGS)

@@ -25,7 +25,8 @@ Base.length(w::Windows) = length(w.age)
 """
     shift(w::Windows, delta::AbstractVector) -> Windows
 
-Window moved by `delta` at every step. For example, `shift(w, Ws .* w.age ./ 570)`
+Window moved by `delta` at every step, for analysis and plotting (the precalibration
+itself does not shift windows). For example, `shift(w, Ws .* w.age ./ 570)`
 removes the solar-luminosity term from temperature windows, for comparison with a
 CO2-only temperature (`constraints.R:72-73` did this with the fixed prior mean of `Ws`,
 finding F-19).
@@ -33,21 +34,23 @@ finding F-19).
 shift(w::Windows, delta::AbstractVector) = Windows(w.age, w.low .+ delta, w.high .+ delta)
 
 """
-    co2_windows(proxy::ProxyData, age; nsig = 1.0, bounds = (0.0, 50_000.0)) -> Windows
+    co2_windows(proxy::ProxyData, age; nsig = 1.0, bounds = (0.0, 50_000.0), dt = grid spacing) -> Windows
 
 CO2 windows (`constraints.R:28-43`). For each model step, the proxies within ±dt/2 of
-its age are pooled. Each proxy spans `log10(co2) ± nsig·log10(co2_high/co2)`, and the
-window is the envelope of those spans, intersected with `bounds`. Steps without data
-get the full `bounds`.
+its age are pooled (the bins of [`proxy_step_index`](@ref)). Each proxy spans
+`log10(co2) ± nsig·log10(co2_high/co2)`, and the window is the envelope of those spans,
+intersected with `bounds`. Steps without data get the full `bounds`. `dt` defaults to
+the spacing of `age`; a single-step grid needs it explicitly.
 """
-function co2_windows(proxy::ProxyData, age::AbstractVector; nsig::Real=1.0, bounds=(0.0, 50_000.0))
+function co2_windows(
+    proxy::ProxyData, age::AbstractVector; nsig::Real=1.0, bounds=(0.0, 50_000.0), dt::Real=_grid_spacing(age)
+)
     n = length(age)
-    dt = n > 1 ? abs(age[1] - age[2]) : 10.0
-    half = 0.5 * dt
+    bins = _step_bins(proxy.age, age, dt)
     low = fill(Float64(bounds[1]), n)
     high = fill(Float64(bounds[2]), n)
     for tt in 1:n
-        idx = findall(a -> (a < age[tt] + half) && (a >= age[tt] - half), proxy.age)
+        idx = findall(==(tt), bins)
         isempty(idx) && continue
         sigmas = log10.(proxy.co2_high[idx] ./ proxy.co2[idx])
         centers = log10.(proxy.co2[idx])
@@ -68,7 +71,7 @@ Temperature windows from Mills et al. (2019) (`constraints.R:51-71`):
 `[T_avg − nsig·(T_avg − T_min), T_avg + nsig·(T_max − T_avg)]` at the record whose
 `time` equals `−age`. The windows are actual temperatures, so they include the
 solar-luminosity effect. They are compared with `temp + T0` from the model, which
-includes the solar term `−Ws·t/570` as well (see [`temperature`](@ref)).
+includes the solar term `−Ws·t/570` as well (see [`surface_temperature`](@ref)).
 """
 function temperature_windows(data::TemperatureData, age::AbstractVector; nsig::Real=1.0)
     upper = data.T_avg .+ nsig .* (data.T_max .- data.T_avg)

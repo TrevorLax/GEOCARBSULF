@@ -43,7 +43,7 @@ for i in 1:N
 end
 pm = mean_constants(table)
 push!(cases, ("not_converged", pm, tp.center, 1))
-push!(cases, ("huge_sensitivity", update(pm; deltaT2X=50.0), tp.center, 10))
+push!(cases, ("huge_sensitivity", update_params(pm; deltaT2X=50.0), tp.center, 10))
 fneg = copy(tp.center);
 fneg.GEOG .= -1e4;
 push!(cases, ("negative_power_base", pm, fneg, 10))

@@ -121,16 +121,16 @@ function ModelOptions(;
         report_nan_target,
         unified_vascular_blend,
     )
-    validate(o)
+    validate_options(o)
     return o
 end
 
 """
-    validate(o::ModelOptions) -> o
+    validate_options(o::ModelOptions) -> o
 
 Throw an `ArgumentError` if the options are inconsistent.
 """
-function validate(o::ModelOptions)
+function validate_options(o::ModelOptions)
     (isfinite(o.dt) && o.dt > 0) || throw(ArgumentError("dt must be positive and finite, got $(o.dt)"))
     for (lo, hi) in o.glacial_intervals
         lo <= hi || throw(ArgumentError("glacial interval ($lo, $hi) must have lower ≤ upper"))

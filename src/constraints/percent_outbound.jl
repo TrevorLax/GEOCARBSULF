@@ -30,7 +30,7 @@ end
     percent_outbound(r::GeocarbResult, w::Windows, variable; T0 = 15.0, reject_failed = false) -> Float64
 
 % outbound of a model run for `variable = :co2` (compared as is) or `:temp`
-(compared as `r.temp .+ T0`, see [`temperature`](@ref)). With
+(compared as `r.temp .+ T0`, see [`surface_temperature`](@ref)). With
 `reject_failed = true`, any run with a failed step scores `1.0`, whatever the
 variable. With `false` (the default), the result equals [`legacy_percent_outbound`](@ref).
 """

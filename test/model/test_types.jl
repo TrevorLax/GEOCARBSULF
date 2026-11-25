@@ -17,9 +17,14 @@
     d[:bogus] = 1.0
     @test_throws ArgumentError ConstantParams(d)               # unknown name
     @test_throws ArgumentError ConstantParams(names, v[1:10])  # length mismatch
-    q = update(p; deltaT2X=4.0)
+    q = update_params(p; deltaT2X=4.0)
     @test q.deltaT2X == 4.0 && q.GLAC == p.GLAC
-    @test_throws ArgumentError update(p; nope=1.0)
+    @test_throws ArgumentError update_params(p; nope=1.0)
+    # generic names are no longer exported; the old names still work qualified (J-32)
+    exported = Base.names(GeocarbPrecalibration)
+    @test !any(in(exported), (:update, :temperature, :validate))
+    @test (@test_deprecated G.update(p; deltaT2X=4.0)) == update_params(p; deltaT2X=4.0)
+    @test (@test_deprecated G.validate(ModelOptions())) == ModelOptions()
     @test G._constants_from_vector(Float64, v) == p
     @test parameter_units(:deltaT2X) == "°C"
     @test !isempty(parameter_description(:Fwsi_0))

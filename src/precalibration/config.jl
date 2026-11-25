@@ -73,12 +73,12 @@ Base.@kwdef struct ExperimentConfig
 end
 
 """
-    validate(cfg::ExperimentConfig) -> cfg
+    validate_config(cfg::ExperimentConfig) -> cfg
 
 Throw an `ArgumentError` describing the first problem found (missing files, an
 inconsistent sample size, unknown choices, ...).
 """
-function validate(cfg::ExperimentConfig)
+function validate_config(cfg::ExperimentConfig)
     err(msg) = throw(ArgumentError("experiment '$(cfg.name)' ($(cfg.tag)): $msg"))
     for (k, f) in (
         ("prior_file", cfg.prior_file),
@@ -107,7 +107,7 @@ function validate(cfg::ExperimentConfig)
         (0 <= cfg.cretaceous_age <= AGE_MAX) || err("cretaceous_age must be within [0, 570]")
     end
     isempty(cfg.proxies) && err("at least one proxy type is needed")
-    validate(cfg.model)
+    validate_options(cfg.model)
     return cfg
 end
 
@@ -230,7 +230,7 @@ function load_experiments(path::AbstractString)
 
     # A choice whose file is not in data_dir (the R code offered LENTON and PR2011 time
     # arrays, which this repository does not ship; finding F-14) fails here, at load
-    # time, instead of later in validate (J-28).
+    # time, instead of later in validate_config (J-28).
     for (key, choice, default_name, explicit) in (
         ("fsr_choice", fsr_choice, _FSR_FILES[fsr_choice], "time_array_file"),
         ("param_choice", param_choice, "GEOCARB_input_summaries_calib_$(param_choice).csv", "prior_file"),

@@ -45,7 +45,7 @@ Read all inputs and build the priors, samplers, windows and acceptance rule of a
 experiment. Called by [`run_precalibration`](@ref); exposed for inspection and tests.
 """
 function prepare_precalibration(cfg::ExperimentConfig)
-    validate(cfg)
+    validate_config(cfg)
     table = read_prior_table(cfg.prior_file)
     priors = build_priors(table)
     calib_index = [findfirst(==(p.name), CONSTANT_PARAMETER_NAMES) for p in priors]
@@ -86,7 +86,9 @@ function prepare_precalibration(cfg::ExperimentConfig)
     proxy = read_proxy_data(cfg.proxy_file; proxies=cfg.proxies)
     tdata = read_temperature_data(cfg.temperature_file)
     ctx = EvaluationContext(
-        co2_windows(proxy, center.age; nsig=cfg.nsig), temperature_windows(tdata, center.age; nsig=cfg.nsig); T0=cfg.T0
+        co2_windows(proxy, center.age; nsig=cfg.nsig, dt=cfg.model.dt),
+        temperature_windows(tdata, center.age; nsig=cfg.nsig);
+        T0=cfg.T0,
     )
     rule = build_rule(cfg)
     if cfg.cretaceous_age !== nothing
