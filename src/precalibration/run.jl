@@ -193,9 +193,13 @@ end
 
 _chunk_file(dir::AbstractString, c::Integer) = joinpath(dir, @sprintf("chunk_%06d.jld2", c))
 
-function _save_chunk(path::AbstractString, o::ChunkOutput)
+# Written to a temporary name and renamed, so a crash cannot leave a truncated chunk
+# under its final name. `fingerprint` ties the chunk to its configuration (J-03).
+function _save_chunk(path::AbstractString, o::ChunkOutput, fingerprint::AbstractString="")
+    tmp = path * ".tmp"
     JLD2.jldsave(
-        path;
+        tmp;
+        fingerprint=String(fingerprint),
         chunk=o.chunk,
         n=o.n,
         idx=o.idx,
@@ -210,11 +214,28 @@ function _save_chunk(path::AbstractString, o::ChunkOutput)
         has_cov=o.covariances !== nothing,
         covariances=o.covariances === nothing ? zeros(0, 0, 0, 0) : o.covariances,
     )
+    mv(tmp, path; force=true)
     return path
 end
 
-function _load_chunk(path::AbstractString)
-    d = JLD2.load(path)
+# Returns `nothing` if the file cannot be read (for example truncated by a crash of an
+# older version); the chunk is then recomputed. A readable chunk written by another
+# configuration is an error.
+function _load_chunk(path::AbstractString, fingerprint::Union{Nothing,AbstractString}=nothing)
+    d = try
+        JLD2.load(path)
+    catch err
+        @warn "checkpoint $path cannot be read ($(sprint(showerror, err; context=:limit => true))); recomputing it"
+        return nothing
+    end
+    if fingerprint !== nothing && get(d, "fingerprint", "") != fingerprint
+        throw(
+            ArgumentError(
+                "checkpoint $path was written by a different configuration than the one in " *
+                "$(CHECKPOINT_MANIFEST); delete the checkpoint directory or use another one",
+            ),
+        )
+    end
     return ChunkOutput(
         d["chunk"],
         d["n"],
@@ -231,12 +252,19 @@ function _load_chunk(path::AbstractString)
     )
 end
 
-function _compute_or_load_chunk(setup::PrecalibrationSetup, c::Int, checkpoint_dir)
+function _compute_or_load_chunk(setup::PrecalibrationSetup, c::Int, checkpoint_dir, fingerprint=nothing)
     if checkpoint_dir !== nothing
         f = _chunk_file(checkpoint_dir, c)
-        isfile(f) && return @timeit_debug TIMER "checkpoint load" _load_chunk(f)
+        if isfile(f)
+            o = @timeit_debug TIMER "checkpoint load" _load_chunk(f, fingerprint)
+            if o !== nothing
+                (o.chunk == c && o.n == _chunk_size(setup.cfg, c)) ||
+                    throw(ArgumentError("checkpoint $f holds chunk $(o.chunk) of size $(o.n), expected chunk $c"))
+                return o
+            end
+        end
         o = _run_chunk(setup, c)
-        @timeit_debug TIMER "checkpoint save" _save_chunk(f, o)
+        @timeit_debug TIMER "checkpoint save" _save_chunk(f, o, something(fingerprint, ""))
         return o
     end
     return _run_chunk(setup, c)
@@ -259,7 +287,10 @@ Chunks are independent: chunk `c` uses its own `StableRNG` seeded from `(cfg.see
 Up to `max_parallel` chunks run at the same time on separate threads, and their results
 are consumed in chunk order, so **the result does not depend on the number of
 threads**. With `checkpoint_dir`, every finished chunk is written there and reused if
-the run is restarted.
+the run is restarted. The directory records which configuration and input files wrote
+it (`checkpoint_manifest.toml`, see [`checkpoint_manifest`](@ref)); resuming with a
+different configuration raises an `ArgumentError` instead of mixing samples.
+`n_accept_min` may change between runs. Chunk files are written atomically.
 """
 function run_precalibration(
     cfg::ExperimentConfig;
@@ -270,7 +301,7 @@ function run_precalibration(
     t_start = time()
     started = Dates.format(Dates.now(), "yyyy-mm-ddTHH:MM:SS")
     setup = @timeit_debug TIMER "prepare" prepare_precalibration(cfg)
-    checkpoint_dir === nothing || mkpath(checkpoint_dir)
+    fingerprint = checkpoint_dir === nothing ? nothing : prepare_checkpoint_dir(checkpoint_dir, cfg)
     nchunk = _n_chunks(cfg)
     nbatch = max(1, min(Int(max_parallel), nchunk))
 
@@ -282,9 +313,9 @@ function run_precalibration(
     while c <= nchunk && !done
         batch = c:min(c + nbatch - 1, nchunk)
         outs = if nbatch == 1
-            [_compute_or_load_chunk(setup, k, checkpoint_dir) for k in batch]
+            [_compute_or_load_chunk(setup, k, checkpoint_dir, fingerprint) for k in batch]
         else
-            tasks = [Threads.@spawn _compute_or_load_chunk(setup, k, checkpoint_dir) for k in batch]
+            tasks = [Threads.@spawn _compute_or_load_chunk(setup, k, checkpoint_dir, fingerprint) for k in batch]
             fetch.(tasks)
         end
         for o in outs

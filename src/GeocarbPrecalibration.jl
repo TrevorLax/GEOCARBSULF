@@ -28,6 +28,7 @@ using JLD2: JLD2
 using LinearAlgebra: LinearAlgebra, LowerTriangular
 using Printf: @sprintf
 using Random: Random, AbstractRNG, randperm
+using SHA: SHA
 using StableRNGs: StableRNG
 using Statistics: Statistics, mean, median, std, var
 using StatsBase: StatsBase
@@ -73,6 +74,7 @@ include("precalibration/result.jl")
 include("precalibration/run.jl")
 
 include("io/outputs.jl")
+include("precalibration/checkpoints.jl")
 
 include("analysis/summaries.jl")
 include("analysis/kde.jl")
@@ -119,6 +121,7 @@ export PrecalibrationResult,
     write_summary_csvs,
     merge_results,
     prepare_precalibration,
+    checkpoint_manifest,
     accepts,
     EvaluationContext
 # --- analysis -------------------------------------------------------------------

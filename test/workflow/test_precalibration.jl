@@ -108,6 +108,42 @@
     @test length(filter(endswith(".jld2"), readdir(ck))) == 3
     b = run_precalibration(cfg; checkpoint_dir=ck, verbose=false)
     @test a.constants == b.constants == res.constants
+    @testset "checkpoints are tied to their configuration (J-03)" begin
+        @test isfile(joinpath(ck, G.CHECKPOINT_MANIFEST))
+        @test !any(endswith(".tmp"), readdir(ck))
+        msg(f) =
+            try
+                f()
+                ""
+            catch e
+                e isa ArgumentError ? e.msg : rethrow()
+            end
+        m = msg(() -> run_precalibration(with_overrides(cfg; seed=8); checkpoint_dir=ck, verbose=false))
+        @test occursin("config.seed", m)
+        m = msg(() -> run_precalibration(with_overrides(cfg; n_per_chunk=30); checkpoint_dir=ck, verbose=false))
+        @test occursin("config.n_per_chunk", m)
+        # changing a label or the acceptance target does not invalidate chunks
+        c = run_precalibration(with_overrides(cfg; output_dir="elsewhere", n_accept_min=5); checkpoint_dir=ck, verbose=false)
+        @test c.constants == res.constants[1:5, :]
+        # an input file with different content is detected
+        alt = joinpath(mktempdir(), "temp.csv")
+        write(alt, read(TEMP_FILE, String) * "\n")
+        m = msg(() -> run_precalibration(with_overrides(cfg; temperature_file=alt); checkpoint_dir=ck, verbose=false))
+        @test occursin("inputs_sha256.temperature_file", m)
+        # a truncated chunk (e.g. a crash of an older version) is detected and recomputed
+        f2 = G._chunk_file(ck, 2)
+        bytes = read(f2)
+        write(f2, bytes[1:(length(bytes) ÷ 2)])
+        d = @test_logs (:warn, r"cannot be read") match_mode = :any run_precalibration(cfg; checkpoint_dir=ck, verbose=false)
+        @test d.constants == res.constants
+        # a chunk carrying another fingerprint is refused
+        G._save_chunk(f2, G._load_chunk(f2), "0000")
+        @test occursin("different configuration", msg(() -> run_precalibration(cfg; checkpoint_dir=ck, verbose=false)))
+        # chunk files without a manifest (older versions) are refused
+        old = mktempdir()
+        cp(G._chunk_file(ck, 1), G._chunk_file(old, 1))
+        @test occursin("no checkpoint_manifest", msg(() -> run_precalibration(cfg; checkpoint_dir=old, verbose=false)))
+    end
 
     # time_center_from: centres from a previous result
     c2 = with_overrides(cfg; time_center_from=path, n_sample=10, n_per_chunk=10)
