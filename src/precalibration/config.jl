@@ -21,6 +21,7 @@ TOML file with [`load_experiments`](@ref); see `experiments/` and the
 | `cretaceous_age` | `nothing` | if set, also require the temperature to be inside its window at this age |
 | `run_on_time_centers` | `false` | run the model on the forcing *centres* instead of the sampled series (the R Cretaceous experiment, finding F-02) |
 | `time_center_from` | `nothing` | path of an earlier result (`result.jld2`) whose mean accepted series become the new forcing centres |
+| `allow_uninformative_centers` | `false` | allow `time_center_from` to point at a result run with `run_on_time_centers = true`. Its saved series never influenced acceptance, so their mean is the prior centre plus sampling noise; only set this to reproduce the R Cretaceous stage 2 |
 | `n_sample`, `n_per_chunk`, `n_accept_min` | | maximum simulations, chunk size, stop after this many accepted |
 | `seed` | `1234` | random seed (≥ 0) |
 | `constant_design` | `:chunked_lhs` | `:chunked_lhs` or `:global_lhs` ([`ConstantDesign`](@ref)) |
@@ -49,6 +50,7 @@ Base.@kwdef struct ExperimentConfig
     cretaceous_age::Union{Nothing,Float64} = nothing
     run_on_time_centers::Bool = false
     time_center_from::Union{Nothing,String} = nothing
+    allow_uninformative_centers::Bool = false
     n_sample::Int = 10_000
     n_per_chunk::Int = 1_000
     n_accept_min::Int = 10_000
@@ -132,6 +134,7 @@ const _TOP_KEYS = Set([
     "cretaceous_age",
     "run_on_time_centers",
     "time_center_from",
+    "allow_uninformative_centers",
     "n_sample",
     "n_per_chunk",
     "n_accept_min",
@@ -237,6 +240,7 @@ function load_experiments(path::AbstractString)
         :cretaceous_age => haskey(d, "cretaceous_age") ? Float64(d["cretaceous_age"]) : nothing,
         :run_on_time_centers => Bool(get(d, "run_on_time_centers", false)),
         :time_center_from => haskey(d, "time_center_from") ? String(d["time_center_from"]) : nothing,
+        :allow_uninformative_centers => Bool(get(d, "allow_uninformative_centers", false)),
         :n_sample => Int(get(d, "n_sample", 10_000)),
         :n_per_chunk => Int(get(d, "n_per_chunk", 1_000)),
         :n_accept_min => Int(get(d, "n_accept_min", 10_000)),

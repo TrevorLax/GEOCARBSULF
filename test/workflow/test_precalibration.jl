@@ -114,6 +114,24 @@
     setup = G.prepare_precalibration(c2)
     @test setup.center.Sr ≈ vec(Statistics.mean(res.time_series[:, :, 1]; dims=2))
 
+    # time_center_from pointing at a run_on_time_centers result is refused unless
+    # explicitly allowed: its saved series did not influence acceptance (J-11)
+    roc = run_precalibration(with_overrides(cfg; run_on_time_centers=true, n_sample=20, n_per_chunk=20); verbose=false)
+    @test n_accepted(roc) >= 1
+    roc_path = save_result(joinpath(dir, "roc.jld2"), roc)
+    c_roc = with_overrides(cfg; time_center_from=roc_path, n_sample=10, n_per_chunk=10)
+    err = try
+        G.prepare_precalibration(c_roc)
+        nothing
+    catch e
+        e
+    end
+    @test err isa ArgumentError && occursin("allow_uninformative_centers", err.msg)
+    allowed = run_precalibration(with_overrides(c_roc; allow_uninformative_centers=true); verbose=false)
+    @test allowed.provenance["uninformative_time_centers"] == "true"
+    @test allowed.config["allow_uninformative_centers"] == true
+    @test !haskey(run_precalibration(c2; verbose=false).provenance, "uninformative_time_centers")
+
     # merging results
     m = merge_results([res, few])
     @test n_accepted(m) == n + 5 && m.n_simulated == 80

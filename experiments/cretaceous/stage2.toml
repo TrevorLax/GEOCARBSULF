@@ -12,6 +12,12 @@ seed        = 3702
 cretaceous_age      = 90.0
 run_on_time_centers = true
 time_center_from    = "results/cretaceous/ct_out50_cret/result.jld2"
+# Stage 1 runs with run_on_time_centers = true, so its saved series did not influence
+# acceptance and their mean is the prior centre plus sampling noise. Using them as
+# centres is refused unless this is set; it is set here only to reproduce the R
+# experiment. Both stages also share seed 3702 (finding F-29), so stage 2 is close to
+# re-filtering stage 1 at a tighter threshold. See JULIA_PORT_FINDINGS.md, J-11.
+allow_uninformative_centers = true
 n_sample     = 10_000_000
 n_per_chunk  = 10_000
 n_accept_min = 10_000

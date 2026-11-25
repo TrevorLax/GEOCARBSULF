@@ -12,6 +12,7 @@ struct PrecalibrationSetup
     ctx::EvaluationContext
     rule::AcceptanceRule
     U_global::Union{Nothing,Matrix{Float64}}
+    notes::Dict{String,String}        # extra provenance recorded with the result
 end
 
 struct ChunkOutput
@@ -52,11 +53,27 @@ function prepare_precalibration(cfg::ExperimentConfig)
 
     tprior = read_time_arrays(cfg.time_array_file; use_godderis=cfg.use_godderis)
     center = tprior.center
+    notes = Dict{String,String}()
     if cfg.time_center_from !== nothing
         prev = load_result(cfg.time_center_from)
         n_accepted(prev) >= 1 ||
             throw(ArgumentError("time_center_from: $(cfg.time_center_from) has no accepted samples"))
         prev.age == center.age || throw(ArgumentError("time_center_from: age grids differ"))
+        if get(prev.config, "run_on_time_centers", false) == true
+            cfg.allow_uninformative_centers || throw(
+                ArgumentError(
+                    "time_center_from: $(cfg.time_center_from) was run with run_on_time_centers = true, so its " *
+                    "saved series never influenced acceptance and their mean is the prior centre plus sampling " *
+                    "noise: the new centres would carry no information from that experiment. Re-run it with " *
+                    "run_on_time_centers = false, or set allow_uninformative_centers = true to reproduce the R " *
+                    "Cretaceous stage 2 anyway.",
+                ),
+            )
+            @warn "time_center_from: $(cfg.time_center_from) was run on the forcing centres; the new centres " *
+                "are uninformative (allow_uninformative_centers = true)"
+            notes["uninformative_time_centers"] = "true"
+        end
+        notes["time_center_from_tag"] = prev.tag
         center = mean_time_forcings(prev.time_series, prev.age)
     end
     fvr = read_variance_reduction(cfg.variance_reduction_file)
@@ -85,7 +102,7 @@ function prepare_precalibration(cfg::ExperimentConfig)
     end
     cfg.run_on_time_centers && @warn "run_on_time_centers = true: the model runs on the forcing centres; " *
         "the saved time series are sampled but did not influence acceptance (as in the R Cretaceous experiment, finding F-02)"
-    return PrecalibrationSetup(cfg, priors, calib_index, base_values, sampler, center, ctx, rule, U_global)
+    return PrecalibrationSetup(cfg, priors, calib_index, base_values, sampler, center, ctx, rule, U_global, notes)
 end
 
 function _run_chunk(setup::PrecalibrationSetup, c::Int)
@@ -328,6 +345,7 @@ function _assemble(setup::PrecalibrationSetup, outs::Vector{ChunkOutput}, n_simu
         "threads" => string(Threads.nthreads()),
         "n_chunks_consumed" => string(length(outs)),
     )
+    merge!(prov, setup.notes)
     return PrecalibrationResult(
         cfg.tag,
         cfg.source,

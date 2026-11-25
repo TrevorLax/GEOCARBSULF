@@ -27,6 +27,9 @@
     cret = only(load_experiments(joinpath(root, "experiments", "cretaceous", "stage1.toml")))
     @test cret.cretaceous_age == 90.0 && cret.run_on_time_centers
     @test build_rule(cret) isa AllOf && length(build_rule(cret).rules) == 3
+    @test !cret.allow_uninformative_centers
+    cret2 = only(load_experiments(joinpath(root, "experiments", "cretaceous", "stage2.toml")))
+    @test cret2.allow_uninformative_centers     # opt-in kept for R parity (J-11)
 
     # errors
     @test_throws ArgumentError load_experiments(tmpfile("nmae = \"typo\"\n"; ext=".toml"))
