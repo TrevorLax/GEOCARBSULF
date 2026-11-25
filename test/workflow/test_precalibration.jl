@@ -167,6 +167,11 @@
         # a chunk carrying another fingerprint is refused
         G._save_chunk(f2, G._load_chunk(f2), "0000")
         @test occursin("different configuration", msg(() -> run_precalibration(cfg; checkpoint_dir=ck, verbose=false)))
+        # the same error, not a TaskFailedException, when chunks run on several threads
+        @test occursin(
+            "different configuration",
+            msg(() -> run_precalibration(cfg; checkpoint_dir=ck, max_parallel=3, verbose=false)),
+        )
         # chunk files without a manifest (older versions) are refused
         old = mktempdir()
         cp(G._chunk_file(ck, 1), G._chunk_file(old, 1))

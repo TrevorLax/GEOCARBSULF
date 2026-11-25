@@ -319,7 +319,7 @@ function run_precalibration(
             [_compute_or_load_chunk(setup, k, checkpoint_dir, fingerprint) for k in batch]
         else
             tasks = [Threads.@spawn _compute_or_load_chunk(setup, k, checkpoint_dir, fingerprint) for k in batch]
-            fetch.(tasks)
+            _fetch_all(tasks)
         end
         for o in outs
             n_simulated += o.n
@@ -341,6 +341,23 @@ function run_precalibration(
     res.provenance["wall_seconds"] = @sprintf("%.1f", time() - t_start)
     res.provenance["max_parallel"] = string(nbatch)
     return res
+end
+
+# Wait for every task of a batch, so none is still writing checkpoints when an error is
+# reported, then return their results. An exception inside a task is rethrown as
+# itself rather than wrapped in a TaskFailedException, so that, for example, a
+# checkpoint mismatch reads the same with one thread as with several.
+function _fetch_all(tasks::Vector{Task})
+    for t in tasks
+        try
+            wait(t)
+        catch
+        end
+    end
+    return map(tasks) do t
+        istaskfailed(t) && throw(t.result)
+        return fetch(t)
+    end
 end
 
 function _assemble(setup::PrecalibrationSetup, outs::Vector{ChunkOutput}, n_simulated::Int)
