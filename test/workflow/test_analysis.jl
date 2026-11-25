@@ -68,6 +68,20 @@
 
     cs = correlation_screen(res, constant_column(res, :deltaT2X))
     @test cs.names[1] == :deltaT2X && cs.r[1] ≈ 1
+    # a parameter without variance (fixed in the prior file) is ranked last, not first (J-18)
+    fixed = copy(res.constants)
+    jfix = findfirst(==(:GYM), res.constant_names)
+    fixed[:, jfix] .= 0.5
+    res_fixed = G.PrecalibrationResult(
+        res.tag, res.config_text, res.config, res.age, res.constant_names, fixed, res.forcing_names,
+        res.time_series, res.co2, res.o2, res.temp, res.status, res.prcout_co2, res.prcout_temp, res.sample_keys,
+        res.n_simulated, res.n_evaluated, res.covariances, res.provenance,
+    )
+    for method in (:spearman, :pearson)
+        csf = correlation_screen(res_fixed, constant_column(res, :deltaT2X); method=method)
+        @test csf.names[1] == :deltaT2X
+        @test csf.names[end] == :GYM && isnan(csf.r[end]) && !any(isnan, csf.r[1:(end - 1)])
+    end
     @test size(acf_quantiles(res; lag_max=5)) == (6, 9, 12)
     sc = survival_curve([0.3, 0.1, 0.2])
     @test sc.x == [0.1, 0.2, 0.3] && sc.survival ≈ [0.75, 0.5, 0.25]
