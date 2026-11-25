@@ -7,14 +7,17 @@
 """
     CSVTable
 
-Header and rows of a CSV file, all cells as `String`. Use [`column`](@ref) and
+Header and rows of a CSV file, all cells as `String`, and the file line on which each
+row starts (`lines`, for error messages). Use [`column`](@ref) and
 [`numeric_column`](@ref) to extract data.
 """
 struct CSVTable
     path::String
     header::Vector{String}
     rows::Vector{Vector{String}}
+    lines::Vector{Int}
 end
+CSVTable(path, header, rows) = CSVTable(path, header, rows, collect(2:(length(rows) + 1)))
 
 Base.length(t::CSVTable) = length(t.rows)
 
@@ -37,6 +40,7 @@ function read_csv_table(path::AbstractString)
     any(isempty, header) && throw(ArgumentError("$path: empty column name in the header"))
     length(unique(header)) == length(header) || throw(ArgumentError("$path: duplicate column names in the header"))
     rows = Vector{Vector{String}}()
+    lines = Int[]
     for (lineno, fields) in records[2:end]
         if length(fields) == 1 && isempty(strip(fields[1]))
             continue
@@ -44,8 +48,9 @@ function read_csv_table(path::AbstractString)
         length(fields) == length(header) ||
             throw(ArgumentError("$path:$lineno: expected $(length(header)) fields, found $(length(fields))"))
         push!(rows, fields)
+        push!(lines, lineno)
     end
-    return CSVTable(String(path), String.(header), rows)
+    return CSVTable(String(path), String.(header), rows, lines)
 end
 
 # Split raw bytes into (line number, fields) records. Handles quotes ("" escapes),
@@ -70,7 +75,10 @@ function _split_records(bytes::Vector{UInt8})
                     inquotes = false
                 end
             else
-                (b == UInt8('\n') || b == UInt8('\r')) && (line += 1)
+                # a line break inside a quoted field; CRLF counts as one line (J-27)
+                if b == UInt8('\n') || (b == UInt8('\r') && !(i < n && bytes[i + 1] == UInt8('\n')))
+                    line += 1
+                end
                 push!(buf, b)
             end
         elseif b == UInt8('"')
@@ -155,7 +163,7 @@ function numeric_column(t::CSVTable, name::AbstractString; allow_missing::Bool=f
             out[r] = parse_number(row[j]; allow_missing=allow_missing)
         catch err
             err isa ArgumentError || rethrow()
-            throw(ArgumentError("$(t.path): row $(r + 1), column '$name': $(err.msg)"))
+            throw(ArgumentError("$(t.path):$(t.lines[r]): column '$name': $(err.msg)"))
         end
     end
     return out
@@ -173,8 +181,10 @@ end
 """
     write_csv(path, header, columns)
 
-Write columns (vectors of equal length) with a header line. Numbers are written with
-`repr`, so they round-trip exactly.
+Write columns (vectors of equal length) with a header line. Floating-point numbers are
+written as the shortest decimal that reads back as the same `Float64` (other float types
+are converted to `Float64` first, which is exact for `Float32` and `Float16`), so they
+round-trip through [`parse_number`](@ref).
 """
 function write_csv(path::AbstractString, header::AbstractVector, columns::AbstractVector)
     length(header) == length(columns) || throw(ArgumentError("header and columns differ in length"))
@@ -196,7 +206,7 @@ _csvcell(x::AbstractFloat) =
     elseif isinf(x)
         (x > 0 ? "Inf" : "-Inf")
     else
-        repr(x)
+        repr(Float64(x))        # repr(::Float32) would write "1.0f0" (J-27)
     end
 _csvcell(x::Integer) = string(x)
 _csvcell(x::Bool) = x ? "true" : "false"
