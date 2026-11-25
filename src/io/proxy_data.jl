@@ -43,11 +43,11 @@ function read_proxy_data(path::AbstractString; proxies=DEFAULT_PROXIES)
         append!(idx, findall(==(Symbol(p)), ptype))
     end
     for i in idx
-        (co2[i] > 0 && hi[i] > 0) || throw(ArgumentError("$path: row $(i + 1): co2 and co2_high must be positive"))
+        (co2[i] > 0 && hi[i] > 0) || throw(ArgumentError("$path:$(t.lines[i]): co2 and co2_high must be positive"))
         # an inverted row gives an inverted window that rejects every run (J-24)
-        co2[i] <= hi[i] || throw(ArgumentError("$path: row $(i + 1): co2_high ($(hi[i])) is below co2 ($(co2[i]))"))
+        co2[i] <= hi[i] || throw(ArgumentError("$path:$(t.lines[i]): co2_high ($(hi[i])) is below co2 ($(co2[i]))"))
         (isnan(lo[i]) || lo[i] <= co2[i]) ||
-            throw(ArgumentError("$path: row $(i + 1): co2_low ($(lo[i])) is above co2 ($(co2[i]))"))
+            throw(ArgumentError("$path:$(t.lines[i]): co2_low ($(lo[i])) is above co2 ($(co2[i]))"))
     end
     return ProxyData(age[idx], co2[idx], lo[idx], hi[idx], ptype[idx], ref[idx])
 end

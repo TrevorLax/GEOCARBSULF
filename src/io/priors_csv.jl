@@ -58,7 +58,7 @@ function read_prior_table(path::AbstractString)
     calib = column(t, "calib")
     specs = PriorSpec[]
     for r in eachindex(names)
-        where_ = "$path: row $(r + 1) ($(names[r]))"
+        where_ = "$path:$(t.lines[r]) ($(names[r]))"
         kind = if types[r] == "constant"
             :constant
         elseif types[r] == "time array"
