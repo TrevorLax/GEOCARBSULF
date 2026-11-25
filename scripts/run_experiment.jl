@@ -11,6 +11,8 @@
 #   --dry-run          validate the configuration, read all inputs and run one small chunk
 #   --checkpoint       write finished chunks to <output_dir>/<tag>/checkpoints and reuse them
 #   --quiet            no progress messages
+#   --force            overwrite existing results (by default the script refuses to
+#                      replace an existing <output_dir>/<tag>/result.jld2)
 #
 # Results go to <output_dir>/<tag>/: result.jld2, constants.csv, prcout.csv and
 # provenance.toml. Replaces lhs_driver.R, lhs_driver_supp.R, lhs_driver_cret.R and
@@ -20,7 +22,7 @@ using GeocarbPrecalibration
 
 function main(args)
     isempty(args) && (
-        println(stderr, "usage: run_experiment.jl CONFIG.toml [--only KEY=VALUE] [--dry-run] [--checkpoint] [--quiet]");
+        println(stderr, "usage: run_experiment.jl CONFIG.toml [--only KEY=VALUE] [--dry-run] [--checkpoint] [--quiet] [--force]");
         exit(2)
     )
     path = args[1]
@@ -28,6 +30,7 @@ function main(args)
     dry = false
     checkpoint = false
     quiet = false
+    force = false
     i = 2
     while i <= length(args)
         a = args[i]
@@ -43,6 +46,8 @@ function main(args)
             checkpoint = true
         elseif a == "--quiet"
             quiet = true
+        elseif a == "--force"
+            force = true
         else
             error("unknown option $a")
         end
@@ -67,6 +72,16 @@ function main(args)
     end
     configs = filter(keep, configs)
     isempty(configs) && error("no experiment in $path matches the filters")
+
+    # Refuse to overwrite earlier results (J-04); checked for every experiment before
+    # any of them runs, so a long grid does not stop halfway.
+    if !dry && !force
+        existing = filter(isfile, [joinpath(cfg.output_dir, cfg.tag, "result.jld2") for cfg in configs])
+        isempty(existing) || error(
+            "results already exist and would be overwritten:\n  " * join(existing, "\n  ") *
+            "\nmove them away, or pass --force to overwrite",
+        )
+    end
 
     println("$(length(configs)) experiment(s) from $path, $(Threads.nthreads()) thread(s)")
     for cfg in configs
