@@ -30,7 +30,7 @@ copy of it.
 | `gym_factor` | `1.0` | multiplier on `GYM` at the start of that ramp (supp `gym_fac`); must be > 0, because `fE` divides the mass-balance silicate weathering |
 | `dT2X_ramp` | `false` | ramp ΔT2x from `deltaT2X` to `GLAC*deltaT2X` over `dT2X_ramp_interval` (supp `dT2X_fac ≥ 0`) |
 | `dT2X_ramp_interval` | `(130, 40)` | ages (Myr ago) at which the ramp factor is 1 and `GLAC` |
-| `iteration_threshold` | `10` | iteration at which the CO2 solve is declared failed (`parameterSetup.R:15`) |
+| `iteration_threshold` | `10` | iteration at which the CO2 solve is declared failed (`parameterSetup.R:15`): `N` allows `N − 1` Newton updates, so `N ≥ 2` |
 | `convergence_tol` | `0.01` | stop when `abs(RCO2/RCO2_old - 1) <= tol` (f90:435) |
 | `newton_damping` | `0.9` | damping of each Newton step (f90:450) |
 | `newton_shrink` | `0.2` | geometric shrinkage used when a step would make RCO2 non-positive (f90:452) |
@@ -38,12 +38,22 @@ copy of it.
 | `present_day_o2_percent` | `(19.0, 23.0)` | present-day O2 (%) check (f90:561) |
 | `present_day_rco2` | `(0.8, 1.2)` | present-day RCO2 check (f90:562) |
 | `corrected_newton_derivative` | `false` | use the exact derivative in the pre-380 Ma regime (finding F-01); `false` reproduces the Fortran |
-| `fortran_single_literals` | `true` | round the decimal literals of the Fortran (`0.01, 0.9, 0.2, 0.7, 0.6, 0.8, 1.2` and `log(2.0)`) to single precision, as gfortran does (finding F-05). This is what the published results were computed with, and it reproduces the compiled code to rounding error. `false` uses Float64 values instead. That is cleaner arithmetic, but it changes individual runs: in 1000 prior draws, 101 pass/fail decisions flip and CO2 moves by up to 14 % (see `docs/src/porting_notes.md`). |
+| `fortran_single_literals` | `true` | round the decimal literals of the Fortran (`0.01, 0.9, 0.2, 0.7, 0.6, 0.8, 1.2` and `log(2.0)`) to single precision, as gfortran does (finding F-05). Only options left at their Fortran default values are rounded; a value you set (for example `convergence_tol = 1e-6`) is used exactly as given. This is what the published results were computed with, and it reproduces the compiled code to rounding error. `false` uses Float64 values instead. That is cleaner arithmetic, but it changes individual runs: in 1000 prior draws, 101 pass/fail decisions flip and CO2 moves by up to 14 % (see `docs/src/porting_notes.md`). |
 
 The supplemental experiment of the R code `supp_experiment_parameters = c(beg, end, gym_fac, dT2X_fac)`
 corresponds to `ModelOptions(gym_angio_transition = (beg, end), gym_factor = gym_fac, dT2X_ramp = dT2X_fac >= 0)`.
 Note that the R default `c(130, 80, 1, 1)` *enables* the ΔT2x ramp (finding F-09);
 here the ramp is off unless asked for.
+
+# Number types
+
+The model is written for `Float64` inputs and for ForwardDiff dual numbers built on
+`Float64` (derivatives through the whole run, including the CO2 solve). The numerical
+constants of [`ResolvedConstants`](@ref GeocarbPrecalibration.ResolvedConstants) are
+`Float64`, so other input types run but are not computed in their own precision:
+`Float32` inputs are promoted to `Float64` inside the CO2 solve and the outputs are
+stored as `Float32`, and `BigFloat` inputs are combined with constants of only
+`Float64` precision.
 """
 struct ModelOptions
     dt::Float64
@@ -126,7 +136,10 @@ function validate(o::ModelOptions)
         throw(ArgumentError("gym_factor must be finite and positive, got $(o.gym_factor)"))
     a, z = o.dT2X_ramp_interval
     a > z || throw(ArgumentError("dT2X_ramp_interval must be (start, end) with start > end, got ($a, $z)"))
-    o.iteration_threshold >= 1 || throw(ArgumentError("iteration_threshold must be ≥ 1"))
+    # the iteration at which count == iteration_threshold is a failure, so N allows
+    # N - 1 Newton updates and N = 1 could never converge (J-26)
+    o.iteration_threshold >= 2 ||
+        throw(ArgumentError("iteration_threshold must be ≥ 2 (N allows N − 1 Newton updates), got $(o.iteration_threshold)"))
     o.convergence_tol > 0 || throw(ArgumentError("convergence_tol must be positive"))
     0 < o.newton_damping <= 1 || throw(ArgumentError("newton_damping must be in (0, 1]"))
     0 < o.newton_shrink < 1 || throw(ArgumentError("newton_shrink must be in (0, 1)"))
@@ -194,9 +207,10 @@ end
 
 Numerical constants actually used by the model (`ln 2`, solver tolerance and
 damping, Sr offset, RCO2 bounds, present-day checks), built from a
-[`ModelOptions`](@ref) by `resolve_constants`. When `fortran_single_literals = true`
-each value is rounded through `Float32`, as gfortran stores default-REAL literals in
-single precision (finding F-05). Internal; not part of the public API.
+[`ModelOptions`](@ref) by `resolve_constants`. When `fortran_single_literals = true`,
+`ln 2`, the Sr offset and every option still at its Fortran default are rounded through
+`Float32`, as gfortran stores default-REAL literals in single precision (finding F-05);
+options set to other values are used as given. Internal; not part of the public API.
 """
 struct ResolvedConstants
     ln2::Float64
@@ -213,20 +227,23 @@ struct ResolvedConstants
 end
 
 @inline _lit(x::Float64, single::Bool) = single ? Float64(Float32(x)) : x
+# A user-settable option is rounded only if it still has the Fortran default value: the
+# rounding reproduces the Fortran's literals, not values chosen by the user (J-07).
+@inline _lit(x::Float64, fortran_default::Float64, single::Bool) = _lit(x, single && x == fortran_default)
 
 @inline function resolve_constants(o::ModelOptions)
     s = o.fortran_single_literals
     return ResolvedConstants(
         _lit(log(2.0), s),
-        _lit(o.convergence_tol, s),
-        _lit(o.newton_damping, s),
-        _lit(o.newton_shrink, s),
+        _lit(o.convergence_tol, 0.01, s),
+        _lit(o.newton_damping, 0.9, s),
+        _lit(o.newton_shrink, 0.2, s),
         _lit(SR_OFFSET, s),
-        _lit(o.rco2_bounds[1], s),
-        _lit(o.rco2_bounds[2], s),
-        _lit(o.present_day_o2_percent[1], s),
-        _lit(o.present_day_o2_percent[2], s),
-        _lit(o.present_day_rco2[1], s),
-        _lit(o.present_day_rco2[2], s),
+        _lit(o.rco2_bounds[1], 0.6, s),
+        _lit(o.rco2_bounds[2], 200.0, s),
+        _lit(o.present_day_o2_percent[1], 19.0, s),
+        _lit(o.present_day_o2_percent[2], 23.0, s),
+        _lit(o.present_day_rco2[1], 0.8, s),
+        _lit(o.present_day_rco2[2], 1.2, s),
     )
 end

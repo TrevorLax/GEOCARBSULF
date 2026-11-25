@@ -58,6 +58,7 @@ function run_geocarb!(
     age = f.age
     n = length(age)
     length(out.co2) == n || throw(ArgumentError("output has $(length(out.co2)) steps but the forcings have $n"))
+    out.age == age || throw(ArgumentError("the output's age grid differs from the forcings' age grid"))
     _check_model_grid(age)
     _check_dt(age, o.dt)
     k = resolve_constants(o)
@@ -121,9 +122,11 @@ function run_geocarb!(
     return out
 end
 
+# Spacing compared with a relative tolerance, so that grids built by arithmetic (for
+# example `range(570, 0; length = 58)`) are accepted (J-06).
 function _check_dt(age::Vector{Float64}, dt::Float64)
     for i in 2:length(age)
-        if age[i - 1] - age[i] != dt
+        if !isapprox(age[i - 1] - age[i], dt; rtol=1e-9)
             throw(
                 ArgumentError(
                     "the age grid must have a uniform spacing of dt = $dt Myr " * "(found $(age[i-1]) → $(age[i]))"

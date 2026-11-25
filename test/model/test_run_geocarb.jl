@@ -61,6 +61,11 @@
         @test_throws ArgumentError run_geocarb(p, f5)          # spacing ≠ dt
         @test run_geocarb(p, f5; options=ModelOptions(; dt=5.0)) isa GeocarbResult
         @test_throws ArgumentError run_geocarb!(GeocarbResult{Float64}(1:3), p, f)
+        # the output must be on the forcings' age grid, not just of the same length (J-25)
+        @test_throws ArgumentError run_geocarb!(GeocarbResult{Float64}(f.age .- 0.5), p, f)
+        # a spacing equal to dt up to rounding is accepted (J-06)
+        fr = TimeForcings(collect(range(570.0, 0.0; length=58)), Dict(n => getfield(f, n) for n in TIME_FORCING_NAMES))
+        @test isequal(run_geocarb(p, fr).co2, run_geocarb(p, f).co2)
     end
 
     @testset "no allocations in run_geocarb!" begin
@@ -75,8 +80,16 @@
         f32 = TimeForcings(
             f.age, Dict{Symbol,Vector{Float32}}(n => Float32.(getfield(f, n)) for n in TIME_FORCING_NAMES)
         )
-        @test run_geocarb(p32, f32) isa GeocarbResult{Float32}
-        g = ForwardDiff.derivative(x -> run_geocarb(update(p; deltaT2X=x), f).temp[end - 1], p.deltaT2X)
-        @test g isa Real
+        r32 = run_geocarb(p32, f32)
+        @test r32 isa GeocarbResult{Float32}
+        @test succeeded(r32) && isapprox(r32.co2, run_geocarb(p, f).co2; rtol=1e-3)
+        # derivatives through the whole run (including the CO2 solve) agree with finite differences (J-08)
+        h(x) = run_geocarb(update(p; deltaT2X=x), f).temp[end - 1]
+        g = ForwardDiff.derivative(h, p.deltaT2X)
+        fd = (h(p.deltaT2X + 1e-5) - h(p.deltaT2X - 1e-5)) / 2e-5
+        @test g isa Float64 && isapprox(g, fd; rtol=1e-5)
+        names = collect(CONSTANT_PARAMETER_NAMES)
+        grad = ForwardDiff.gradient(v -> run_geocarb(ConstantParams(names, v), f).co2[30], parameter_vector(p))
+        @test all(isfinite, grad) && length(grad) == 56
     end
 end

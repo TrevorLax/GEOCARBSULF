@@ -29,9 +29,9 @@
     @test isapprox(R3, R2; rtol=1e-10)
 
     # failure modes are reported, never thrown
-    o1 = ModelOptions(; iteration_threshold=1)
+    o1 = ModelOptions(; iteration_threshold=2)                    # one Newton update, then failure
     _, st4, it4 = G.solve_rco2(t, 3.0, fw, gcm, f.RT[i], f.GEOG[i], p, o1, G.resolve_constants(o1))
-    @test st4 == NotConverged && it4 == 1
+    @test st4 == NotConverged && it4 == 2
     _, st5, _ = G.solve_rco2(t, 3.0, fw, gcm, f.RT[i], -1e6, p, o, k)     # negative power base
     @test st5 == NaNEncountered
     _, st6, _ = G.solve_rco2(365.0, 3.0, fw, gcm, f.RT[i], -1e6, p, o, k)  # blended regime

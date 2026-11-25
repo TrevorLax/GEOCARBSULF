@@ -93,4 +93,10 @@ end
     k0 = G.resolve_constants(ModelOptions(; fortran_single_literals=false))
     @test k0.tol == 0.01 && k0.sr_offset == 0.7 && k0.ln2 == log(2.0)
     @test k0.ln2 != k1.ln2 && k0.tol != k1.tol
+    # only the Fortran default literals are rounded; values set by the user are not (J-07)
+    ku = G.resolve_constants(ModelOptions(; convergence_tol=1e-6, newton_damping=0.85, rco2_bounds=(0.5, 300.0)))
+    @test ku.tol == 1e-6 && ku.damping == 0.85 && ku.rco2_min == 0.5 && ku.rco2_max == 300.0
+    @test ku.shrink == Float64(0.2f0) && ku.pd_rco2_min == Float64(0.8f0)       # still at their defaults
+    @test_throws ArgumentError ModelOptions(iteration_threshold=1)              # J-26: could never converge
+    @test ModelOptions(; iteration_threshold=2).iteration_threshold == 2
 end
