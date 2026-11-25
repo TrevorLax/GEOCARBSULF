@@ -99,7 +99,7 @@ previous step's value. Returns the new RCO2, a [`StepStatus`](@ref) (`Converged`
 `NotConverged` or `NaNEncountered`) and the number of iterations.
 
 The convergence test, damping, fallback shrinkage and failure rules are those of the
-Fortran (f90:431-521). In particular, convergence is judged on the *relative step size*
+Fortran. In particular, convergence is judged on the *relative step size*
 (`abs(RCO2/RCO2_old − 1) ≤ tol`), and the iteration at which `count ==
 iteration_threshold` is counted as a failure.
 """

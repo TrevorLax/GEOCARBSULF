@@ -1,5 +1,5 @@
 # Optional timing instrumentation of the precalibration engine, for the benchmark in
-# benchmark/timing (TIMING_BENCHMARK_PLAN.md §6.8).
+# benchmark/timing (see benchmark/timing/README.md).
 #
 # The sections are written with `TimerOutputs.@timeit_debug`. They compile to nothing
 # until someone calls

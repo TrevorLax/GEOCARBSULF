@@ -1,4 +1,4 @@
-"Proxy types assimilated by default (`model_setup.R:11-15`)."
+"Proxy types assimilated by default (those of the R code)."
 const DEFAULT_PROXIES = (:paleosols, :alkenones, :stomata, :boron, :liverworts)
 
 """
@@ -22,8 +22,8 @@ Base.length(d::ProxyData) = length(d.age)
     read_proxy_data(path; proxies = $(DEFAULT_PROXIES)) -> ProxyData
 
 Read a CO2 proxy CSV (columns `age, co2, co2_low, co2_high, proxy_type, reference`;
-other columns are ignored) and keep the listed proxy types. As in `getData.R:12-20`,
-rows are grouped by proxy type in the order of `proxies`. Each kept row must satisfy
+other columns are ignored) and keep the listed proxy types. As in the R code, rows are
+grouped by proxy type in the order of `proxies`. Each kept row must satisfy
 `co2_low ≤ co2 ≤ co2_high` (`co2_low` may be missing).
 """
 function read_proxy_data(path::AbstractString; proxies=DEFAULT_PROXIES)
@@ -56,7 +56,7 @@ end
     proxy_step_index(d::ProxyData, age::AbstractVector; dt = grid spacing) -> Vector{Union{Int,Nothing}}
 
 Model time step that each observation is compared against: the step whose age `a`
-satisfies `a - dt/2 ≤ obs_age < a + dt/2` (`getData.R:28-35`), or `nothing` if none.
+satisfies `a - dt/2 ≤ obs_age < a + dt/2` (as in the R code), or `nothing` if none.
 These are the bins that [`co2_windows`](@ref) pools.
 """
 proxy_step_index(d::ProxyData, age::AbstractVector; dt::Real=_grid_spacing(age)) = _step_bins(d.age, age, dt)

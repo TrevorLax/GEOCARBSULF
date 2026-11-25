@@ -24,19 +24,19 @@ copy of it.
 
 | keyword | default | meaning (Fortran reference) |
 |:--|:--|:--|
-| `dt` | `10.0` | time step in Myr (`Dt`, f90:273); the age grid must have exactly this spacing |
-| `glacial_intervals` | `[(260, 330), (-Inf, 40)]` | closed age intervals (Myr ago) in which `GCM = GLAC*deltaT2X/ln 2` (f90:309) |
+| `dt` | `10.0` | time step in Myr (`Dt` in the Fortran); the age grid must have exactly this spacing |
+| `glacial_intervals` | `[(260, 330), (-Inf, 40)]` | closed age intervals (Myr ago) in which `GCM = GLAC*deltaT2X/ln 2` |
 | `gym_angio_transition` | `(130, 80)` | start and end of the gymnosperm → angiosperm ramp in `fE` (supp `age_gym_ang_beg/end`) |
 | `gym_factor` | `1.0` | multiplier on `GYM` at the start of that ramp (supp `gym_fac`); must be > 0, because `fE` divides the mass-balance silicate weathering |
 | `dT2X_ramp` | `false` | ramp ΔT2x from `deltaT2X` to `GLAC*deltaT2X` over `dT2X_ramp_interval` (supp `dT2X_fac ≥ 0`) |
 | `dT2X_ramp_interval` | `(130, 40)` | ages (Myr ago) at which the ramp factor is 1 and `GLAC` |
-| `iteration_threshold` | `10` | iteration at which the CO2 solve is declared failed (`parameterSetup.R:15`): `N` allows `N − 1` Newton updates, so `N ≥ 2` |
-| `convergence_tol` | `0.01` | stop when `abs(RCO2/RCO2_old - 1) <= tol` (f90:435) |
-| `newton_damping` | `0.9` | damping of each Newton step (f90:450) |
-| `newton_shrink` | `0.2` | geometric shrinkage used when a step would make RCO2 non-positive (f90:452) |
-| `rco2_bounds` | `(0.6, 200.0)` | RCO2 outside these bounds marks the step failed (150 and 50 000 ppmv; f90:524) |
-| `present_day_o2_percent` | `(19.0, 23.0)` | present-day O2 (%) check (f90:561) |
-| `present_day_rco2` | `(0.8, 1.2)` | present-day RCO2 check (f90:562) |
+| `iteration_threshold` | `10` | iteration at which the CO2 solve is declared failed (the R value): `N` allows `N − 1` Newton updates, so `N ≥ 2` |
+| `convergence_tol` | `0.01` | stop when `abs(RCO2/RCO2_old - 1) <= tol` |
+| `newton_damping` | `0.9` | damping of each Newton step |
+| `newton_shrink` | `0.2` | geometric shrinkage used when a step would make RCO2 non-positive |
+| `rco2_bounds` | `(0.6, 200.0)` | RCO2 outside these bounds marks the step failed (150 and 50 000 ppmv) |
+| `present_day_o2_percent` | `(19.0, 23.0)` | present-day O2 (%) check |
+| `present_day_rco2` | `(0.8, 1.2)` | present-day RCO2 check |
 | `corrected_newton_derivative` | `false` | use the exact derivative of the non-vascular expression in the CO2 solver: in the pre-380 Ma regime and in the non-vascular part of the 380–350 Ma blend (finding F-01); `false` reproduces the Fortran |
 | `report_nan_target` | `false` | report a step whose mass-balance target (`fwsi_no_climate`) is NaN as `NaNEncountered`. The Fortran reports such a step as `NotConverged` when the iteration limit comes before the shrinking RCO2 produces a NaN itself. Only the status changes; the iteration and all outputs are identical. `false` reproduces the Fortran (finding F-33) |
 | `unified_vascular_blend` | `false` | blend the non-vascular and vascular CO2-solver expressions over the same 380–350 Ma interval as `fE` and `fBB` (30 Myr). `false` reproduces the Fortran, whose solver blends over 381–350 Ma (31 Myr), so at 380 Ma the solver is 1/31 vascular while `fBB` is purely non-vascular (finding F-10) |

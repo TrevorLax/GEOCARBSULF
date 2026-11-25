@@ -4,9 +4,9 @@
 How the constant parameters are spread over the unit hypercube.
 
 - [`ChunkedLHS`](@ref) (default): an independent Latin hypercube for every chunk of
-  samples. Memory is bounded and each chunk is stratified (improvements doc §3.3).
+  samples. Memory is bounded and each chunk is stratified.
 - [`GlobalLHS`](@ref): one Latin hypercube over all `n_sample` points, sliced into
-  chunks, as in `lhs_sampling.R:33`. Memory grows as `8·n_sample·n_params` bytes
+  chunks, as in the R code. Memory grows as `8·n_sample·n_params` bytes
   (about 9 GB for 20 million × 56; finding F-11).
 """
 abstract type ConstantDesign end

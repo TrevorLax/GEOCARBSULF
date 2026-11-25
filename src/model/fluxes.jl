@@ -1,7 +1,7 @@
 """
     source_fluxes(i, s, fE, fBB, p, f) -> NamedTuple
 
-Weathering and degassing fluxes at time step `i` (10^18 mol/Myr; f90:363-378; see
+Weathering and degassing fluxes at time step `i` (10^18 mol/Myr; see
 Berner 2006a pp. 5660-5661 for the `Fwp`, `Fws` and `Fwg` fluxes).
 Returned fields: `Fwpy, Fwsy, Fwgy, Fwcy` (young pyrite, CaSO4, organic C, carbonate C),
 `Fwpa, Fwsa, Fwga, Fwca` (old reservoirs), `Fmp, Fms, Fmg, Fmc` (degassing) and
@@ -37,7 +37,7 @@ end
     isotope_fractionations(oxygen, p) -> (CAPd34S, CAPd13C)
 
 Isotopic fractionations between sulfate and pyrite sulfur, and between carbonate and
-organic carbon, as functions of the O2 mass (Berner 2006a; f90:381-382).
+organic carbon, as functions of the O2 mass (Berner 2006a).
 """
 @inline function isotope_fractionations(oxygen, p::ConstantParams)
     capd34S = p.CAPd34S_0 * nanpow(oxygen / O2_MASS_PRESENT, p.n)
@@ -49,7 +49,7 @@ end
     burial_fluxes(i, s, src, capd34S, capd13C, f) -> NamedTuple
 
 Burial fluxes of pyrite (`Fbp`), organic carbon (`Fbg`), CaSO4 sulfur (`Fbs`) and
-carbonate carbon (`Fbc`) from isotopic mass balance (f90:383-390).
+carbonate carbon (`Fbc`) from isotopic mass balance.
 """
 @inline function burial_fluxes(i::Int, s::ReservoirState, src, capd34S, capd13C, f::TimeForcings)
     d34S = f.d34S[i]
@@ -80,7 +80,7 @@ end
 """
     update_oxygen(t, oxygen, src, bur, dt) -> oxygen
 
-Atmospheric O2 mass for this step (f90:403-405). The first step (t = 570) keeps the
+Atmospheric O2 mass for this step. The first step (t = 570) keeps the
 initial value.
 """
 @inline function update_oxygen(t::Real, oxygen, src, bur, dt)
@@ -97,7 +97,7 @@ end
 Silicate weathering at time `t` relative to the present without climatic effects:
 the silicate weathering required by mass balance (burial − carbonate weathering)
 divided by the non-climatic factors times `Fwsi_0` (Berner 2004 eq. 5.2; "fB" in the
-BASIC code; f90:416).
+BASIC code).
 """
 @inline function silicate_weathering_no_climate(i::Int, src, bur, fE, fvolc, p::ConstantParams, f::TimeForcings)
     return (bur.Fbc - src.Fwcy - src.Fwca) /

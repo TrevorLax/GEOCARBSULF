@@ -136,7 +136,7 @@ end
     merge_results(results; tag = results[1].tag) -> PrecalibrationResult
 
 Concatenate the accepted samples of several results on the same age grid, for example
-the three seeds of the 30 % CO2 + temperature experiment (`analysis_and_plots.R:61-77`).
+the three seeds of the 30 % CO2 + temperature experiment, as the R analysis did.
 `n_simulated` and `n_evaluated` are summed; covariances are kept only if every result
 has them.
 """

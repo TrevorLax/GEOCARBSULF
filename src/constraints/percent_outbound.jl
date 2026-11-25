@@ -2,7 +2,7 @@
     legacy_percent_outbound(series, w::Windows) -> Float64
 
 Fraction of time steps at which `series` lies outside the window, with the exact
-semantics of `percent_outbound.R` (Mills et al. 2019):
+semantics of the R function (Mills et al. 2019):
 
 - if any value is `±Inf` (a failed Fortran step), return `1.0`;
 - otherwise, if any value is `NaN`, return `NaN` (R returns `NA`; a run with `NaN`

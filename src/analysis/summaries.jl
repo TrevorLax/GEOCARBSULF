@@ -1,11 +1,11 @@
-"Quantile levels used throughout the analysis scripts (`analysis_and_plots.R:46`)."
+"Quantile levels used throughout the analysis scripts."
 const DEFAULT_PROBS = [0.0, 0.025, 0.05, 0.25, 0.5, 0.75, 0.95, 0.975, 1.0]
 
 """
     subsample_indices(n_available, n; rng = StableRNG(1)) -> Vector{Int}
 
 `n` sample indices: without replacement if enough samples exist, otherwise with
-replacement (`analysis_and_plots.R:84-88`). `n = nothing` keeps all samples in order.
+replacement, as in the R analysis. `n = nothing` keeps all samples in order.
 """
 function subsample_indices(n_available::Integer, n; rng::AbstractRNG=StableRNG(1))
     n === nothing && return collect(1:n_available)
@@ -68,7 +68,7 @@ end
     prior_posterior_table(table::PriorTable, res; probs = (0.05, 0.95)) -> NamedTuple
 
 Prior mean and 5–95 % range against posterior median and 5–95 % range for every
-calibrated constant (`som_parameters_table.csv`, `analysis_and_plots.R:485-537`). The
+calibrated constant (the R analysis wrote it to `som_parameters_table.csv`). The
 prior quantiles are those of the truncated priors.
 """
 function prior_posterior_table(table::PriorTable, res::PrecalibrationResult; probs=(0.05, 0.95))

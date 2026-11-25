@@ -8,7 +8,7 @@ One row of a `GEOCARB_input_summaries_calib_*.csv` file.
 | `name` | parameter or forcing name |
 | `kind` | `:constant` or `:time_array` |
 | `distribution` | `:gaussian`, `:lognormal` or `:uniform` |
-| `mean`, `two_sigma` | location and spread. For `:gaussian`, σ = `two_sigma/2`. For `:lognormal`, `meanlog = log(mean)` and `sdlog = log(two_sigma/2)`, so `two_sigma` is a *multiplicative* factor (`lhs_sampling.R:58`). |
+| `mean`, `two_sigma` | location and spread. For `:gaussian`, σ = `two_sigma/2`. For `:lognormal`, `meanlog = log(mean)` and `sdlog = log(two_sigma/2)`, so `two_sigma` is a *multiplicative* factor (as in the R code). |
 | `lower`, `upper` | truncation bounds (`±Inf` allowed; `_inf` in the file means `-Inf`) |
 | `calibrate` | `calib == 1`: sampled; otherwise fixed at `mean` |
 | `resample` | the `resample` column, kept for completeness |
@@ -144,6 +144,6 @@ calibrated_specs(t::PriorTable) = [s for s in t.specs if s.kind == :constant && 
 """
     mean_constants(t::PriorTable) -> ConstantParams{Float64}
 
-All constants at their prior means (the "preliminary simulation" of `lhs.R:30`).
+All constants at their prior means (the "preliminary simulation" of the R code).
 """
 mean_constants(t::PriorTable) = ConstantParams(Dict{Symbol,Any}(s.name => s.mean for s in constant_specs(t)))

@@ -6,7 +6,7 @@
 Model CO2 (ppmv) and temperature (°C) of the accepted samples, as `n_time × n`
 matrices. Temperatures are `temp + T0` plus, with `include_geog = true`, the GEOG
 series of the forcings the model ran on. That is what the R analysis plots against
-proxies (`analysis_and_plots.R:140`), but it is **not** the quantity that precalibration
+proxies, but it is **not** the quantity that precalibration
 compared with the temperature windows: acceptance uses `temp + T0` only. Use
 `include_geog = false` (or [`accepted_temperature`](@ref)) to get the tested quantity.
 

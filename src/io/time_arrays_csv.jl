@@ -9,7 +9,7 @@ struct TimeArrayPrior{T<:Real}
     sigma::TimeForcings{T}
 end
 
-"Forcings replaced by their `_Godderis` columns when `use_godderis = true` (`parameterSetup.R:46`)."
+"Forcings replaced by their `_Godderis` columns when `use_godderis = true`."
 const GODDERIS_FORCINGS = (:fA, :fAw_fA, :fD, :GEOG)
 
 """
@@ -17,7 +17,7 @@ const GODDERIS_FORCINGS = (:fA, :fAw_fA, :fD, :GEOG)
 
 Read a `GEOCARB_input_arrays_*.csv` file: an `age` column and, for each forcing `X`,
 a centre column `X` and a standard-deviation column `eX`. This reproduces
-`parameterSetup.R:34-85`:
+the R code:
 
 1. with `use_godderis = true` (the R default `l_Godderis <- TRUE`), `fA, fAw_fA, fD,
    GEOG` and their errors are taken from the `*_Godderis` columns (Goddéris et al.

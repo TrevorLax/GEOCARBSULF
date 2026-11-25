@@ -6,8 +6,8 @@ Outcome of one model time step.
 - `Converged`: the CO2 solve converged and all checks passed.
 - `NotConverged`: the CO2 solve reached `iteration_threshold` (Fortran `failed_run`).
 - `NaNEncountered`: a NaN appeared inside the CO2 solve (Fortran `ISNAN` check).
-- `RCO2OutOfRange`: RCO2 left `rco2_bounds` (f90:524).
-- `PresentDayCheckFailed`: the present-day O2/CO2 check at t = 0 failed (f90:561).
+- `RCO2OutOfRange`: RCO2 left `rco2_bounds`.
+- `PresentDayCheckFailed`: the present-day O2/CO2 check at t = 0 failed.
 - `InvalidState`: RCO2 is NaN although the Fortran raised no failure flag. Outputs are
   then NaN rather than Inf, exactly as in the Fortran.
 
@@ -89,10 +89,10 @@ original code made explicit (finding F-20):
   cools).
 - `surface_temperature(r)` adds the present-day temperature `T0` (15 °C, Berner 2004). This
   is the quantity compared with the Mills et al. (2019) windows during precalibration
-  (`lhs_sampling.R:137`); the windows are actual temperatures, so they include the solar
+  in the R code as well; the windows are actual temperatures, so they include the solar
   effect too.
 - `surface_temperature(r; geog = f.GEOG)` also adds the palaeogeography term. This is what
-  the R analysis scripts plot as hindcasts (`analysis_and_plots.R:140`); it is not the
+  the R analysis scripts plot as hindcasts; it is not the
   quantity acceptance used.
 - `surface_temperature(r; remove_solar = p.Ws)` **removes** the solar-luminosity term (adds
   `Ws·t/570`), leaving `T0` plus the CO2-only temperature change.

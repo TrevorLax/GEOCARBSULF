@@ -17,7 +17,7 @@ end
 """
     read_temperature_data(path) -> TemperatureData
 
-Read `Mills_GR_2019_temp_co2.csv`. As in `constraints.R:52`, the six columns are
+Read `Mills_GR_2019_temp_co2.csv`. As in the R code, the six columns are
 taken by position: time, CO2 max, CO2 min, T max, T min, T average. Empty cells become
 `NaN`.
 """

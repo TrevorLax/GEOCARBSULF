@@ -2,7 +2,7 @@
     ReservoirState{T}
 
 Masses (10^18 mol), isotopic compositions (per mil) and Sr ratios that are carried from
-one time step to the next (f90:279-294 and 529-545). Immutable: every step builds a new
+one time step to the next. Immutable: every step builds a new
 state, which keeps the time loop free of hidden mutation.
 """
 struct ReservoirState{T<:Real}
@@ -27,7 +27,7 @@ end
 """
     initial_state(T, p::ConstantParams) -> ReservoirState{T}
 
-State at 570 Ma. `dlsa` and `dlca` follow from isotopic mass balance (f90:291-292).
+State at 570 Ma. `dlsa` and `dlca` follow from isotopic mass balance.
 """
 function initial_state(::Type{T}, p::ConstantParams) where {T<:Real}
     dlsa = (p.dlst * p.ST - (p.dlpy_570 * p.Spy_570 + p.dlsy_570 * p.Ssy_570 + p.dlpa_570 * p.Spa)) / p.Ssa
@@ -55,7 +55,7 @@ end
 """
     update_reservoirs(s, oxygen, src, bur, capd34S, capd13C, roc, d34S, d13C, p, dt)
 
-New masses and isotopic values for the next time step (f90:529-545). The updates are
+New masses and isotopic values for the next time step. The updates are
 sequential, as in the Fortran: each line uses the values updated on the lines before it.
 """
 @inline function update_reservoirs(

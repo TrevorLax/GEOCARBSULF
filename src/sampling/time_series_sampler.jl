@@ -1,7 +1,7 @@
 """
     read_variance_reduction(path = datapath("variance_reduction.toml")) -> Dict{Symbol,Float64}
 
-Variance-reduction factors `f ∈ [0, 1)` per forcing (`time_series_df.R:12`). They enter
+Variance-reduction factors `f ∈ [0, 1)` per forcing, as in the R code. They enter
 the inverse-Wishart degrees of freedom through [`inverse_wishart_dof`](@ref), as in the
 R code. Larger `f` gives more degrees of freedom, so sampled covariances concentrate
 more tightly around `diag(σ²)`. The R code does not state what variance `f` is meant to
@@ -28,7 +28,7 @@ end
     inverse_wishart_dof(sigma::TimeForcings, f_var_red) -> Dict{Symbol,Int}
 
 Degrees of freedom of the inverse-Wishart prior of each forcing's covariance
-(`time_series_df.R:19-21`):
+(as in the R code):
 
     ν = n_time + 3 + ceil(2·max(σ²) / (1 − f))
 """
@@ -47,13 +47,13 @@ end
     TimeSeriesSampler
 
 Samplers of the 12 forcing time series around their centres. Both implementations
-apply the normalisation of `lhs_sampling.R:106-112`: `fR, fL, fA, fAw_fA, fC` are
+apply the normalisation of the R code: `fR, fL, fA, fAw_fA, fC` are
 divided by their present-day value and `GEOG` has its present-day value subtracted.
 
 - [`InverseWishartSampler`](@ref): the R algorithm. Draw Σ ~ IW(ν, (ν−p−1)·diag(σ²))
   (mean `diag(σ²)`), then x ~ N(μ, Σ). Cost O(p³) per forcing.
 - [`MultivariateTSampler`](@ref): the exact marginal of the above, a multivariate t,
-  drawn in O(p) (improvements doc §3.2). Identical in distribution; it cannot return
+  drawn in O(p). Identical in distribution; it cannot return
   the covariance draws.
 """
 abstract type TimeSeriesSampler end

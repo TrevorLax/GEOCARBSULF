@@ -5,7 +5,7 @@ Prior of one constant parameter: an untruncated `base` distribution (Normal, Log
 or Uniform) restricted to `[lower, upper]`. `cdf_lower` and `cdf_upper` are the base
 CDF values at the bounds.
 
-Samples are drawn exactly as in `lhs_sampling.R:39-65`: a uniform `u` is rescaled into
+Samples are drawn exactly as in the R code: a uniform `u` is rescaled into
 `[cdf_lower, cdf_upper]` and mapped through the base quantile function (see
 [`quantile_from_unit`](@ref)).
 

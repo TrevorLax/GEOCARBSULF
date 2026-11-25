@@ -2,7 +2,7 @@
     vegetation_fE(t, p, o) -> fE
 
 Effect of plants on the weathering rate at age `t` relative to the present
-(f90:319-359; supplemental variant `run_geocarb_supp.f90:374-395`):
+(and its variant in the supplemental Fortran model):
 
 | age (Myr ago) | fE |
 |:--|:--|
@@ -46,7 +46,7 @@ end
     carbonate_fBB(t, rco2_prev, gcm, GEOG, p) -> fBB
 
 Effect of climate and CO2 on carbonate weathering (Berner 2004 eqs. 2.6-2.7, 2.29),
-using RCO2 from the *previous* time step (f90:325, 336-343). Between 380 and 350 Ma the
+using RCO2 from the *previous* time step, as in the Fortran. Between 380 and 350 Ma the
 non-vascular and vascular expressions are blended linearly.
 """
 @inline function carbonate_fBB(t::Real, rco2, gcm, GEOG, p::ConstantParams)
