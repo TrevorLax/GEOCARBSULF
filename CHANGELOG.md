@@ -41,8 +41,10 @@ engine outputs with the previous code. Results with the default options are unch
 
 **Results and their presentation:**
 
-- Checkpoints are tied to the configuration and input files that wrote them and are
-  written atomically (J-03).
+- Checkpoints are tied to the configuration and input files that wrote them (inputs
+  compared by content, so a moved project can resume) and are written atomically
+  (J-03). In threaded runs, an error inside a chunk is rethrown as itself instead of
+  as a `TaskFailedException`.
 - `plot_model_vs_proxy` plots `temp + T0`, the quantity acceptance tested, instead of
   `temp + T0 + GEOG`; new `accepted_temperature` (J-13). `hindcast` no longer mixes
   centre-run outputs with sampled GEOG for `run_on_time_centers` results (J-02).
