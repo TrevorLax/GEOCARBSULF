@@ -6,7 +6,12 @@
     @test r.age == f.age
     @test temperature(r) == r.temp .+ 15
     @test temperature(r; geog=f.GEOG) ≈ r.temp .+ 15 .+ f.GEOG
-    @test temperature(r; Ws=p.Ws) ≈ r.temp .+ 15 .+ p.Ws .* r.age ./ 570
+    @test temperature(r; remove_solar=p.Ws) ≈ r.temp .+ 15 .+ p.Ws .* r.age ./ 570
+    # removing the solar term leaves T0 + GCM·ln(RCO2), the CO2-only warming (J-15)
+    gcm = [G.gcm_factor(t, p, ModelOptions(), G.resolve_constants(ModelOptions())) for t in r.age]
+    @test temperature(r; remove_solar=p.Ws) ≈ 15 .+ gcm .* log.(r.co2 ./ 250)
+    @test (@test_deprecated temperature(r; Ws=p.Ws)) == temperature(r; remove_solar=p.Ws)
+    @test_throws ArgumentError temperature(r; Ws=p.Ws, remove_solar=p.Ws)
 
     @testset "status invariants on 200 prior draws" begin
         ok_fail = ok_conv = ok_nan = ok_present = true

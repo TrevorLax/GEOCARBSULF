@@ -19,8 +19,10 @@ Base.length(w::Windows) = length(w.age)
 """
     shift(w::Windows, delta::AbstractVector) -> Windows
 
-Window moved by `delta` at every step (for example to add the solar term back in for
-plotting; `constraints.R:72-73` did this with the fixed prior mean of `Ws`, finding F-19).
+Window moved by `delta` at every step. For example, `shift(w, Ws .* w.age ./ 570)`
+removes the solar-luminosity term from temperature windows, for comparison with a
+CO2-only temperature (`constraints.R:72-73` did this with the fixed prior mean of `Ws`,
+finding F-19).
 """
 shift(w::Windows, delta::AbstractVector) = Windows(w.age, w.low .+ delta, w.high .+ delta)
 
@@ -58,8 +60,9 @@ end
 
 Temperature windows from Mills et al. (2019) (`constraints.R:51-71`):
 `[T_avg − nsig·(T_avg − T_min), T_avg + nsig·(T_max − T_avg)]` at the record whose
-`time` equals `−age`. The windows include the solar-luminosity effect and are compared
-with `temp + 15` from the model (see [`temperature`](@ref)).
+`time` equals `−age`. The windows are actual temperatures, so they include the
+solar-luminosity effect. They are compared with `temp + T0` from the model, which
+includes the solar term `−Ws·t/570` as well (see [`temperature`](@ref)).
 """
 function temperature_windows(data::TemperatureData, age::AbstractVector; nsig::Real=1.0)
     upper = data.T_avg .+ nsig .* (data.T_max .- data.T_avg)
