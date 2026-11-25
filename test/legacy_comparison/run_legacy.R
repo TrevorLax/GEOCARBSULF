@@ -22,7 +22,8 @@
 ##
 ## Nothing in the legacy code is changed. The only addition is a shim
 ## `ceil <- ceiling` if `ceil` does not exist, because time_series_df.R calls
-## ceil(), which is not base R (finding F-13).
+## ceil(), which is not base R: the original drivers get it from Hmisc
+## (`library(Hmisc)` in lhs_driver.R), which this script does not load (finding F-13).
 ##==============================================================================
 
 args <- commandArgs(trailingOnly = TRUE)
@@ -80,7 +81,7 @@ setwd(file.path(legacy_root, "R"))
 shims <- character(0)
 if (!exists("ceil")) {
   ceil <- ceiling
-  shims <- c(shims, "ceil <- ceiling (time_series_df.R calls ceil(), which is not base R)")
+  shims <- c(shims, "ceil <- ceiling (time_series_df.R calls ceil(), from Hmisc, not base R)")
 }
 
 use_co2 <- TRUE

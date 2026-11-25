@@ -1,9 +1,12 @@
 """
     read_variance_reduction(path = datapath("variance_reduction.toml")) -> Dict{Symbol,Float64}
 
-Variance-reduction factors `f` per forcing (`time_series_df.R:12`). They set the
-inverse-Wishart degrees of freedom so that sampled variances match the reduced-variance
-experiments of Royer et al. (2014).
+Variance-reduction factors `f ∈ [0, 1)` per forcing (`time_series_df.R:12`). They enter
+the inverse-Wishart degrees of freedom through [`inverse_wishart_dof`](@ref), as in the
+R code. Larger `f` gives more degrees of freedom, so sampled covariances concentrate
+more tightly around `diag(σ²)`. The R code does not state what variance `f` is meant to
+reproduce, and the formula adds a count to σ² in each forcing's own units (finding
+F-32), so the factors should not be read as variance ratios.
 """
 function read_variance_reduction(path::AbstractString=datapath("variance_reduction.toml"))
     d = TOML.parsefile(path)

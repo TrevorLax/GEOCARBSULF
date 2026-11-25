@@ -46,8 +46,9 @@ The untouched originals are kept in `legacy/` as the test oracle until parity is
   `0.01, 0.9, 0.2, 0.7, 0.6, 0.8, 1.2` and `log(2.0)`. Version 1 reproduces them by
   default (`fortran_single_literals = true`), so this is *not* a difference unless you
   opt out. With `false`, every literal is Float64; on the 1000-sample legacy
-  comparison that changes the pass/fail outcome of 101 runs and CO2 by up to 14 % in
-  otherwise valid steps, so treat it as a model change, not a precision improvement.
+  comparison that switches 101 time steps (summed over the 1000 runs) between valid
+  and failed and moves CO2 by up to 14 % in otherwise valid steps, so treat it as a
+  model change, not a precision improvement.
 - **Last-bit rounding of `exp`, `log` and `^`.** Julia's maths library and the C
   runtime gfortran links against round differently now and then. Valid steps agree
   to about 4e-9 relative; after a run's first failed step the legacy model keeps
@@ -57,7 +58,9 @@ The untouched originals are kept in `legacy/` as the test oracle until parity is
   (see [Testing](testing.md)).
 - **NaN instead of exceptions.** Powers and logarithms of negative numbers give NaN as
   in Fortran (`nanpow`, `nanlog`), never a `DomainError`.
-- **`gym_factor = 0`** is well defined (the Fortran divides by it; F-09).
+- **`GYM` is never modified in place** (the Fortran supplemental code did, F-09).
+  `gym_factor` must be positive: a factor of 0 would make `fE = 0` at the start of the
+  gymnosperm–angiosperm ramp, and `fE` divides the mass-balance silicate weathering.
 - **ΔT2x ramp** is off unless `dT2X_ramp = true`. The R default
   `supp_experiment_parameters = c(130, 80, 1, 1)` silently switched it on (F-09).
 - **Random numbers.** Julia uses `StableRNG` streams per chunk, so individual samples

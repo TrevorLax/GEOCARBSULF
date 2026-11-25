@@ -319,7 +319,7 @@ function compare_with_legacy(
     clean_rel = [relative_difference(o64.co2[I], Rco2[I]) for I in CartesianIndices(Rco2) if !post[I]]
     say(
         @sprintf(
-            "  [information] Float64 literals instead: %d pass/fail flips; CO2 before any failure: median rel %.1e, max rel %.1e",
+            "  [information] Float64 literals instead: %d time steps switch between valid and failed; CO2 before any failure: median rel %.1e, max rel %.1e",
             flips,
             isempty(clean_rel) ? 0.0 : GP.median(clean_rel),
             isempty(clean_rel) ? 0.0 : maximum(clean_rel)
