@@ -29,7 +29,7 @@ using LinearAlgebra: LinearAlgebra, LowerTriangular
 using Printf: @sprintf
 using Random: Random, AbstractRNG, randperm
 using SHA: SHA
-using StableRNGs: StableRNG
+using StableRNGs: StableRNGs, StableRNG
 using Statistics: Statistics, mean, median, std, var
 using StatsBase: StatsBase
 using TOML: TOML
@@ -122,6 +122,7 @@ export PrecalibrationResult,
     merge_results,
     prepare_precalibration,
     checkpoint_manifest,
+    environment_provenance,
     accepts,
     EvaluationContext
 # --- analysis -------------------------------------------------------------------

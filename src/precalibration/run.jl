@@ -376,6 +376,7 @@ function _assemble(setup::PrecalibrationSetup, outs::Vector{ChunkOutput}, n_simu
         "threads" => string(Threads.nthreads()),
         "n_chunks_consumed" => string(length(outs)),
     )
+    merge!(prov, environment_provenance())
     merge!(prov, setup.notes)
     isempty(cfg.overrides) || (prov["config_overrides"] = join(cfg.overrides, ", "))
     return PrecalibrationResult(
@@ -398,6 +399,37 @@ function _assemble(setup::PrecalibrationSetup, outs::Vector{ChunkOutput}, n_simu
         covs,
         prov,
     )
+end
+
+"""
+    environment_provenance() -> Dict{String,String}
+
+What a result needs to be tied to exact dependency versions (J-05): the active
+project, the SHA-256 of its manifest (`"none"` if there is no manifest) and the
+versions of the package's direct dependencies as loaded. Stored in the provenance of
+every precalibration result. StableRNGs fixes the random stream, but Distributions or
+StatsBase may still change results between versions.
+"""
+function environment_provenance()
+    proj = Base.active_project()
+    manifest = proj === nothing ? nothing : _manifest_path(dirname(proj))
+    deps = (Distributions, JLD2, StableRNGs, StatsBase, TimerOutputs)
+    return Dict{String,String}(
+        "active_project" => something(proj, "none"),
+        "manifest_sha256" => manifest === nothing ? "none" : bytes2hex(open(SHA.sha256, manifest)),
+        "dependency_versions" =>
+            join(("$(nameof(m))=$(something(pkgversion(m), "unknown"))" for m in deps), ", "),
+    )
+end
+
+# The manifest Pkg would use for a project directory (versioned names first).
+function _manifest_path(dir::AbstractString)
+    v = "v$(VERSION.major).$(VERSION.minor)"
+    for name in ("JuliaManifest-$v.toml", "Manifest-$v.toml", "JuliaManifest.toml", "Manifest.toml")
+        f = joinpath(dir, name)
+        isfile(f) && return f
+    end
+    return nothing
 end
 
 function _git_commit()

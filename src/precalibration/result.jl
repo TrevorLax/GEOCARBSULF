@@ -19,7 +19,7 @@ Accepted samples of a precalibration experiment.
 | `sample_keys` | `n × 2` | `(chunk, index within chunk)`: enough to regenerate any sample |
 | `n_simulated` | | number of simulations run |
 | `covariances` | `n_time × n_time × n × 12` or `nothing` | inverse-Wishart draws, only with `save_covariances = true` |
-| `provenance` | | versions, git commit, timings, threads |
+| `provenance` | | package, Julia and dependency versions, active project and manifest hash ([`environment_provenance`](@ref)), git commit, timings, threads |
 """
 struct PrecalibrationResult
     tag::String

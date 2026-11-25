@@ -10,6 +10,10 @@
     @test length(res.prcout_co2) == length(res.prcout_temp) == n
     @test all(0 .<= res.prcout_co2 .<= 1) && all(0 .<= res.prcout_temp .<= 1)
     @test all(1 .<= res.sample_keys[:, 1] .<= 3)
+    # dependency versions and the manifest are recorded (J-05)
+    @test occursin("Distributions=", res.provenance["dependency_versions"])
+    @test res.provenance["active_project"] == something(Base.active_project(), "none")
+    @test occursin(r"^([0-9a-f]{64}|none)$", res.provenance["manifest_sha256"])
 
     # stored samples reproduce their stored model output
     k = 1
