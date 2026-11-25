@@ -23,7 +23,8 @@ Base.length(d::ProxyData) = length(d.age)
 
 Read a CO2 proxy CSV (columns `age, co2, co2_low, co2_high, proxy_type, reference`;
 other columns are ignored) and keep the listed proxy types. As in `getData.R:12-20`,
-rows are grouped by proxy type in the order of `proxies`.
+rows are grouped by proxy type in the order of `proxies`. Each kept row must satisfy
+`co2_low ≤ co2 ≤ co2_high` (`co2_low` may be missing).
 """
 function read_proxy_data(path::AbstractString; proxies=DEFAULT_PROXIES)
     t = read_csv_table(path)
@@ -43,6 +44,10 @@ function read_proxy_data(path::AbstractString; proxies=DEFAULT_PROXIES)
     end
     for i in idx
         (co2[i] > 0 && hi[i] > 0) || throw(ArgumentError("$path: row $(i + 1): co2 and co2_high must be positive"))
+        # an inverted row gives an inverted window that rejects every run (J-24)
+        co2[i] <= hi[i] || throw(ArgumentError("$path: row $(i + 1): co2_high ($(hi[i])) is below co2 ($(co2[i]))"))
+        (isnan(lo[i]) || lo[i] <= co2[i]) ||
+            throw(ArgumentError("$path: row $(i + 1): co2_low ($(lo[i])) is above co2 ($(co2[i]))"))
     end
     return ProxyData(age[idx], co2[idx], lo[idx], hi[idx], ptype[idx], ref[idx])
 end

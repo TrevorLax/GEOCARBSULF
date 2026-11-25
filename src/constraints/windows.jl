@@ -1,7 +1,8 @@
 """
     Windows
 
-Lower and upper bounds of a precalibration window at every model time step.
+Lower and upper bounds of a precalibration window at every model time step. The
+constructor requires `low ≤ high` at every step.
 """
 struct Windows
     age::Vector{Float64}
@@ -10,6 +11,11 @@ struct Windows
     function Windows(age, low, high)
         length(age) == length(low) == length(high) ||
             throw(ArgumentError("age, low and high must have the same length"))
+        # an inverted window would reject every run (J-24)
+        for i in eachindex(low, high)
+            low[i] <= high[i] ||
+                throw(ArgumentError("window at age $(age[i]) has low = $(low[i]) > high = $(high[i]) (or NaN)"))
+        end
         return new(collect(Float64, age), collect(Float64, low), collect(Float64, high))
     end
 end
