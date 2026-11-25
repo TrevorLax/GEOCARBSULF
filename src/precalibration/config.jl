@@ -31,6 +31,12 @@ TOML file with [`load_experiments`](@ref); see `experiments/` and the
 | `T0` | `15.0` | present-day temperature added to model temperatures |
 | `model` | `ModelOptions()` | model options |
 | `output_dir` | `"results"` | parent directory of the result directory `output_dir/tag` |
+| `source` | `""` | text of the TOML file the configuration was read from (the whole file, including any `[grid]` table) |
+| `overrides` | `[]` | fields changed with [`with_overrides`](@ref) after loading; recorded in provenance |
+
+The authoritative record of what ran is [`config_summary`](@ref), which every result
+stores; `source` is kept for reference only. `ExperimentConfig(res.config)` rebuilds a
+configuration from a stored summary.
 """
 Base.@kwdef struct ExperimentConfig
     name::String = "experiment"
@@ -63,6 +69,7 @@ Base.@kwdef struct ExperimentConfig
     model::ModelOptions = ModelOptions()
     output_dir::String = "results"
     source::String = ""
+    overrides::Vector{String} = String[]
 end
 
 """
@@ -305,16 +312,18 @@ end
 """
     config_summary(cfg::ExperimentConfig) -> Dict{String,Any}
 
-TOML-friendly summary of a configuration (stored as provenance with every result).
+TOML-friendly summary of a configuration, stored with every result as the
+authoritative record of what ran. Fields that are `nothing` are omitted (their
+default); `source` is not included. [`ExperimentConfig`](@ref) rebuilds the
+configuration: `ExperimentConfig(config_summary(cfg))` has the same summary as `cfg`.
 """
 function config_summary(cfg::ExperimentConfig)
     d = Dict{String,Any}()
     for f in fieldnames(ExperimentConfig)
         f == :source && continue
         v = getfield(cfg, f)
-        d[String(f)] = if v === nothing
-            "none"
-        elseif v isa ModelOptions
+        v === nothing && continue
+        d[String(f)] = if v isa ModelOptions
             options_dict(v)
         elseif v isa Symbol
             String(v)
@@ -331,13 +340,58 @@ end
     with_overrides(cfg::ExperimentConfig; kwargs...) -> ExperimentConfig
 
 Copy of `cfg` with some fields replaced, for example
-`with_overrides(cfg; n_sample = 1000, n_per_chunk = 100)`.
+`with_overrides(cfg; n_sample = 1000, n_per_chunk = 100)`. The names of the replaced
+fields are added to `overrides`, so results record that their settings differ from
+the TOML text in `source`.
 """
 function with_overrides(cfg::ExperimentConfig; kwargs...)
     d = Dict{Symbol,Any}(f => getfield(cfg, f) for f in fieldnames(ExperimentConfig))
+    changed = copy(cfg.overrides)
     for (k, v) in kwargs
         k in fieldnames(ExperimentConfig) || throw(ArgumentError("unknown ExperimentConfig field :$k"))
+        k in (:source, :overrides) && throw(ArgumentError("with_overrides cannot change :$k"))
         d[k] = v
+        String(k) in changed || push!(changed, String(k))
     end
+    d[:overrides] = sort!(changed)
     return ExperimentConfig(; d...)
 end
+
+"""
+    ExperimentConfig(summary::AbstractDict; source = "")
+
+Rebuild a configuration from a [`config_summary`](@ref), for example the `config` of a
+stored result, so that it can be re-run: `run_precalibration(ExperimentConfig(res.config))`.
+Missing keys take their defaults; unknown keys raise an `ArgumentError`. Summaries
+written by older versions (with `"none"` for unset fields and infinities stored as
+strings) are accepted.
+"""
+function ExperimentConfig(summary::AbstractDict; source::AbstractString="")
+    allowed = Set(String(f) for f in fieldnames(ExperimentConfig) if f != :source)
+    kw = Dict{Symbol,Any}(:source => String(source))
+    for (k, v) in summary
+        key = String(k)
+        key in allowed || throw(ArgumentError("unknown configuration key '$key'"))
+        v == "none" && continue                     # older summaries: unset field
+        kw[Symbol(key)] = if key in ("constraint", "constant_design", "time_sampler")
+            Symbol(v)
+        elseif key == "proxies"
+            Symbol.(v)
+        elseif key == "overrides"
+            String.(v)
+        elseif key == "model"
+            model_options_from_dict(_decode_legacy_floats(v))
+        elseif key in ("cretaceous_age", "threshold", "nsig", "T0")
+            Float64(_decode_legacy_floats(v))
+        else
+            v
+        end
+    end
+    return ExperimentConfig(; kw...)
+end
+
+# Older result files stored ±Inf and NaN as strings ("-Inf"); TOML has native values.
+_decode_legacy_floats(x::AbstractDict) = Dict{String,Any}(String(k) => _decode_legacy_floats(v) for (k, v) in x)
+_decode_legacy_floats(x::AbstractVector) = [_decode_legacy_floats(v) for v in x]
+_decode_legacy_floats(x::AbstractString) = x in ("Inf", "-Inf", "NaN") ? parse(Float64, x) : x
+_decode_legacy_floats(x) = x

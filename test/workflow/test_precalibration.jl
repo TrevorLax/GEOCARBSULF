@@ -98,6 +98,18 @@
     back = load_result(path)
     @test back.constants == res.constants && isequal(back.co2, res.co2) && back.time_series == res.time_series
     @test back.tag == res.tag && back.n_simulated == res.n_simulated && back.provenance == res.provenance
+    # the stored configuration rebuilds the experiment and re-running reproduces it (J-16)
+    @test config_summary(ExperimentConfig(back.config)) == config_summary(cfg)
+    @test run_precalibration(ExperimentConfig(back.config); verbose=false).constants == res.constants
+    @test !haskey(res.provenance, "config_overrides")
+    @test few.provenance["config_overrides"] == "n_accept_min"
+    bad = joinpath(dir, "bad.jld2")
+    cp(path, bad)
+    G.JLD2.jldopen(bad, "r+") do f
+        delete!(f, "config_toml")
+        f["config_toml"] = "this is = = not toml"
+    end
+    @test_throws ArgumentError load_result(bad)
     files = write_summary_csvs(dir, res)
     @test all(isfile, files)
     @test size(read_csv_table(joinpath(dir, "constants.csv")).rows, 1) == n

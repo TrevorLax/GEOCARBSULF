@@ -45,8 +45,8 @@ function load_result(path::AbstractString)
     get(d, "format_version", 0) == 1 || throw(ArgumentError("$path: not a GeocarbPrecalibration result file"))
     cfg = try
         TOML.parse(d["config_toml"])
-    catch
-        Dict{String,Any}()
+    catch err
+        throw(ArgumentError("$path: the stored configuration (config_toml) cannot be parsed: $(sprint(showerror, err))"))
     end
     prov = Dict{String,String}(zip(d["provenance_keys"], d["provenance_values"]))
     return PrecalibrationResult(
@@ -71,10 +71,13 @@ function load_result(path::AbstractString)
     )
 end
 
-# TOML cannot store `nothing` or Inf in every reader; convert values to plain types.
+# Convert values to types TOML can store. TOML has no null, so `nothing` entries of a
+# dictionary are omitted (the reader then uses the default). ±Inf and NaN are written
+# as TOML's native inf/nan, so they read back as numbers.
 function _tomlable(x::AbstractDict)
     out = Dict{String,Any}()
     for (k, v) in x
+        v === nothing && continue
         out[String(k)] = _tomlable(v)
     end
     return out
@@ -82,8 +85,8 @@ end
 _tomlable(x::AbstractVector) = [_tomlable(v) for v in x]
 _tomlable(x::Tuple) = [_tomlable(v) for v in x]
 _tomlable(x::Symbol) = String(x)
-_tomlable(::Nothing) = "none"
-_tomlable(x::AbstractFloat) = isfinite(x) ? Float64(x) : string(x)
+_tomlable(::Nothing) = throw(ArgumentError("`nothing` can only be stored as an omitted dictionary entry"))
+_tomlable(x::AbstractFloat) = Float64(x)
 _tomlable(x) = x
 
 """

@@ -12,10 +12,10 @@
 const CHECKPOINT_MANIFEST = "checkpoint_manifest.toml"
 
 # Fields of the configuration that do not change the content of any chunk.
-#  - output_dir, description: labels only;
+#  - output_dir, description, overrides: labels only;
 #  - n_accept_min: only decides how many chunks are consumed, so a run can be resumed
 #    with a larger target.
-const _CHECKPOINT_IGNORED_FIELDS = ("output_dir", "description", "n_accept_min")
+const _CHECKPOINT_IGNORED_FIELDS = ("output_dir", "description", "overrides", "n_accept_min")
 
 """
     checkpoint_manifest(cfg::ExperimentConfig) -> Dict{String,Any}

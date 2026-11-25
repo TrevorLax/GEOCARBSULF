@@ -31,6 +31,35 @@
     cret2 = only(load_experiments(joinpath(root, "experiments", "cretaceous", "stage2.toml")))
     @test cret2.allow_uninformative_centers     # opt-in kept for R parity (J-11)
 
+    @testset "configuration round trip (J-16)" begin
+        odd = with_overrides(
+            small_config();
+            cretaceous_age=90.0,
+            proxies=[:boron],
+            model=ModelOptions(; glacial_intervals=[(260, 330), (-Inf, 40)], dT2X_ramp=true),
+        )
+        @test odd.overrides == ["cretaceous_age", "model", "proxies"]
+        for c in (c11, sup, cret, cret2, odd, small_config())
+            summ = config_summary(c)
+            @test !any(v -> v === nothing || v == "none", values(summ))
+            back = ExperimentConfig(summ)
+            @test config_summary(back) == summ
+            # through TOML text, as stored in result files
+            text = sprint(io -> G.TOML.print(io, G._tomlable(summ)))
+            @test config_summary(ExperimentConfig(G.TOML.parse(text))) == summ
+        end
+        @test ExperimentConfig(config_summary(odd)).model.glacial_intervals[2] == (-Inf, 40.0)
+        @test ExperimentConfig(config_summary(cret)).cretaceous_age == 90.0
+        @test ExperimentConfig(config_summary(small_config())).time_center_from === nothing
+        # summaries written by older versions ("none", infinities as strings)
+        legacy = config_summary(odd)
+        legacy["time_center_from"] = "none"
+        legacy["model"]["glacial_intervals"] = [[260.0, 330.0], ["-Inf", 40.0]]
+        @test config_summary(ExperimentConfig(legacy)) == config_summary(odd)
+        @test_throws ArgumentError ExperimentConfig(Dict("nmae" => "typo"))
+        @test_throws ArgumentError with_overrides(small_config(); source="x")
+    end
+
     # errors
     @test_throws ArgumentError load_experiments(tmpfile("nmae = \"typo\"\n"; ext=".toml"))
     @test_throws ArgumentError load_experiments(tmpfile("[grid]\nthreshhold = [0.3]\n"; ext=".toml"))

@@ -6,8 +6,8 @@ Accepted samples of a precalibration experiment.
 | field | shape | meaning |
 |:--|:--|:--|
 | `tag` | | experiment tag, for example `"ct_out30"` |
-| `config_text` | | the TOML text the experiment came from (if any) |
-| `config` | | `Dict` summary of the [`ExperimentConfig`](@ref) |
+| `config_text` | | text of the TOML file the experiment was read from (if any); for reference only: it may hold a `[grid]` of several experiments, and fields may have been overridden (see `provenance["config_overrides"]`) |
+| `config` | | [`config_summary`](@ref) of the [`ExperimentConfig`](@ref): the authoritative record of what ran; `ExperimentConfig(res.config)` rebuilds it |
 | `age` | `n_time` | age grid (Myr ago) |
 | `constant_names` | 56 | [`CONSTANT_PARAMETER_NAMES`](@ref) |
 | `constants` | `n × 56` | accepted constant parameters (all 56, fixed ones included) |

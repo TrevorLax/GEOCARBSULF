@@ -377,6 +377,7 @@ function _assemble(setup::PrecalibrationSetup, outs::Vector{ChunkOutput}, n_simu
         "n_chunks_consumed" => string(length(outs)),
     )
     merge!(prov, setup.notes)
+    isempty(cfg.overrides) || (prov["config_overrides"] = join(cfg.overrides, ", "))
     return PrecalibrationResult(
         cfg.tag,
         cfg.source,
