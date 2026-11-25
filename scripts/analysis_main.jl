@@ -59,8 +59,11 @@ open(joinpath(dir, "numbers.toml"), "w") do io
 end
 println("wrote ", joinpath(dir, "numbers.toml"))
 
+# Inputs (prior table, proxies, windows, T0) are those recorded in the result's own
+# configuration, not the package defaults, so experiments run with other data files or
+# nsig are analysed against what they were calibrated with.
 if haskey(results, "ct_out30") && n_accepted(results["ct_out30"]) > 0
-    table = read_prior_table(datapath("GEOCARB_input_summaries_calib_all.csv"))
+    table = result_inputs(results["ct_out30"]).prior_table
     t = prior_posterior_table(table, results["ct_out30"])
     write_csv(joinpath(dir, "som_parameters_table.csv"), collect(String.(keys(t))), collect(values(t)))
     println("wrote ", joinpath(dir, "som_parameters_table.csv"))
@@ -76,10 +79,8 @@ end
 if plotting && haskey(results, "ct_out30")
     figdir = mkpath(joinpath(dir, "figures"))
     r = results["ct_out30"]
-    proxy = read_proxy_data(datapath("CO2_Proxy_Foster2017_calib_SN-co2_25Sep2018.csv"))
-    tw = temperature_windows(read_temperature_data(datapath("Mills_GR_2019_temp_co2.csv")), r.age)
-    cw = co2_windows(proxy, r.age)
-    table = read_prior_table(datapath("GEOCARB_input_summaries_calib_all.csv"))
+    inp = result_inputs(r)
+    proxy, tw, cw, table = inp.proxy, inp.temp_windows, inp.co2_windows, inp.prior_table
     prior = TruncatedPrior(GeocarbPrecalibration.spec(table, :deltaT2X))
     pr = read_park_royer_2011(datapath("ParkRoyer2011_Fig3_85varred.csv"))
     figs = Dict(

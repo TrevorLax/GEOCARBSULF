@@ -32,6 +32,22 @@
         @test hcc.temp[:, 1] ≈ rc.temp[:, 1] .+ 15 .+ ctr.GEOG
         @test isequal(hindcast(rc; center=ctr, options=ModelOptions()).co2, hcc.co2)   # re-run on the centres
     end
+    # analysis inputs come from the result's own configuration (J-14)
+    inp = result_inputs(res)
+    @test inp.temp_windows.low == setup.ctx.temp_windows.low && inp.co2_windows.high == setup.ctx.co2_windows.high
+    @test inp.T0 == 15.0 && inp.config.seed == res.config["seed"]
+    r2 = run_precalibration(small_config(; n_sample=20, n_per_chunk=20, nsig=2.0, T0=14.0); verbose=false)
+    inp2 = result_inputs(r2)
+    @test inp2.T0 == 14.0 && inp2.temp_windows.high != inp.temp_windows.high
+    @test inp2.temp_windows.high == G.prepare_precalibration(small_config(; nsig=2.0)).ctx.temp_windows.high
+    cfg_gone = copy(res.config)
+    cfg_gone["proxy_file"] = "/nonexistent/proxies.csv"
+    res_gone = G.PrecalibrationResult(
+        res.tag, res.config_text, cfg_gone, res.age, res.constant_names, res.constants, res.forcing_names,
+        res.time_series, res.co2, res.o2, res.temp, res.status, res.prcout_co2, res.prcout_temp, res.sample_keys,
+        res.n_simulated, res.covariances, res.provenance,
+    )
+    @test_throws ArgumentError result_inputs(res_gone)
     rq = row_quantiles(hc.co2)
     @test size(rq) == (58, 9)
 

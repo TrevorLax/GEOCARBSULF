@@ -84,3 +84,31 @@ accepted_temperature(res::PrecalibrationResult; T0::Real=_config_T0(res)) = res.
 
 _config_T0(res::PrecalibrationResult) = Float64(get(res.config, "T0", PRESENT_TEMPERATURE))
 _ran_on_centers(res::PrecalibrationResult) = get(res.config, "run_on_time_centers", false) == true
+
+"""
+    result_inputs(res::PrecalibrationResult) -> NamedTuple
+
+The inputs an experiment actually used, rebuilt from the configuration stored in the
+result (`res.config`) rather than from the package defaults: `config` (an
+[`ExperimentConfig`](@ref)), `prior_table`, `proxy` (with the configured proxy types),
+`co2_windows` and `temp_windows` (with the configured `nsig`, on the result's age grid)
+and `T0`. Throws an `ArgumentError` naming the file if an input file recorded in the
+result no longer exists.
+"""
+function result_inputs(res::PrecalibrationResult)
+    isempty(res.config) && throw(ArgumentError("result \"$(res.tag)\" stores no configuration"))
+    cfg = ExperimentConfig(res.config)
+    for (k, f) in (("prior_file", cfg.prior_file), ("proxy_file", cfg.proxy_file), ("temperature_file", cfg.temperature_file))
+        isfile(f) || throw(ArgumentError("result \"$(res.tag)\": $k recorded in the result not found: $f"))
+    end
+    proxy = read_proxy_data(cfg.proxy_file; proxies=cfg.proxies)
+    tdata = read_temperature_data(cfg.temperature_file)
+    return (
+        config=cfg,
+        prior_table=read_prior_table(cfg.prior_file),
+        proxy=proxy,
+        co2_windows=co2_windows(proxy, res.age; nsig=cfg.nsig),
+        temp_windows=temperature_windows(tdata, res.age; nsig=cfg.nsig),
+        T0=cfg.T0,
+    )
+end
