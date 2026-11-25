@@ -38,6 +38,8 @@ copy of it.
 | `present_day_o2_percent` | `(19.0, 23.0)` | present-day O2 (%) check (f90:561) |
 | `present_day_rco2` | `(0.8, 1.2)` | present-day RCO2 check (f90:562) |
 | `corrected_newton_derivative` | `false` | use the exact derivative in the pre-380 Ma regime (finding F-01); `false` reproduces the Fortran |
+| `report_nan_target` | `false` | report a step whose mass-balance target (`fwsi_no_climate`) is NaN as `NaNEncountered`. The Fortran reports such a step as `NotConverged` when the iteration limit comes before the shrinking RCO2 produces a NaN itself. Only the status changes; the iteration and all outputs are identical. `false` reproduces the Fortran (finding F-33) |
+| `unified_vascular_blend` | `false` | blend the non-vascular and vascular CO2-solver expressions over the same 380–350 Ma interval as `fE` and `fBB` (30 Myr). `false` reproduces the Fortran, whose solver blends over 381–350 Ma (31 Myr), so at 380 Ma the solver is 1/31 vascular while `fBB` is purely non-vascular (finding F-10) |
 | `fortran_single_literals` | `true` | round the decimal literals of the Fortran (`0.01, 0.9, 0.2, 0.7, 0.6, 0.8, 1.2` and `log(2.0)`) to single precision, as gfortran does (finding F-05). Only options left at their Fortran default values are rounded; a value you set (for example `convergence_tol = 1e-6`) is used exactly as given. This is what the published results were computed with, and it reproduces the compiled code to rounding error. `false` uses Float64 values instead. That is cleaner arithmetic, but it changes individual runs: in 1000 prior draws, 101 pass/fail decisions flip and CO2 moves by up to 14 % (see `docs/src/porting_notes.md`). |
 
 The supplemental experiment of the R code `supp_experiment_parameters = c(beg, end, gym_fac, dT2X_fac)`
@@ -71,6 +73,8 @@ struct ModelOptions
     present_day_rco2::Tuple{Float64,Float64}
     corrected_newton_derivative::Bool
     fortran_single_literals::Bool
+    report_nan_target::Bool
+    unified_vascular_blend::Bool
 end
 
 function _pair(x)
@@ -95,6 +99,8 @@ function ModelOptions(;
     present_day_rco2=(0.8, 1.2),
     corrected_newton_derivative::Bool=false,
     fortran_single_literals::Bool=true,
+    report_nan_target::Bool=false,
+    unified_vascular_blend::Bool=false,
 )
     o = ModelOptions(
         Float64(dt),
@@ -112,6 +118,8 @@ function ModelOptions(;
         _pair(present_day_rco2),
         corrected_newton_derivative,
         fortran_single_literals,
+        report_nan_target,
+        unified_vascular_blend,
     )
     validate(o)
     return o

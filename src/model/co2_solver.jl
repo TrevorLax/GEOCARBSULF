@@ -94,15 +94,17 @@ iteration_threshold` is counted as a failure.
     end
 
     if t <= AGE_VASCULAR_RAMP_START && t > AGE_GYMNOSPERM && status == Converged
+        # blending interval: the Fortran's 381–350 Ma (31 Myr), or the 380–350 Ma of fE
+        # and fBB with `unified_vascular_blend` (finding F-10)
+        bden, bup = o.unified_vascular_blend ? (VASCULAR_RAMP_LENGTH, AGE_VASCULAR_RAMP_START) :
+            (BLEND_DENOMINATOR, BLEND_UPPER)
         while abs((rco2 / rco2_old) - 1) > k.tol
             count += 1
             rco2_old = rco2
             fwo, Wo, Vo = _nonvascular_terms(rco2, t, RT, GEOG, gcm, p, o.corrected_newton_derivative, true)
             fwn, Wn, Vn, Xn = _vascular_terms(rco2, t, RT, GEOG, gcm, p)
-            fw = (t - AGE_GYMNOSPERM) / BLEND_DENOMINATOR * fwo + (BLEND_UPPER - t) / BLEND_DENOMINATOR * fwn
-            slope =
-                (t - AGE_GYMNOSPERM) / BLEND_DENOMINATOR * (Wo + Vo) +
-                (BLEND_UPPER - t) / BLEND_DENOMINATOR * (Wn + Vn + Xn)
+            fw = (t - AGE_GYMNOSPERM) / bden * fwo + (bup - t) / bden * fwn
+            slope = (t - AGE_GYMNOSPERM) / bden * (Wo + Vo) + (bup - t) / bden * (Wn + Vn + Xn)
             nan = isnan(fwo + Wo + Vo + fwn + Wn + Vn + Xn + fw + slope)
             if nan || count == o.iteration_threshold
                 status = nan ? NaNEncountered : NotConverged
@@ -128,5 +130,12 @@ iteration_threshold` is counted as a failure.
         end
     end
 
+    # A NaN target makes every step NaN, so `rco2 > step` is false and RCO2 shrinks each
+    # iteration. If the iteration limit comes before the shrinking RCO2 itself produces a
+    # NaN, the Fortran reports NotConverged (finding F-33). With `report_nan_target` the
+    # same iteration is labelled NaNEncountered instead.
+    if o.report_nan_target && status == NotConverged && isnan(fwsi_nc)
+        status = NaNEncountered
+    end
     return rco2, status, count
 end

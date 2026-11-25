@@ -36,4 +36,28 @@
     @test st5 == NaNEncountered
     _, st6, _ = G.solve_rco2(365.0, 3.0, fw, gcm, f.RT[i], -1e6, p, o, k)  # blended regime
     @test st6 == NaNEncountered
+
+    # a NaN mass-balance target: RCO2 shrinks every iteration; if the iteration limit
+    # comes before the shrinking RCO2 itself produces a NaN, the Fortran reports
+    # NotConverged. report_nan_target labels it NaNEncountered; the iteration itself is
+    # identical (J-21)
+    for tt in (450.0, 365.0, 100.0)
+        o3 = ModelOptions(; iteration_threshold=3)
+        R7, st7, it7 = G.solve_rco2(tt, 3.0, NaN, gcm, f.RT[i], f.GEOG[i], p, o3, G.resolve_constants(o3))
+        on = ModelOptions(; iteration_threshold=3, report_nan_target=true)
+        R8, st8, it8 = G.solve_rco2(tt, 3.0, NaN, gcm, f.RT[i], f.GEOG[i], p, on, G.resolve_constants(on))
+        @test st7 == NotConverged && st8 == NaNEncountered
+        @test R7 === R8 && it7 == it8
+    end
+
+    # blending interval of the solver (J-22): Fortran 381–350 Ma, or 380–350 Ma like fE/fBB
+    ou = ModelOptions(; iteration_threshold=50, unified_vascular_blend=true)
+    ku = G.resolve_constants(ou)
+    t380 = 380.0
+    g380 = G.gcm_factor(t380, p, o, k)
+    fwo, = G._nonvascular_terms(4.0, t380, f.RT[i], f.GEOG[i], g380, p, false, true)
+    Ru, stu, _ = G.solve_rco2(t380, 6.0, fwo, g380, f.RT[i], f.GEOG[i], p, ou, ku)
+    @test stu == Converged && isapprox(Ru, 4.0; rtol=0.02)    # purely non-vascular at 380 Ma
+    Rl, = G.solve_rco2(t380, 6.0, fwo, g380, f.RT[i], f.GEOG[i], p, o, k)
+    @test Rl != Ru                                             # the Fortran blend is 1/31 vascular there
 end

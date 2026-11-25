@@ -48,6 +48,16 @@ const AGE_GYMNOSPERM = 350.0
 "Length of the vascular-plant ramp used for `fE` and `fBB` (Myr, f90:332-337)."
 const VASCULAR_RAMP_LENGTH = 30.0
 
-"Interval constants used to blend the silicate-weathering expressions between 380 and 350 Ma (f90:479-480; see F-10)."
+"""
+Length (Myr) of the interval over which the Fortran CO2 solver blends the non-vascular
+and vascular silicate-weathering expressions (f90:479-480). It is 31, not the 30 of
+`fE` and `fBB` (finding F-10); see `ModelOptions(unified_vascular_blend = true)`.
+"""
 const BLEND_DENOMINATOR = 31.0
+
+"""
+Upper end (Myr ago) of the CO2 solver's blending interval (f90:479-480): the vascular
+weight is `(BLEND_UPPER − t)/BLEND_DENOMINATOR`. It is 381, not the 380 used by `fE`
+and `fBB`, so at 380 Ma the solver is already 1/31 vascular (finding F-10).
+"""
 const BLEND_UPPER = 381.0
