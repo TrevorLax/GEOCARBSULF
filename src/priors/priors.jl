@@ -24,7 +24,9 @@ struct TruncatedPrior{D<:Distributions.UnivariateDistribution}
     ccdf_lower::Float64
     ccdf_upper::Float64
     upper_tail::Bool
-    function TruncatedPrior(name::Symbol, base::D, lower::Real, upper::Real) where {D<:Distributions.UnivariateDistribution}
+    function TruncatedPrior(
+        name::Symbol, base::D, lower::Real, upper::Real
+    ) where {D<:Distributions.UnivariateDistribution}
         lower < upper || throw(ArgumentError("prior :$name: lower bound $lower must be below upper bound $upper"))
         Fl, Fu = Distributions.cdf(base, lower), Distributions.cdf(base, upper)
         Sl, Su = Distributions.ccdf(base, lower), Distributions.ccdf(base, upper)

@@ -74,7 +74,11 @@
         end
         @test e isa ArgumentError && occursin("F-14", e.msg)
     end
-    @test only(load_experiments(tmpfile("fsr_choice = \"LENTON\"\ntime_array_file = \"$(escape_string(ARRAY_FILE))\"\n"; ext=".toml"))).time_array_file == ARRAY_FILE
+    @test only(
+        load_experiments(
+            tmpfile("fsr_choice = \"LENTON\"\ntime_array_file = \"$(escape_string(ARRAY_FILE))\"\n"; ext=".toml")
+        ),
+    ).time_array_file == ARRAY_FILE
     @test_throws ArgumentError load_experiments(tmpfile("[grid]\nthreshold = [0.3, 0.3]\n"; ext=".toml"))
     @test_throws ArgumentError load_experiments(tmpfile("[grid]\nthreshold = [0.301, 0.302]\n"; ext=".toml"))
     @test_throws ArgumentError validate_config(small_config(; threshold=0.0))

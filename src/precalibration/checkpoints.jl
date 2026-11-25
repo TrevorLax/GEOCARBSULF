@@ -108,7 +108,7 @@ function prepare_checkpoint_dir(dir::AbstractString, cfg::ExperimentConfig)
             ),
         )
         _atomic_write(path) do io
-            TOML.print(io, _tomlable(want); sorted=true)
+            return TOML.print(io, _tomlable(want); sorted=true)
         end
     end
     return want["fingerprint"]

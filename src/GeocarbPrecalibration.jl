@@ -116,7 +116,8 @@ export TimeSeriesSampler,
 # --- constraints ----------------------------------------------------------------
 export Windows, co2_windows, temperature_windows, legacy_percent_outbound, percent_outbound
 # --- precalibration -------------------------------------------------------------
-export ExperimentConfig, load_experiments, validate_config, validate_options, with_overrides, default_tag, config_summary
+export ExperimentConfig,
+    load_experiments, validate_config, validate_options, with_overrides, default_tag, config_summary
 export AcceptanceRule, OutboundRule, AllOf, CretaceousWindowRule, build_rule
 export PrecalibrationResult,
     run_precalibration,

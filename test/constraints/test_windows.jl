@@ -58,5 +58,7 @@ end
     ok = read_proxy_data(tmpfile(hdr * "100,1000,,2000,boron,x\n"); proxies=(:boron,))   # co2_low may be missing
     @test length(ok) == 1 && isnan(ok.co2_low[1])
     # an inverted row of a proxy type that is not used does not matter
-    @test length(read_proxy_data(tmpfile(hdr * "100,1000,500,800,stomata,x\n200,300,150,600,boron,y\n"); proxies=(:boron,))) == 1
+    @test length(
+        read_proxy_data(tmpfile(hdr * "100,1000,500,800,stomata,x\n200,300,150,600,boron,y\n"); proxies=(:boron,))
+    ) == 1
 end

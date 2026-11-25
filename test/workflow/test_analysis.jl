@@ -43,9 +43,25 @@
     cfg_gone = copy(res.config)
     cfg_gone["proxy_file"] = "/nonexistent/proxies.csv"
     res_gone = G.PrecalibrationResult(
-        res.tag, res.config_text, cfg_gone, res.age, res.constant_names, res.constants, res.forcing_names,
-        res.time_series, res.co2, res.o2, res.temp, res.status, res.prcout_co2, res.prcout_temp, res.sample_keys,
-        res.n_simulated, res.n_evaluated, res.covariances, res.provenance,
+        res.tag,
+        res.config_text,
+        cfg_gone,
+        res.age,
+        res.constant_names,
+        res.constants,
+        res.forcing_names,
+        res.time_series,
+        res.co2,
+        res.o2,
+        res.temp,
+        res.status,
+        res.prcout_co2,
+        res.prcout_temp,
+        res.sample_keys,
+        res.n_simulated,
+        res.n_evaluated,
+        res.covariances,
+        res.provenance,
     )
     @test_throws ArgumentError result_inputs(res_gone)
     rq = row_quantiles(hc.co2)
@@ -73,9 +89,25 @@
     jfix = findfirst(==(:GYM), res.constant_names)
     fixed[:, jfix] .= 0.5
     res_fixed = G.PrecalibrationResult(
-        res.tag, res.config_text, res.config, res.age, res.constant_names, fixed, res.forcing_names,
-        res.time_series, res.co2, res.o2, res.temp, res.status, res.prcout_co2, res.prcout_temp, res.sample_keys,
-        res.n_simulated, res.n_evaluated, res.covariances, res.provenance,
+        res.tag,
+        res.config_text,
+        res.config,
+        res.age,
+        res.constant_names,
+        fixed,
+        res.forcing_names,
+        res.time_series,
+        res.co2,
+        res.o2,
+        res.temp,
+        res.status,
+        res.prcout_co2,
+        res.prcout_temp,
+        res.sample_keys,
+        res.n_simulated,
+        res.n_evaluated,
+        res.covariances,
+        res.provenance,
     )
     for method in (:spearman, :pearson)
         csf = correlation_screen(res_fixed, constant_column(res, :deltaT2X); method=method)

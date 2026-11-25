@@ -68,8 +68,12 @@ end
 
 @testset "samplers and forcing files need a grid ending at the present (J-20)" begin
     short(f) = TimeForcings(f.age[1:(end - 1)], Dict(n => getfield(f, n)[1:(end - 1)] for n in TIME_FORCING_NAMES))
-    @test_throws ArgumentError InverseWishartSampler(short(TIME_PRIOR.center), short(TIME_PRIOR.sigma), read_variance_reduction())
-    @test_throws ArgumentError MultivariateTSampler(short(TIME_PRIOR.center), short(TIME_PRIOR.sigma), read_variance_reduction())
+    @test_throws ArgumentError InverseWishartSampler(
+        short(TIME_PRIOR.center), short(TIME_PRIOR.sigma), read_variance_reduction()
+    )
+    @test_throws ArgumentError MultivariateTSampler(
+        short(TIME_PRIOR.center), short(TIME_PRIOR.sigma), read_variance_reduction()
+    )
     lines = readlines(ARRAY_FILE)
     @test_throws ArgumentError read_time_arrays(tmpfile(join(lines[1:(end - 1)], "\n")))   # drops the 0 Ma row
 end

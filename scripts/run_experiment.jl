@@ -22,7 +22,10 @@ using GeocarbPrecalibration
 
 function main(args)
     isempty(args) && (
-        println(stderr, "usage: run_experiment.jl CONFIG.toml [--only KEY=VALUE] [--dry-run] [--checkpoint] [--quiet] [--force]");
+        println(
+            stderr,
+            "usage: run_experiment.jl CONFIG.toml [--only KEY=VALUE] [--dry-run] [--checkpoint] [--quiet] [--force]",
+        );
         exit(2)
     )
     path = args[1]
@@ -78,7 +81,8 @@ function main(args)
     if !dry && !force
         existing = filter(isfile, [joinpath(cfg.output_dir, cfg.tag, "result.jld2") for cfg in configs])
         isempty(existing) || error(
-            "results already exist and would be overwritten:\n  " * join(existing, "\n  ") *
+            "results already exist and would be overwritten:\n  " *
+            join(existing, "\n  ") *
             "\nmove them away, or pass --force to overwrite",
         )
     end

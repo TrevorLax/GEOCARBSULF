@@ -159,7 +159,9 @@ function plot_gym_modification(;
     LIFE::Real=0.25,
     options::ModelOptions=ModelOptions(; gym_angio_transition=(110, 60), gym_factor=0.25),
 )
-    p = update_params(mean_constants(read_prior_table(datapath("GEOCARB_input_summaries_calib_all.csv"))); GYM=GYM, LIFE=LIFE)
+    p = update_params(
+        mean_constants(read_prior_table(datapath("GEOCARB_input_summaries_calib_all.csv"))); GYM=GYM, LIFE=LIFE
+    )
     t = collect(570.0:-1.0:0.0)
     f0 = [vegetation_fE(ti, p, ModelOptions()) for ti in t]
     f1 = [vegetation_fE(ti, p, options) for ti in t]

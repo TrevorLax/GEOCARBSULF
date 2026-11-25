@@ -442,8 +442,7 @@ function environment_provenance()
     return Dict{String,String}(
         "active_project" => something(proj, "none"),
         "manifest_sha256" => manifest === nothing ? "none" : bytes2hex(open(SHA.sha256, manifest)),
-        "dependency_versions" =>
-            join(("$(nameof(m))=$(something(pkgversion(m), "unknown"))" for m in deps), ", "),
+        "dependency_versions" => join(("$(nameof(m))=$(something(pkgversion(m), "unknown"))" for m in deps), ", "),
     )
 end
 

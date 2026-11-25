@@ -146,8 +146,9 @@ function validate_options(o::ModelOptions)
     a > z || throw(ArgumentError("dT2X_ramp_interval must be (start, end) with start > end, got ($a, $z)"))
     # the iteration at which count == iteration_threshold is a failure, so N allows
     # N - 1 Newton updates and N = 1 could never converge (J-26)
-    o.iteration_threshold >= 2 ||
-        throw(ArgumentError("iteration_threshold must be ≥ 2 (N allows N − 1 Newton updates), got $(o.iteration_threshold)"))
+    o.iteration_threshold >= 2 || throw(
+        ArgumentError("iteration_threshold must be ≥ 2 (N allows N − 1 Newton updates), got $(o.iteration_threshold)"),
+    )
     o.convergence_tol > 0 || throw(ArgumentError("convergence_tol must be positive"))
     0 < o.newton_damping <= 1 || throw(ArgumentError("newton_damping must be in (0, 1]"))
     0 < o.newton_shrink < 1 || throw(ArgumentError("newton_shrink must be in (0, 1)"))
@@ -164,8 +165,9 @@ end
 Base.:(==)(a::ModelOptions, b::ModelOptions) = all(getfield(a, f) == getfield(b, f) for f in fieldnames(ModelOptions))
 # `isequal` matches `hash` (both distinguish 0.0 from -0.0 and treat NaN as equal), as
 # Dict and Set require.
-Base.isequal(a::ModelOptions, b::ModelOptions) =
-    all(isequal(getfield(a, f), getfield(b, f)) for f in fieldnames(ModelOptions))
+function Base.isequal(a::ModelOptions, b::ModelOptions)
+    return all(isequal(getfield(a, f), getfield(b, f)) for f in fieldnames(ModelOptions))
+end
 function Base.hash(o::ModelOptions, h::UInt)
     return foldl((acc, f) -> hash(getfield(o, f), acc), fieldnames(ModelOptions); init=hash(:ModelOptions, h))
 end

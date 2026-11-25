@@ -39,8 +39,7 @@ end
 main = joinpath(root, "main")
 ensembles = [
     "control_ct_out30" => load_merged(
-        "ct_out30",
-        [joinpath(main, t, "result.jld2") for t in ("ct_out30", "ct_out30_seed11", "ct_out30_seed2020")],
+        "ct_out30", [joinpath(main, t, "result.jld2") for t in ("ct_out30", "ct_out30_seed11", "ct_out30_seed2020")]
     ),
     "control_ct_out50" => load(joinpath(main, "ct_out50", "result.jld2")),
     "cretaceous_stage1" => load(joinpath(root, "cretaceous", "ct_out50_cret", "result.jld2")),

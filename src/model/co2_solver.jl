@@ -112,8 +112,8 @@ iteration_threshold` is counted as a failure.
     regime = _solver_regime(t)
     # blending interval: the Fortran's 381–350 Ma (31 Myr), or the 380–350 Ma of fE and
     # fBB with `unified_vascular_blend` (finding F-10)
-    bden, bup = o.unified_vascular_blend ? (VASCULAR_RAMP_LENGTH, AGE_VASCULAR_RAMP_START) :
-        (BLEND_DENOMINATOR, BLEND_UPPER)
+    bden, bup =
+        o.unified_vascular_blend ? (VASCULAR_RAMP_LENGTH, AGE_VASCULAR_RAMP_START) : (BLEND_DENOMINATOR, BLEND_UPPER)
 
     while regime != 0 && abs((rco2 / rco2_old) - 1) > k.tol
         count += 1

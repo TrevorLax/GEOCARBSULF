@@ -15,6 +15,73 @@ decisions D1–D4 in `docs/src/porting_notes.md`):
 
 Known differences from the R/Fortran code are listed in `docs/src/porting_notes.md`.
 
+### Fixes from the code review of 2026-11-25 (findings J-01 to J-32)
+
+Drafted with an AI coding assistant (Claude Code; see `AI_USAGE.md`) and checked by the
+full test suite, the golden-master fixtures and bit-for-bit comparisons of model and
+engine outputs with the previous code. Results with the default options are unchanged.
+
+**Breaking:**
+
+- The exported names `update`, `temperature` and `validate` are now `update_params`,
+  `surface_temperature`, `validate_config` (experiment configurations) and
+  `validate_options` (`ModelOptions`). The old names work qualified
+  (`GeocarbPrecalibration.update`) with a deprecation warning (J-32).
+- `ModelOptions` requires `gym_factor > 0` (0 made every run fail at 130 Ma) and
+  `iteration_threshold ≥ 2` (J-12, J-26).
+- Checkpoint directories carry `checkpoint_manifest.toml`; directories written by
+  earlier versions are refused instead of reused (J-03).
+- `time_center_from` refuses a result run with `run_on_time_centers = true` unless
+  `allow_uninformative_centers = true`; `experiments/cretaceous/stage2.toml` sets it to
+  keep the R-parity run (J-11).
+- `run_experiment.jl` refuses to overwrite existing results without `--force` (J-04).
+- Age grids must run from 570 Ma to the present (J-20); windows and proxy rows must not
+  be inverted (J-24); experiment tags must be unique and unshipped `fsr_choice` /
+  `param_choice` files are reported at load time (J-28).
+
+**Results and their presentation:**
+
+- Checkpoints are tied to the configuration and input files that wrote them and are
+  written atomically (J-03).
+- `plot_model_vs_proxy` plots `temp + T0`, the quantity acceptance tested, instead of
+  `temp + T0 + GEOG`; new `accepted_temperature` (J-13). `hindcast` no longer mixes
+  centre-run outputs with sampled GEOG for `run_on_time_centers` results (J-02).
+- New `n_evaluated` and `acceptance_rate`: `n_simulated` counted the rest of the last
+  chunk and biased acceptance rates low (J-17).
+- `correlation_screen` lists undefined (NaN) correlations last (J-18).
+- The Cretaceous analysis merges all three 30 % control seeds and adds a 50 % control
+  (J-01); the analysis scripts read inputs, `nsig` and `T0` from each result's stored
+  configuration through the new `result_inputs` (J-14).
+
+**Configuration and provenance:**
+
+- Stored configurations round-trip losslessly (`nothing` omitted, native TOML `inf`);
+  `ExperimentConfig(res.config)` rebuilds an experiment; `with_overrides` records the
+  overridden fields; unreadable stored configurations raise an error (J-16).
+- Results record the active project, the manifest SHA-256 and dependency versions
+  (`environment_provenance`); `reproduce/` holds the pinned-environment instructions
+  (its `Manifest.toml` is still to be created on the paper machine) (J-05).
+- New dependency: the SHA standard library.
+
+**Model options (off by default, Fortran behaviour unchanged):** `report_nan_target`
+(J-21) and `unified_vascular_blend` (J-22).
+
+**Other fixes:** shared `DEFAULT_MODEL_OPTIONS` can no longer be mutated, `isequal`
+agrees with `hash` (J-19); `fortran_single_literals` rounds only options left at their
+Fortran defaults (J-07); tolerant `dt` check (J-06); `run_geocarb!` checks the output's
+age grid (J-25); `TruncatedPrior` rejects zero-mass truncations and handles far upper
+tails (J-23); CSV errors cite exact file lines and Float32 values round-trip (J-27);
+supported number types documented, dual-number derivatives tested against finite
+differences (J-08).
+
+**Documentation and maintenance:** the solar-luminosity term is described consistently
+(`r.temp` includes it; `remove_solar` keyword) (J-15); documentation drift fixed (J-09);
+legacy file and line references moved from docstrings to a table in
+`docs/src/porting_notes.md` (J-29); one Newton loop in `solve_rco2`, bit-for-bit
+identical (J-30); sampler workspaces and preallocated assembly make the engine about
+19 % faster per sample with identical results (J-31); one proxy-binning helper with an
+explicit `dt` (J-32). J-10 needed no change.
+
 ### Changes after the first test run
 
 - `ModelOptions(fortran_single_literals = true)` is now the **default**: version 1

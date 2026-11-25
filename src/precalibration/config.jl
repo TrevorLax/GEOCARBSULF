@@ -328,7 +328,8 @@ function load_experiments(path::AbstractString)
     isempty(dups) || throw(
         ArgumentError(
             "$path: several experiments would share the tag (and output directory) " *
-            join(dups, ", ") * "; remove duplicate grid entries or use thresholds that differ by at least 1 %",
+            join(dups, ", ") *
+            "; remove duplicate grid entries or use thresholds that differ by at least 1 %",
         ),
     )
     return configs

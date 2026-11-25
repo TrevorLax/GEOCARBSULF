@@ -98,7 +98,8 @@ result no longer exists.
 function result_inputs(res::PrecalibrationResult)
     isempty(res.config) && throw(ArgumentError("result \"$(res.tag)\" stores no configuration"))
     cfg = ExperimentConfig(res.config)
-    for (k, f) in (("prior_file", cfg.prior_file), ("proxy_file", cfg.proxy_file), ("temperature_file", cfg.temperature_file))
+    for (k, f) in
+        (("prior_file", cfg.prior_file), ("proxy_file", cfg.proxy_file), ("temperature_file", cfg.temperature_file))
         isfile(f) || throw(ArgumentError("result \"$(res.tag)\": $k recorded in the result not found: $f"))
     end
     proxy = read_proxy_data(cfg.proxy_file; proxies=cfg.proxies)

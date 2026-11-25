@@ -47,7 +47,9 @@ function load_result(path::AbstractString)
     cfg = try
         TOML.parse(d["config_toml"])
     catch err
-        throw(ArgumentError("$path: the stored configuration (config_toml) cannot be parsed: $(sprint(showerror, err))"))
+        throw(
+            ArgumentError("$path: the stored configuration (config_toml) cannot be parsed: $(sprint(showerror, err))"),
+        )
     end
     prov = Dict{String,String}(zip(d["provenance_keys"], d["provenance_values"]))
     return PrecalibrationResult(
