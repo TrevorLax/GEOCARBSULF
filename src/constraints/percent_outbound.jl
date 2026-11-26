@@ -2,7 +2,7 @@
     legacy_percent_outbound(series, w::Windows) -> Float64
 
 Fraction of time steps at which `series` lies outside the window, with the exact
-semantics of `percent_outbound.R` (Mills et al. 2019):
+semantics of the R function (Mills et al. 2019):
 
 - if any value is `±Inf` (a failed Fortran step), return `1.0`;
 - otherwise, if any value is `NaN`, return `NaN` (R returns `NA`; a run with `NaN`
@@ -30,7 +30,7 @@ end
     percent_outbound(r::GeocarbResult, w::Windows, variable; T0 = 15.0, reject_failed = false) -> Float64
 
 % outbound of a model run for `variable = :co2` (compared as is) or `:temp`
-(compared as `r.temp .+ T0`, see [`temperature`](@ref)). With
+(compared as `r.temp .+ T0`, see [`surface_temperature`](@ref)). With
 `reject_failed = true`, any run with a failed step scores `1.0`, whatever the
 variable. With `false` (the default), the result equals [`legacy_percent_outbound`](@ref).
 """

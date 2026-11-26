@@ -12,6 +12,7 @@ struct PrecalibrationSetup
     ctx::EvaluationContext
     rule::AcceptanceRule
     U_global::Union{Nothing,Matrix{Float64}}
+    notes::Dict{String,String}        # extra provenance recorded with the result
 end
 
 struct ChunkOutput
@@ -44,7 +45,7 @@ Read all inputs and build the priors, samplers, windows and acceptance rule of a
 experiment. Called by [`run_precalibration`](@ref); exposed for inspection and tests.
 """
 function prepare_precalibration(cfg::ExperimentConfig)
-    validate(cfg)
+    validate_config(cfg)
     table = read_prior_table(cfg.prior_file)
     priors = build_priors(table)
     calib_index = [findfirst(==(p.name), CONSTANT_PARAMETER_NAMES) for p in priors]
@@ -52,11 +53,27 @@ function prepare_precalibration(cfg::ExperimentConfig)
 
     tprior = read_time_arrays(cfg.time_array_file; use_godderis=cfg.use_godderis)
     center = tprior.center
+    notes = Dict{String,String}()
     if cfg.time_center_from !== nothing
         prev = load_result(cfg.time_center_from)
         n_accepted(prev) >= 1 ||
             throw(ArgumentError("time_center_from: $(cfg.time_center_from) has no accepted samples"))
         prev.age == center.age || throw(ArgumentError("time_center_from: age grids differ"))
+        if get(prev.config, "run_on_time_centers", false) == true
+            cfg.allow_uninformative_centers || throw(
+                ArgumentError(
+                    "time_center_from: $(cfg.time_center_from) was run with run_on_time_centers = true, so its " *
+                    "saved series never influenced acceptance and their mean is the prior centre plus sampling " *
+                    "noise: the new centres would carry no information from that experiment. Re-run it with " *
+                    "run_on_time_centers = false, or set allow_uninformative_centers = true to reproduce the R " *
+                    "Cretaceous stage 2 anyway.",
+                ),
+            )
+            @warn "time_center_from: $(cfg.time_center_from) was run on the forcing centres; the new centres " *
+                "are uninformative (allow_uninformative_centers = true)"
+            notes["uninformative_time_centers"] = "true"
+        end
+        notes["time_center_from_tag"] = prev.tag
         center = mean_time_forcings(prev.time_series, prev.age)
     end
     fvr = read_variance_reduction(cfg.variance_reduction_file)
@@ -69,7 +86,9 @@ function prepare_precalibration(cfg::ExperimentConfig)
     proxy = read_proxy_data(cfg.proxy_file; proxies=cfg.proxies)
     tdata = read_temperature_data(cfg.temperature_file)
     ctx = EvaluationContext(
-        co2_windows(proxy, center.age; nsig=cfg.nsig), temperature_windows(tdata, center.age; nsig=cfg.nsig); T0=cfg.T0
+        co2_windows(proxy, center.age; nsig=cfg.nsig, dt=cfg.model.dt),
+        temperature_windows(tdata, center.age; nsig=cfg.nsig);
+        T0=cfg.T0,
     )
     rule = build_rule(cfg)
     if cfg.cretaceous_age !== nothing
@@ -85,7 +104,7 @@ function prepare_precalibration(cfg::ExperimentConfig)
     end
     cfg.run_on_time_centers && @warn "run_on_time_centers = true: the model runs on the forcing centres; " *
         "the saved time series are sampled but did not influence acceptance (as in the R Cretaceous experiment, finding F-02)"
-    return PrecalibrationSetup(cfg, priors, calib_index, base_values, sampler, center, ctx, rule, U_global)
+    return PrecalibrationSetup(cfg, priors, calib_index, base_values, sampler, center, ctx, rule, U_global, notes)
 end
 
 function _run_chunk(setup::PrecalibrationSetup, c::Int)
@@ -108,6 +127,7 @@ function _run_chunk(setup::PrecalibrationSetup, c::Int)
     out = GeocarbResult{Float64}(age)
     vals = copy(setup.base_values)
     cov = cfg.save_covariances ? Dict{Symbol,Matrix{Float64}}() : nothing
+    ws = SamplerWorkspace(nt)
 
     idx = Int[]
     cbuf = Float64[]
@@ -121,7 +141,7 @@ function _run_chunk(setup::PrecalibrationSetup, c::Int)
     covbuf = Float64[]
 
     for j in 1:nc
-        @timeit_debug TIMER "time series" sample_time_forcings!(rng, buf, setup.sampler; covariances=cov)
+        @timeit_debug TIMER "time series" sample_time_forcings!(rng, buf, setup.sampler; covariances=cov, workspace=ws)
         p = @timeit_debug TIMER "constants: assemble" begin
             for (q, ci) in enumerate(setup.calib_index)
                 vals[ci] = X[j, q]
@@ -176,9 +196,19 @@ end
 
 _chunk_file(dir::AbstractString, c::Integer) = joinpath(dir, @sprintf("chunk_%06d.jld2", c))
 
-function _save_chunk(path::AbstractString, o::ChunkOutput)
-    JLD2.jldsave(
-        path;
+# Written to a temporary name and renamed, so a crash cannot leave a truncated chunk
+# under its final name; a failed write removes the temporary file. `fingerprint` ties
+# the chunk to its configuration (J-03).
+function _save_chunk(path::AbstractString, o::ChunkOutput, fingerprint::AbstractString="")
+    return _atomic_write_path(path) do tmp
+        return _jldsave_chunk(tmp, o, fingerprint)
+    end
+end
+
+function _jldsave_chunk(tmp::AbstractString, o::ChunkOutput, fingerprint::AbstractString)
+    return JLD2.jldsave(
+        tmp;
+        fingerprint=String(fingerprint),
         chunk=o.chunk,
         n=o.n,
         idx=o.idx,
@@ -193,11 +223,26 @@ function _save_chunk(path::AbstractString, o::ChunkOutput)
         has_cov=o.covariances !== nothing,
         covariances=o.covariances === nothing ? zeros(0, 0, 0, 0) : o.covariances,
     )
-    return path
 end
 
-function _load_chunk(path::AbstractString)
-    d = JLD2.load(path)
+# Returns `nothing` if the file cannot be read (for example truncated by a crash of an
+# older version); the chunk is then recomputed. A readable chunk written by another
+# configuration is an error.
+function _load_chunk(path::AbstractString, fingerprint::Union{Nothing,AbstractString}=nothing)
+    d = try
+        JLD2.load(path)
+    catch err
+        @warn "checkpoint $path cannot be read ($(sprint(showerror, err; context=:limit => true))); recomputing it"
+        return nothing
+    end
+    if fingerprint !== nothing && get(d, "fingerprint", "") != fingerprint
+        throw(
+            ArgumentError(
+                "checkpoint $path was written by a different configuration than the one in " *
+                "$(CHECKPOINT_MANIFEST); delete the checkpoint directory or use another one",
+            ),
+        )
+    end
     return ChunkOutput(
         d["chunk"],
         d["n"],
@@ -214,12 +259,19 @@ function _load_chunk(path::AbstractString)
     )
 end
 
-function _compute_or_load_chunk(setup::PrecalibrationSetup, c::Int, checkpoint_dir)
+function _compute_or_load_chunk(setup::PrecalibrationSetup, c::Int, checkpoint_dir, fingerprint=nothing)
     if checkpoint_dir !== nothing
         f = _chunk_file(checkpoint_dir, c)
-        isfile(f) && return @timeit_debug TIMER "checkpoint load" _load_chunk(f)
+        if isfile(f)
+            o = @timeit_debug TIMER "checkpoint load" _load_chunk(f, fingerprint)
+            if o !== nothing
+                (o.chunk == c && o.n == _chunk_size(setup.cfg, c)) ||
+                    throw(ArgumentError("checkpoint $f holds chunk $(o.chunk) of size $(o.n), expected chunk $c"))
+                return o
+            end
+        end
         o = _run_chunk(setup, c)
-        @timeit_debug TIMER "checkpoint save" _save_chunk(f, o)
+        @timeit_debug TIMER "checkpoint save" _save_chunk(f, o, something(fingerprint, ""))
         return o
     end
     return _run_chunk(setup, c)
@@ -242,7 +294,10 @@ Chunks are independent: chunk `c` uses its own `StableRNG` seeded from `(cfg.see
 Up to `max_parallel` chunks run at the same time on separate threads, and their results
 are consumed in chunk order, so **the result does not depend on the number of
 threads**. With `checkpoint_dir`, every finished chunk is written there and reused if
-the run is restarted.
+the run is restarted. The directory records which configuration and input files wrote
+it (`checkpoint_manifest.toml`, see [`checkpoint_manifest`](@ref)); resuming with a
+different configuration raises an `ArgumentError` instead of mixing samples.
+`n_accept_min` may change between runs. Chunk files are written atomically.
 """
 function run_precalibration(
     cfg::ExperimentConfig;
@@ -253,7 +308,7 @@ function run_precalibration(
     t_start = time()
     started = Dates.format(Dates.now(), "yyyy-mm-ddTHH:MM:SS")
     setup = @timeit_debug TIMER "prepare" prepare_precalibration(cfg)
-    checkpoint_dir === nothing || mkpath(checkpoint_dir)
+    fingerprint = checkpoint_dir === nothing ? nothing : prepare_checkpoint_dir(checkpoint_dir, cfg)
     nchunk = _n_chunks(cfg)
     nbatch = max(1, min(Int(max_parallel), nchunk))
 
@@ -265,10 +320,10 @@ function run_precalibration(
     while c <= nchunk && !done
         batch = c:min(c + nbatch - 1, nchunk)
         outs = if nbatch == 1
-            [_compute_or_load_chunk(setup, k, checkpoint_dir) for k in batch]
+            [_compute_or_load_chunk(setup, k, checkpoint_dir, fingerprint) for k in batch]
         else
-            tasks = [Threads.@spawn _compute_or_load_chunk(setup, k, checkpoint_dir) for k in batch]
-            fetch.(tasks)
+            tasks = [Threads.@spawn _compute_or_load_chunk(setup, k, checkpoint_dir, fingerprint) for k in batch]
+            _fetch_all(tasks)
         end
         for o in outs
             n_simulated += o.n
@@ -292,6 +347,25 @@ function run_precalibration(
     return res
 end
 
+# Wait for every task of a batch, so none is still writing checkpoints when an error is
+# reported, then return their results. An exception inside a task is rethrown as
+# itself rather than wrapped in a TaskFailedException, so that, for example, a
+# checkpoint mismatch reads the same with one thread as with several. Only task
+# failures are held back; anything else (an InterruptException from Ctrl-C) propagates.
+function _fetch_all(tasks::Vector{Task})
+    for t in tasks
+        try
+            wait(t)
+        catch err
+            err isa TaskFailedException || rethrow()
+        end
+    end
+    return map(tasks) do t
+        istaskfailed(t) && throw(t.result)
+        return fetch(t)
+    end
+end
+
 function _assemble(setup::PrecalibrationSetup, outs::Vector{ChunkOutput}, n_simulated::Int)
     cfg = setup.cfg
     nt = length(setup.center.age)
@@ -304,22 +378,43 @@ function _assemble(setup::PrecalibrationSetup, outs::Vector{ChunkOutput}, n_simu
         total += max(k, 0)
         total >= keep && break
     end
-    cat3(f, dims) = isempty(parts) ? nothing : cat((f(o, r) for (o, r) in parts)...; dims=dims)
-    constants = isempty(parts) ? zeros(0, N_CONSTANTS) : reduce(vcat, [o.constants[r, :] for (o, r) in parts])
-    series = isempty(parts) ? zeros(nt, 0, N_FORCINGS) : cat3((o, r) -> o.series[:, r, :], 2)
-    co2 = isempty(parts) ? zeros(nt, 0) : reduce(hcat, [o.co2[:, r] for (o, r) in parts])
-    o2 = isempty(parts) ? zeros(nt, 0) : reduce(hcat, [o.o2[:, r] for (o, r) in parts])
-    temp = isempty(parts) ? zeros(nt, 0) : reduce(hcat, [o.temp[:, r] for (o, r) in parts])
-    status = isempty(parts) ? zeros(UInt8, nt, 0) : reduce(hcat, [o.status[:, r] for (o, r) in parts])
-    pc = isempty(parts) ? Float64[] : reduce(vcat, [o.prcout_co2[r] for (o, r) in parts])
-    pt = isempty(parts) ? Float64[] : reduce(vcat, [o.prcout_temp[r] for (o, r) in parts])
-    keys_ =
-        isempty(parts) ? zeros(Int, 0, 2) : reduce(vcat, [hcat(fill(o.chunk, length(r)), o.idx[r]) for (o, r) in parts])
-    covs = nothing
-    if cfg.save_covariances
-        covs = isempty(parts) ? zeros(nt, nt, 0, N_FORCINGS) : cat3((o, r) -> o.covariances[:, :, r, :], 3)
+    # Copy the kept samples into preallocated arrays: splatting thousands of chunks into
+    # `cat` was slow to compile and to run (J-31).
+    constants = Matrix{Float64}(undef, total, N_CONSTANTS)
+    series = Array{Float64,3}(undef, nt, total, N_FORCINGS)
+    co2 = Matrix{Float64}(undef, nt, total)
+    o2 = Matrix{Float64}(undef, nt, total)
+    temp = Matrix{Float64}(undef, nt, total)
+    status = Matrix{UInt8}(undef, nt, total)
+    pc = Vector{Float64}(undef, total)
+    pt = Vector{Float64}(undef, total)
+    keys_ = Matrix{Int}(undef, total, 2)
+    covs = cfg.save_covariances ? Array{Float64,4}(undef, nt, nt, total, N_FORCINGS) : nothing
+    j = 0
+    for (o, r) in parts
+        dst = (j + 1):(j + length(r))
+        constants[dst, :] .= view(o.constants, r, :)
+        series[:, dst, :] .= view(o.series, :, r, :)
+        co2[:, dst] .= view(o.co2, :, r)
+        o2[:, dst] .= view(o.o2, :, r)
+        temp[:, dst] .= view(o.temp, :, r)
+        status[:, dst] .= view(o.status, :, r)
+        pc[dst] .= view(o.prcout_co2, r)
+        pt[dst] .= view(o.prcout_temp, r)
+        keys_[dst, 1] .= o.chunk
+        keys_[dst, 2] .= view(o.idx, r)
+        covs === nothing || (covs[:, :, dst, :] .= view(o.covariances, :, :, r, :))
+        j = last(dst)
     end
     total == 0 && @warn "precalibration $(cfg.tag): no simulation was accepted"
+    # Simulations up to and including the last kept sample (J-17). When the target was
+    # not reached, every simulation was evaluated.
+    n_evaluated = if total >= keep && !isempty(parts)
+        olast, rlast = last(parts)
+        sum(o.n for o in outs if o.chunk < olast.chunk; init=0) + olast.idx[last(rlast)]
+    else
+        n_simulated
+    end
 
     prov = Dict{String,String}(
         "package_version" => string(something(pkgversion(@__MODULE__), "unknown")),
@@ -328,6 +423,9 @@ function _assemble(setup::PrecalibrationSetup, outs::Vector{ChunkOutput}, n_simu
         "threads" => string(Threads.nthreads()),
         "n_chunks_consumed" => string(length(outs)),
     )
+    merge!(prov, environment_provenance())
+    merge!(prov, setup.notes)
+    isempty(cfg.overrides) || (prov["config_overrides"] = join(cfg.overrides, ", "))
     return PrecalibrationResult(
         cfg.tag,
         cfg.source,
@@ -345,9 +443,40 @@ function _assemble(setup::PrecalibrationSetup, outs::Vector{ChunkOutput}, n_simu
         pt,
         keys_,
         n_simulated,
+        n_evaluated,
         covs,
         prov,
     )
+end
+
+"""
+    environment_provenance() -> Dict{String,String}
+
+What a result needs to be tied to exact dependency versions (J-05): the active
+project, the SHA-256 of its manifest (`"none"` if there is no manifest) and the
+versions of the package's direct dependencies as loaded. Stored in the provenance of
+every precalibration result. StableRNGs fixes the random stream, but Distributions or
+StatsBase may still change results between versions.
+"""
+function environment_provenance()
+    proj = Base.active_project()
+    manifest = proj === nothing ? nothing : _manifest_path(dirname(proj))
+    deps = (Distributions, JLD2, StableRNGs, StatsBase, TimerOutputs)
+    return Dict{String,String}(
+        "active_project" => something(proj, "none"),
+        "manifest_sha256" => manifest === nothing ? "none" : bytes2hex(open(SHA.sha256, manifest)),
+        "dependency_versions" => join(("$(nameof(m))=$(something(pkgversion(m), "unknown"))" for m in deps), ", "),
+    )
+end
+
+# The manifest Pkg would use for a project directory (versioned names first).
+function _manifest_path(dir::AbstractString)
+    v = "v$(VERSION.major).$(VERSION.minor)"
+    for name in ("JuliaManifest-$v.toml", "Manifest-$v.toml", "JuliaManifest.toml", "Manifest.toml")
+        f = joinpath(dir, name)
+        isfile(f) && return f
+    end
+    return nothing
 end
 
 function _git_commit()

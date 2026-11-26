@@ -28,7 +28,7 @@ EvaluationContext(co2::Windows, temp::Windows; T0::Real=PRESENT_TEMPERATURE) = E
     OutboundRule(variable, threshold; reject_failed = false)
 
 Accept if the % outbound of `variable` (`:co2` or `:temp`) is ≤ `threshold`
-(`lhs_sampling.R:150-163`). A `NaN` score never passes. With `reject_failed = true`,
+(the R rule). A `NaN` score never passes. With `reject_failed = true`,
 runs with any failed step score 1 (finding F-04).
 """
 struct OutboundRule <: AcceptanceRule
@@ -45,8 +45,8 @@ end
 """
     CretaceousWindowRule(age)
 
-Accept only if `temp + T0` lies inside the temperature window at `age` (Myr ago); see
-`lhs_sampling_cret.R:136-140`. A `NaN` temperature fails. The R code used the step
+Accept only if `temp + T0` lies inside the temperature window at `age` (Myr ago), as in
+the R Cretaceous experiment. A `NaN` temperature fails. The R code used the step
 index 49, which is 90 Ma on the 570:−10:0 grid (finding F-03).
 """
 struct CretaceousWindowRule <: AcceptanceRule

@@ -74,7 +74,7 @@ const N_CONSTANTS = length(CONSTANT_PARAMETER_NAMES)
 """
 The 12 time-varying forcings, in the column order of the original Fortran `Matrix_12`.
 Note that the prior CSV files list `fD` before `fAw_fA` and `RT` before `GEOG`; the R
-code needed a hard-coded permutation for that (`parameterSetup.R:202`). Julia maps by name.
+code needed a hard-coded permutation for that. Julia maps by name.
 """
 const TIME_FORCING_NAMES = (:Sr, :d13C, :d34S, :fR, :fL, :fA, :fAw_fA, :fD, :GEOG, :RT, :fSR, :fC)
 
@@ -188,8 +188,8 @@ function _info(name::Symbol)
     return PARAMETER_INFO[name]
 end
 
-"Forcings that are divided by their present-day value after sampling (`lhs_sampling.R:108`)."
+"Forcings that are divided by their present-day value after sampling."
 const NORMALIZE_BY_PRESENT = (:fR, :fL, :fA, :fAw_fA, :fC)
 
-"Forcings that have their present-day value subtracted after sampling (`lhs_sampling.R:110`)."
+"Forcings that have their present-day value subtracted after sampling."
 const CENTER_AT_PRESENT = (:GEOG,)

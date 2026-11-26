@@ -9,7 +9,7 @@ struct TimeArrayPrior{T<:Real}
     sigma::TimeForcings{T}
 end
 
-"Forcings replaced by their `_Godderis` columns when `use_godderis = true` (`parameterSetup.R:46`)."
+"Forcings replaced by their `_Godderis` columns when `use_godderis = true`."
 const GODDERIS_FORCINGS = (:fA, :fAw_fA, :fD, :GEOG)
 
 """
@@ -17,7 +17,7 @@ const GODDERIS_FORCINGS = (:fA, :fAw_fA, :fD, :GEOG)
 
 Read a `GEOCARB_input_arrays_*.csv` file: an `age` column and, for each forcing `X`,
 a centre column `X` and a standard-deviation column `eX`. This reproduces
-`parameterSetup.R:34-85`:
+the R code:
 
 1. with `use_godderis = true` (the R default `l_Godderis <- TRUE`), `fA, fAw_fA, fD,
    GEOG` and their errors are taken from the `*_Godderis` columns (Goddéris et al.
@@ -25,11 +25,13 @@ a centre column `X` and a standard-deviation column `eX`. This reproduces
 2. the centre of `fAw_fA` is divided by its present-day value (Krause et al. 2018);
    its standard deviation is *not* rescaled, as in the R code.
 
-The file must list ages from oldest to youngest.
+The file must list ages from oldest (570 Ma) to youngest (0 Ma, the present).
 """
 function read_time_arrays(path::AbstractString; use_godderis::Bool=true)
     t = read_csv_table(path)
     age = numeric_column(t, "age")
+    isempty(age) && throw(ArgumentError("$path: no rows"))
+    _check_model_grid(age, "$path: the age column")
     center = Dict{Symbol,Vector{Float64}}()
     sigma = Dict{Symbol,Vector{Float64}}()
     for name in TIME_FORCING_NAMES

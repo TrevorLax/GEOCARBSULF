@@ -6,8 +6,8 @@ Outcome of one model time step.
 - `Converged`: the CO2 solve converged and all checks passed.
 - `NotConverged`: the CO2 solve reached `iteration_threshold` (Fortran `failed_run`).
 - `NaNEncountered`: a NaN appeared inside the CO2 solve (Fortran `ISNAN` check).
-- `RCO2OutOfRange`: RCO2 left `rco2_bounds` (f90:524).
-- `PresentDayCheckFailed`: the present-day O2/CO2 check at t = 0 failed (f90:561).
+- `RCO2OutOfRange`: RCO2 left `rco2_bounds`.
+- `PresentDayCheckFailed`: the present-day O2/CO2 check at t = 0 failed.
 - `InvalidState`: RCO2 is NaN although the Fortran raised no failure flag. Outputs are
   then NaN rather than Inf, exactly as in the Fortran.
 
@@ -33,7 +33,7 @@ Output of [`run_geocarb`](@ref) on an age grid of `n` steps.
 | `age` | Myr ago | the age grid |
 | `co2` | ppmv | atmospheric CO2, `250·RCO2`; `+Inf` on failed steps |
 | `o2` | % | atmospheric O2, `100·O2/(O2+143)`; `+Inf` on failed steps |
-| `temp` | °C | `GCM·ln(RCO2) − Ws·t/570`, the temperature change relative to the present *with the solar-luminosity term removed* (see [`temperature`](@ref)) |
+| `temp` | °C | `GCM·ln(RCO2) − Ws·t/570`, the temperature change relative to the present from CO2 *including* the solar-luminosity term `−Ws·t/570` (the fainter Sun of the past cools it); see [`surface_temperature`](@ref) |
 | `status` | | one [`StepStatus`](@ref) per step |
 | `iterations` | | CO2-solver iterations used at each step |
 """
@@ -74,31 +74,50 @@ succeeded(r::GeocarbResult) = all(==(Converged), r.status)
     isfailure(s::StepStatus) -> Bool
 
 `true` for the statuses that make the Fortran write `+Inf` into `co2` and `o2`.
+Internal: used by the tests to check the output conventions.
 """
 isfailure(s::StepStatus) = s in (NotConverged, NaNEncountered, RCO2OutOfRange, PresentDayCheckFailed)
 
 """
-    temperature(r::GeocarbResult; T0 = 15.0, geog = nothing, Ws = nothing) -> Vector
+    surface_temperature(r::GeocarbResult; T0 = 15.0, geog = nothing, remove_solar = nothing) -> Vector
 
 Global mean surface temperature implied by a model run, with the conventions of the
 original code made explicit (finding F-20):
 
-- `r.temp` is `GCM·ln(RCO2) − Ws·t/570`: warming from CO2, *minus* the solar term.
-- `temperature(r)` adds the present-day temperature `T0` (15 °C, Berner 2004). This
+- `r.temp` is `GCM·ln(RCO2) − Ws·t/570`: the temperature change from CO2, **including**
+  the solar-luminosity term `−Ws·t/570` (the Sun was fainter in the past, so this term
+  cools).
+- `surface_temperature(r)` adds the present-day temperature `T0` (15 °C, Berner 2004). This
   is the quantity compared with the Mills et al. (2019) windows during precalibration
-  (`lhs_sampling.R:137`).
-- `temperature(r; geog = f.GEOG)` also adds the palaeogeography term. This is what
-  the R analysis scripts plot as hindcasts (`analysis_and_plots.R:140`).
-- `temperature(r; Ws = p.Ws)` adds the solar-luminosity term back in.
+  in the R code as well; the windows are actual temperatures, so they include the solar
+  effect too.
+- `surface_temperature(r; geog = f.GEOG)` also adds the palaeogeography term. This is what
+  the R analysis scripts plot as hindcasts; it is not the
+  quantity acceptance used.
+- `surface_temperature(r; remove_solar = p.Ws)` **removes** the solar-luminosity term (adds
+  `Ws·t/570`), leaving `T0` plus the CO2-only temperature change.
+
+The keyword `Ws` is a deprecated name for `remove_solar`. Earlier versions called this
+function `temperature`.
 """
-function temperature(r::GeocarbResult; T0::Real=PRESENT_TEMPERATURE, geog=nothing, Ws=nothing)
+function surface_temperature(
+    r::GeocarbResult; T0::Real=PRESENT_TEMPERATURE, geog=nothing, remove_solar=nothing, Ws=nothing
+)
+    if Ws !== nothing
+        remove_solar === nothing || throw(ArgumentError("give remove_solar or Ws, not both"))
+        Base.depwarn(
+            "surface_temperature(r; Ws = ...) is deprecated, use surface_temperature(r; remove_solar = ...)",
+            :surface_temperature,
+        )
+        remove_solar = Ws
+    end
     out = r.temp .+ T0
     if geog !== nothing
         length(geog) == length(out) || throw(ArgumentError("geog must have one value per time step"))
         out .+= geog
     end
-    if Ws !== nothing
-        out .+= Ws .* r.age ./ AGE_MAX
+    if remove_solar !== nothing
+        out .+= remove_solar .* r.age ./ AGE_MAX
     end
     return out
 end

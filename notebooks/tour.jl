@@ -211,16 +211,16 @@ r = run_geocarb(p, f)
 
 plot_runs(["prior means" => r])
 
-# The temperature drawn is `temperature(r)`, which is the model's `temp` plus 15 °C.
+# The temperature drawn is `surface_temperature(r)`, which is the model's `temp` plus 15 °C.
 # That is the quantity compared with the temperature windows in precalibration. The
 # documentation page *Temperature conventions* explains the other variants.
 #
 # ### 1.6 Climate sensitivity
 #
-# `update` returns a copy of the constants with some values changed. Here ΔT2x goes
+# `update_params` returns a copy of the constants with some values changed. Here ΔT2x goes
 # from 1.5 to 6 °C per doubling:
 
-runs = ["ΔT2x = $(x) °C" => run_geocarb(update(p; deltaT2X=x), f) for x in (1.5, 3.0, 4.5, 6.0)]
+runs = ["ΔT2x = $(x) °C" => run_geocarb(update_params(p; deltaT2X=x), f) for x in (1.5, 3.0, 4.5, 6.0)]
 plot_runs(runs)
 
 # Weathering responds to temperature, and temperature responds to CO₂ through ΔT2x.

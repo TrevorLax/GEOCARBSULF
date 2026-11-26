@@ -59,6 +59,38 @@ end
     return fw, W, V, X
 end
 
+# Regime of the CO2 solve at age t: 1 non-vascular (380, 570], 2 blended (350, 380],
+# 3 vascular [0, 350]; 0 outside the model range (no iteration).
+@inline function _solver_regime(t::Real)
+    if t <= AGE_MAX && t > AGE_VASCULAR_RAMP_START
+        return 1
+    elseif t <= AGE_VASCULAR_RAMP_START && t > AGE_GYMNOSPERM
+        return 2
+    elseif t <= AGE_GYMNOSPERM
+        return 3
+    end
+    return 0
+end
+
+# fwsi_climate, the Newton slope and the NaN flag of one iteration. Each regime keeps
+# the Fortran's expressions and the order of its sums, including the sum used for the
+# NaN check (f90:431-521), so results are bit-for-bit those of the original three loops.
+@inline function _newton_terms(regime::Int, R, t, RT, GEOG, gcm, p::ConstantParams, o::ModelOptions, bden, bup)
+    if regime == 1
+        fw, W, V = _nonvascular_terms(R, t, RT, GEOG, gcm, p, o.corrected_newton_derivative, false)
+        return fw, W + V, isnan(fw + W + V)
+    elseif regime == 2
+        fwo, Wo, Vo = _nonvascular_terms(R, t, RT, GEOG, gcm, p, o.corrected_newton_derivative, true)
+        fwn, Wn, Vn, Xn = _vascular_terms(R, t, RT, GEOG, gcm, p)
+        fw = (t - AGE_GYMNOSPERM) / bden * fwo + (bup - t) / bden * fwn
+        slope = (t - AGE_GYMNOSPERM) / bden * (Wo + Vo) + (bup - t) / bden * (Wn + Vn + Xn)
+        return fw, slope, isnan(fwo + Wo + Vo + fwn + Wn + Vn + Xn + fw + slope)
+    else
+        fw, W, V, X = _vascular_terms(R, t, RT, GEOG, gcm, p)
+        return fw, W + V + X, isnan(fw + W + V + X)
+    end
+end
+
 """
     solve_rco2(t, rco2, fwsi_nc, gcm, RT, GEOG, p, o, k) -> (rco2, status, iterations)
 
@@ -67,7 +99,7 @@ previous step's value. Returns the new RCO2, a [`StepStatus`](@ref) (`Converged`
 `NotConverged` or `NaNEncountered`) and the number of iterations.
 
 The convergence test, damping, fallback shrinkage and failure rules are those of the
-Fortran (f90:431-521). In particular, convergence is judged on the *relative step size*
+Fortran. In particular, convergence is judged on the *relative step size*
 (`abs(RCO2/RCO2_old − 1) ≤ tol`), and the iteration at which `count ==
 iteration_threshold` is counted as a failure.
 """
@@ -77,56 +109,30 @@ iteration_threshold` is counted as a failure.
     rco2_old = 2 * rco2   # guarantees at least one iteration (f90:431)
     count = 0
     status = Converged
+    regime = _solver_regime(t)
+    # blending interval: the Fortran's 381–350 Ma (31 Myr), or the 380–350 Ma of fE and
+    # fBB with `unified_vascular_blend` (finding F-10)
+    bden, bup =
+        o.unified_vascular_blend ? (VASCULAR_RAMP_LENGTH, AGE_VASCULAR_RAMP_START) : (BLEND_DENOMINATOR, BLEND_UPPER)
 
-    if t <= AGE_MAX && t > AGE_VASCULAR_RAMP_START
-        while abs((rco2 / rco2_old) - 1) > k.tol
-            count += 1
-            rco2_old = rco2
-            fw, W, V = _nonvascular_terms(rco2, t, RT, GEOG, gcm, p, o.corrected_newton_derivative, false)
-            nan = isnan(fw + W + V)
-            if nan || count == o.iteration_threshold
-                status = nan ? NaNEncountered : NotConverged
-                break
-            end
-            step = (fw - fwsi_nc) / (W + V)
-            rco2 = rco2 > step ? rco2 - k.damping * step : k.shrink * rco2
+    while regime != 0 && abs((rco2 / rco2_old) - 1) > k.tol
+        count += 1
+        rco2_old = rco2
+        fw, slope, nan = _newton_terms(regime, rco2, t, RT, GEOG, gcm, p, o, bden, bup)
+        if nan || count == o.iteration_threshold
+            status = nan ? NaNEncountered : NotConverged
+            break
         end
+        step = (fw - fwsi_nc) / slope
+        rco2 = rco2 > step ? rco2 - k.damping * step : k.shrink * rco2
     end
 
-    if t <= AGE_VASCULAR_RAMP_START && t > AGE_GYMNOSPERM && status == Converged
-        while abs((rco2 / rco2_old) - 1) > k.tol
-            count += 1
-            rco2_old = rco2
-            fwo, Wo, Vo = _nonvascular_terms(rco2, t, RT, GEOG, gcm, p, o.corrected_newton_derivative, true)
-            fwn, Wn, Vn, Xn = _vascular_terms(rco2, t, RT, GEOG, gcm, p)
-            fw = (t - AGE_GYMNOSPERM) / BLEND_DENOMINATOR * fwo + (BLEND_UPPER - t) / BLEND_DENOMINATOR * fwn
-            slope =
-                (t - AGE_GYMNOSPERM) / BLEND_DENOMINATOR * (Wo + Vo) +
-                (BLEND_UPPER - t) / BLEND_DENOMINATOR * (Wn + Vn + Xn)
-            nan = isnan(fwo + Wo + Vo + fwn + Wn + Vn + Xn + fw + slope)
-            if nan || count == o.iteration_threshold
-                status = nan ? NaNEncountered : NotConverged
-                break
-            end
-            step = (fw - fwsi_nc) / slope
-            rco2 = rco2 > step ? rco2 - k.damping * step : k.shrink * rco2
-        end
+    # A NaN target makes every step NaN, so `rco2 > step` is false and RCO2 shrinks each
+    # iteration. If the iteration limit comes before the shrinking RCO2 itself produces a
+    # NaN, the Fortran reports NotConverged (finding F-33). With `report_nan_target` the
+    # same iteration is labelled NaNEncountered instead.
+    if o.report_nan_target && status == NotConverged && isnan(fwsi_nc)
+        status = NaNEncountered
     end
-
-    if t <= AGE_GYMNOSPERM && status == Converged
-        while abs((rco2 / rco2_old) - 1) > k.tol
-            count += 1
-            rco2_old = rco2
-            fw, W, V, X = _vascular_terms(rco2, t, RT, GEOG, gcm, p)
-            nan = isnan(fw + W + V + X)
-            if nan || count == o.iteration_threshold
-                status = nan ? NaNEncountered : NotConverged
-                break
-            end
-            step = (fw - fwsi_nc) / (W + V + X)
-            rco2 = rco2 > step ? rco2 - k.damping * step : k.shrink * rco2
-        end
-    end
-
     return rco2, status, count
 end

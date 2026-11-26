@@ -798,7 +798,7 @@ end
 """
     plot_runs(runs; cw = nothing, tw = nothing) -> Figure
 
-CO2, O2 and temperature (`temperature(r)`, i.e. `temp + 15 °C`, the quantity that
+CO2, O2 and temperature (`surface_temperature(r)`, i.e. `temp + 15 °C`, the quantity that
 precalibration compares with the temperature windows) for several runs, given as
 `label => result` pairs. Failed steps are left out of the lines and marked with
 crosses at the bottom of the CO2 panel.
@@ -820,7 +820,7 @@ function plot_runs(runs; cw=nothing, tw=nothing, colors=nothing)
         co2 = finite_or_nan(r.co2)
         lines!(ax1, x, [v > 0 ? v : NaN for v in co2]; color=c, linewidth=2, label=lab)
         lines!(ax2, x, finite_or_nan(r.o2); color=c, linewidth=2)
-        lines!(ax3, x, finite_or_nan(temperature(r)); color=c, linewidth=2)
+        lines!(ax3, x, finite_or_nan(surface_temperature(r)); color=c, linewidth=2)
         bad = findall(s -> s != Converged, r.status)
         isempty(bad) || scatter!(ax1, x[bad], fill(160.0, length(bad)); color=c, marker=:xcross, markersize=10)
     end

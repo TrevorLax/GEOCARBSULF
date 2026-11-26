@@ -18,7 +18,7 @@
     for (dir, _, files) in walkdir(joinpath(root, "experiments")), f in files
         endswith(f, ".toml") || continue
         for c in load_experiments(joinpath(dir, f))
-            @test validate(c) === c
+            @test validate_config(c) === c
         end
     end
     sup = only(load_experiments(joinpath(root, "experiments", "supplemental", "gym_timing_dT2X.toml")))
@@ -27,15 +27,100 @@
     cret = only(load_experiments(joinpath(root, "experiments", "cretaceous", "stage1.toml")))
     @test cret.cretaceous_age == 90.0 && cret.run_on_time_centers
     @test build_rule(cret) isa AllOf && length(build_rule(cret).rules) == 3
+    @test !cret.allow_uninformative_centers
+    cret2 = only(load_experiments(joinpath(root, "experiments", "cretaceous", "stage2.toml")))
+    @test cret2.allow_uninformative_centers     # opt-in kept for R parity (J-11)
+
+    @testset "paired experiments share seed and sampling settings" begin
+        # the fields that determine which constants and forcing series each chunk draws
+        draws(c) = (
+            c.seed,
+            c.n_sample,
+            c.n_per_chunk,
+            c.constant_design,
+            c.time_sampler,
+            c.prior_file,
+            c.time_array_file,
+            c.variance_reduction_file,
+            c.use_godderis,
+        )
+        control = only(filter(c -> c.tag == "ct_out50", main))       # main ct_out50: 1234 × 15
+        @test control.seed == 18510
+        for f in readdir(joinpath(root, "experiments", "supplemental"); join=true)
+            sc = only(load_experiments(f))
+            @test draws(sc) == draws(control)                       # paired with the control
+            @test (sc.constraint, sc.threshold, sc.proxies, sc.nsig, sc.T0) ==
+                (control.constraint, control.threshold, control.proxies, control.nsig, control.T0)
+        end
+        @test draws(cret) == draws(cret2)                            # F-29: stages share a seed
+        # same seed and settings, different model options: the same draws, chunk by chunk
+        a = run_precalibration(small_config(; n_sample=20, n_per_chunk=10); verbose=false)
+        b = run_precalibration(
+            small_config(; n_sample=20, n_per_chunk=10, model=ModelOptions(; gym_factor=0.25)); verbose=false
+        )
+        common = intersect(eachrow(a.sample_keys), eachrow(b.sample_keys))
+        @test !isempty(common)
+        for k in common
+            ia = findfirst(==(k), collect(eachrow(a.sample_keys)))
+            ib = findfirst(==(k), collect(eachrow(b.sample_keys)))
+            @test a.constants[ia, :] == b.constants[ib, :] && a.time_series[:, ia, :] == b.time_series[:, ib, :]
+        end
+    end
+
+    @testset "configuration round trip (J-16)" begin
+        odd = with_overrides(
+            small_config();
+            cretaceous_age=90.0,
+            proxies=[:boron],
+            model=ModelOptions(; glacial_intervals=[(260, 330), (-Inf, 40)], dT2X_ramp=true),
+        )
+        @test odd.overrides == ["cretaceous_age", "model", "proxies"]
+        for c in (c11, sup, cret, cret2, odd, small_config())
+            summ = config_summary(c)
+            @test !any(v -> v === nothing || v == "none", values(summ))
+            back = ExperimentConfig(summ)
+            @test config_summary(back) == summ
+            # through TOML text, as stored in result files
+            text = sprint(io -> G.TOML.print(io, G._tomlable(summ)))
+            @test config_summary(ExperimentConfig(G.TOML.parse(text))) == summ
+        end
+        @test ExperimentConfig(config_summary(odd)).model.glacial_intervals[2] == (-Inf, 40.0)
+        @test ExperimentConfig(config_summary(cret)).cretaceous_age == 90.0
+        @test ExperimentConfig(config_summary(small_config())).time_center_from === nothing
+        # summaries written by older versions ("none", infinities as strings)
+        legacy = config_summary(odd)
+        legacy["time_center_from"] = "none"
+        legacy["model"]["glacial_intervals"] = [[260.0, 330.0], ["-Inf", 40.0]]
+        @test config_summary(ExperimentConfig(legacy)) == config_summary(odd)
+        @test_throws ArgumentError ExperimentConfig(Dict("nmae" => "typo"))
+        @test_throws ArgumentError with_overrides(small_config(); source="x")
+    end
 
     # errors
     @test_throws ArgumentError load_experiments(tmpfile("nmae = \"typo\"\n"; ext=".toml"))
     @test_throws ArgumentError load_experiments(tmpfile("[grid]\nthreshhold = [0.3]\n"; ext=".toml"))
     @test_throws ArgumentError load_experiments(tmpfile("[model]\ngym_fac = 0.5\n"; ext=".toml"))
     @test_throws ArgumentError load_experiments(tmpfile("data_choice = \"PR2011\"\n"; ext=".toml"))
-    @test_throws ArgumentError validate(small_config(; threshold=0.0))
-    @test_throws ArgumentError validate(small_config(; constraint=:o2))
-    @test_throws ArgumentError validate(small_config(; prior_file="nope.csv"))
-    @test_throws ArgumentError validate(with_overrides(small_config(); seed=-1))
+    # unshipped choices fail at load time; tags must be unique (J-28)
+    for bad in ("fsr_choice = \"LENTON\"\n", "fsr_choice = \"PR2011\"\n", "param_choice = \"PR2011\"\n")
+        e = try
+            load_experiments(tmpfile(bad; ext=".toml"))
+        catch err
+            err
+        end
+        @test e isa ArgumentError && occursin("F-14", e.msg)
+    end
+    @test only(
+        load_experiments(
+            tmpfile("fsr_choice = \"LENTON\"\ntime_array_file = \"$(escape_string(ARRAY_FILE))\"\n"; ext=".toml")
+        ),
+    ).time_array_file == ARRAY_FILE
+    @test_throws ArgumentError load_experiments(tmpfile("[grid]\nthreshold = [0.3, 0.3]\n"; ext=".toml"))
+    @test_throws ArgumentError load_experiments(tmpfile("[grid]\nthreshold = [0.301, 0.302]\n"; ext=".toml"))
+    @test_throws ArgumentError validate_config(small_config(; threshold=0.0))
+    @test_throws ArgumentError validate_config(small_config(; constraint=:o2))
+    @test_throws ArgumentError validate_config(small_config(; prior_file="nope.csv"))
+    @test_throws ArgumentError validate_config(with_overrides(small_config(); seed=-1))
+    @test (@test_deprecated G.validate(small_config())) isa ExperimentConfig
     @test default_tag(:temp, 0.35) == "t_out35"
 end

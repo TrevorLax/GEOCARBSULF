@@ -21,6 +21,7 @@ TOML file with [`load_experiments`](@ref); see `experiments/` and the
 | `cretaceous_age` | `nothing` | if set, also require the temperature to be inside its window at this age |
 | `run_on_time_centers` | `false` | run the model on the forcing *centres* instead of the sampled series (the R Cretaceous experiment, finding F-02) |
 | `time_center_from` | `nothing` | path of an earlier result (`result.jld2`) whose mean accepted series become the new forcing centres |
+| `allow_uninformative_centers` | `false` | allow `time_center_from` to point at a result run with `run_on_time_centers = true`. Its saved series never influenced acceptance, so their mean is the prior centre plus sampling noise; only set this to reproduce the R Cretaceous stage 2 |
 | `n_sample`, `n_per_chunk`, `n_accept_min` | | maximum simulations, chunk size, stop after this many accepted |
 | `seed` | `1234` | random seed (≥ 0) |
 | `constant_design` | `:chunked_lhs` | `:chunked_lhs` or `:global_lhs` ([`ConstantDesign`](@ref)) |
@@ -30,6 +31,12 @@ TOML file with [`load_experiments`](@ref); see `experiments/` and the
 | `T0` | `15.0` | present-day temperature added to model temperatures |
 | `model` | `ModelOptions()` | model options |
 | `output_dir` | `"results"` | parent directory of the result directory `output_dir/tag` |
+| `source` | `""` | text of the TOML file the configuration was read from (the whole file, including any `[grid]` table) |
+| `overrides` | `[]` | fields changed with [`with_overrides`](@ref) after loading; recorded in provenance |
+
+The authoritative record of what ran is [`config_summary`](@ref), which every result
+stores; `source` is kept for reference only. `ExperimentConfig(res.config)` rebuilds a
+configuration from a stored summary.
 """
 Base.@kwdef struct ExperimentConfig
     name::String = "experiment"
@@ -49,6 +56,7 @@ Base.@kwdef struct ExperimentConfig
     cretaceous_age::Union{Nothing,Float64} = nothing
     run_on_time_centers::Bool = false
     time_center_from::Union{Nothing,String} = nothing
+    allow_uninformative_centers::Bool = false
     n_sample::Int = 10_000
     n_per_chunk::Int = 1_000
     n_accept_min::Int = 10_000
@@ -61,15 +69,16 @@ Base.@kwdef struct ExperimentConfig
     model::ModelOptions = ModelOptions()
     output_dir::String = "results"
     source::String = ""
+    overrides::Vector{String} = String[]
 end
 
 """
-    validate(cfg::ExperimentConfig) -> cfg
+    validate_config(cfg::ExperimentConfig) -> cfg
 
 Throw an `ArgumentError` describing the first problem found (missing files, an
 inconsistent sample size, unknown choices, ...).
 """
-function validate(cfg::ExperimentConfig)
+function validate_config(cfg::ExperimentConfig)
     err(msg) = throw(ArgumentError("experiment '$(cfg.name)' ($(cfg.tag)): $msg"))
     for (k, f) in (
         ("prior_file", cfg.prior_file),
@@ -98,7 +107,7 @@ function validate(cfg::ExperimentConfig)
         (0 <= cfg.cretaceous_age <= AGE_MAX) || err("cretaceous_age must be within [0, 570]")
     end
     isempty(cfg.proxies) && err("at least one proxy type is needed")
-    validate(cfg.model)
+    validate_options(cfg.model)
     return cfg
 end
 
@@ -132,6 +141,7 @@ const _TOP_KEYS = Set([
     "cretaceous_age",
     "run_on_time_centers",
     "time_center_from",
+    "allow_uninformative_centers",
     "n_sample",
     "n_per_chunk",
     "n_accept_min",
@@ -218,6 +228,21 @@ function load_experiments(path::AbstractString)
         ),
     )
 
+    # A choice whose file is not in data_dir (the R code offered LENTON and PR2011 time
+    # arrays, which this repository does not ship; finding F-14) fails here, at load
+    # time, instead of later in validate_config (J-28).
+    for (key, choice, default_name, explicit) in (
+        ("fsr_choice", fsr_choice, _FSR_FILES[fsr_choice], "time_array_file"),
+        ("param_choice", param_choice, "GEOCARB_input_summaries_calib_$(param_choice).csv", "prior_file"),
+    )
+        (haskey(d, explicit) || isfile(joinpath(data_dir, default_name))) || throw(
+            ArgumentError(
+                "$path: $key '$choice' needs $default_name, which is not in $data_dir (finding F-14); " *
+                "use another $key or set $explicit",
+            ),
+        )
+    end
+
     files = (
         prior_file=_resolve_data_file(d, "prior_file", "GEOCARB_input_summaries_calib_$(param_choice).csv", data_dir),
         time_array_file=_resolve_data_file(d, "time_array_file", _FSR_FILES[fsr_choice], data_dir),
@@ -237,6 +262,7 @@ function load_experiments(path::AbstractString)
         :cretaceous_age => haskey(d, "cretaceous_age") ? Float64(d["cretaceous_age"]) : nothing,
         :run_on_time_centers => Bool(get(d, "run_on_time_centers", false)),
         :time_center_from => haskey(d, "time_center_from") ? String(d["time_center_from"]) : nothing,
+        :allow_uninformative_centers => Bool(get(d, "allow_uninformative_centers", false)),
         :n_sample => Int(get(d, "n_sample", 10_000)),
         :n_per_chunk => Int(get(d, "n_per_chunk", 1_000)),
         :n_accept_min => Int(get(d, "n_accept_min", 10_000)),
@@ -295,22 +321,35 @@ function load_experiments(path::AbstractString)
             end
         end
     end
+    # every experiment writes to output_dir/tag, so tags must be unique (J-28):
+    # default_tag rounds the threshold to a whole percent, and grid lists may repeat
+    tags = [c.tag for c in configs]
+    dups = sort!(unique(t for t in tags if count(==(t), tags) > 1))
+    isempty(dups) || throw(
+        ArgumentError(
+            "$path: several experiments would share the tag (and output directory) " *
+            join(dups, ", ") *
+            "; remove duplicate grid entries or use thresholds that differ by at least 1 %",
+        ),
+    )
     return configs
 end
 
 """
     config_summary(cfg::ExperimentConfig) -> Dict{String,Any}
 
-TOML-friendly summary of a configuration (stored as provenance with every result).
+TOML-friendly summary of a configuration, stored with every result as the
+authoritative record of what ran. Fields that are `nothing` are omitted (their
+default); `source` is not included. [`ExperimentConfig`](@ref) rebuilds the
+configuration: `ExperimentConfig(config_summary(cfg))` has the same summary as `cfg`.
 """
 function config_summary(cfg::ExperimentConfig)
     d = Dict{String,Any}()
     for f in fieldnames(ExperimentConfig)
         f == :source && continue
         v = getfield(cfg, f)
-        d[String(f)] = if v === nothing
-            "none"
-        elseif v isa ModelOptions
+        v === nothing && continue
+        d[String(f)] = if v isa ModelOptions
             options_dict(v)
         elseif v isa Symbol
             String(v)
@@ -327,13 +366,58 @@ end
     with_overrides(cfg::ExperimentConfig; kwargs...) -> ExperimentConfig
 
 Copy of `cfg` with some fields replaced, for example
-`with_overrides(cfg; n_sample = 1000, n_per_chunk = 100)`.
+`with_overrides(cfg; n_sample = 1000, n_per_chunk = 100)`. The names of the replaced
+fields are added to `overrides`, so results record that their settings differ from
+the TOML text in `source`.
 """
 function with_overrides(cfg::ExperimentConfig; kwargs...)
     d = Dict{Symbol,Any}(f => getfield(cfg, f) for f in fieldnames(ExperimentConfig))
+    changed = copy(cfg.overrides)
     for (k, v) in kwargs
         k in fieldnames(ExperimentConfig) || throw(ArgumentError("unknown ExperimentConfig field :$k"))
+        k in (:source, :overrides) && throw(ArgumentError("with_overrides cannot change :$k"))
         d[k] = v
+        String(k) in changed || push!(changed, String(k))
     end
+    d[:overrides] = sort!(changed)
     return ExperimentConfig(; d...)
 end
+
+"""
+    ExperimentConfig(summary::AbstractDict; source = "")
+
+Rebuild a configuration from a [`config_summary`](@ref), for example the `config` of a
+stored result, so that it can be re-run: `run_precalibration(ExperimentConfig(res.config))`.
+Missing keys take their defaults; unknown keys raise an `ArgumentError`. Summaries
+written by older versions (with `"none"` for unset fields and infinities stored as
+strings) are accepted.
+"""
+function ExperimentConfig(summary::AbstractDict; source::AbstractString="")
+    allowed = Set(String(f) for f in fieldnames(ExperimentConfig) if f != :source)
+    kw = Dict{Symbol,Any}(:source => String(source))
+    for (k, v) in summary
+        key = String(k)
+        key in allowed || throw(ArgumentError("unknown configuration key '$key'"))
+        v == "none" && continue                     # older summaries: unset field
+        kw[Symbol(key)] = if key in ("constraint", "constant_design", "time_sampler")
+            Symbol(v)
+        elseif key == "proxies"
+            Symbol.(v)
+        elseif key == "overrides"
+            String.(v)
+        elseif key == "model"
+            model_options_from_dict(_decode_legacy_floats(v))
+        elseif key in ("cretaceous_age", "threshold", "nsig", "T0")
+            Float64(_decode_legacy_floats(v))
+        else
+            v
+        end
+    end
+    return ExperimentConfig(; kw...)
+end
+
+# Older result files stored ±Inf and NaN as strings ("-Inf"); TOML has native values.
+_decode_legacy_floats(x::AbstractDict) = Dict{String,Any}(String(k) => _decode_legacy_floats(v) for (k, v) in x)
+_decode_legacy_floats(x::AbstractVector) = [_decode_legacy_floats(v) for v in x]
+_decode_legacy_floats(x::AbstractString) = x in ("Inf", "-Inf", "NaN") ? parse(Float64, x) : x
+_decode_legacy_floats(x) = x

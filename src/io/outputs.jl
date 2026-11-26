@@ -26,6 +26,7 @@ function save_result(path::AbstractString, res::PrecalibrationResult)
         prcout_temp=res.prcout_temp,
         sample_keys=res.sample_keys,
         n_simulated=res.n_simulated,
+        n_evaluated=res.n_evaluated,
         has_covariances=res.covariances !== nothing,
         covariances=res.covariances === nothing ? zeros(0, 0, 0, 0) : res.covariances,
         provenance_keys=collect(keys(res.provenance)),
@@ -45,8 +46,10 @@ function load_result(path::AbstractString)
     get(d, "format_version", 0) == 1 || throw(ArgumentError("$path: not a GeocarbPrecalibration result file"))
     cfg = try
         TOML.parse(d["config_toml"])
-    catch
-        Dict{String,Any}()
+    catch err
+        throw(
+            ArgumentError("$path: the stored configuration (config_toml) cannot be parsed: $(sprint(showerror, err))"),
+        )
     end
     prov = Dict{String,String}(zip(d["provenance_keys"], d["provenance_values"]))
     return PrecalibrationResult(
@@ -66,15 +69,19 @@ function load_result(path::AbstractString)
         d["prcout_temp"],
         d["sample_keys"],
         d["n_simulated"],
+        get(d, "n_evaluated", d["n_simulated"]),     # files written before n_evaluated existed
         d["has_covariances"] ? d["covariances"] : nothing,
         prov,
     )
 end
 
-# TOML cannot store `nothing` or Inf in every reader; convert values to plain types.
+# Convert values to types TOML can store. TOML has no null, so `nothing` entries of a
+# dictionary are omitted (the reader then uses the default). ±Inf and NaN are written
+# as TOML's native inf/nan, so they read back as numbers.
 function _tomlable(x::AbstractDict)
     out = Dict{String,Any}()
     for (k, v) in x
+        v === nothing && continue
         out[String(k)] = _tomlable(v)
     end
     return out
@@ -82,8 +89,8 @@ end
 _tomlable(x::AbstractVector) = [_tomlable(v) for v in x]
 _tomlable(x::Tuple) = [_tomlable(v) for v in x]
 _tomlable(x::Symbol) = String(x)
-_tomlable(::Nothing) = "none"
-_tomlable(x::AbstractFloat) = isfinite(x) ? Float64(x) : string(x)
+_tomlable(::Nothing) = throw(ArgumentError("`nothing` can only be stored as an omitted dictionary entry"))
+_tomlable(x::AbstractFloat) = Float64(x)
 _tomlable(x) = x
 
 """
@@ -113,6 +120,8 @@ function write_summary_csvs(dir::AbstractString, res::PrecalibrationResult)
                 "tag" => res.tag,
                 "n_accepted" => n_accepted(res),
                 "n_simulated" => res.n_simulated,
+                "n_evaluated" => res.n_evaluated,
+                "acceptance_rate" => acceptance_rate(res),
                 "provenance" => res.provenance,
                 "config" => _tomlable(res.config),
             ),

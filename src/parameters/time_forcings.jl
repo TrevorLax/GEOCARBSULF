@@ -2,7 +2,8 @@
     TimeForcings{T<:Real}
 
 The 12 time-varying forcings of GEOCARBSULFvolc on a common age grid (Myr ago, strictly
-decreasing, within `[0, 570]`). Fields: `age` and one vector per name in
+decreasing, within `[0, 570]`). The model and the samplers further require the grid to
+run from 570 Ma to the present (0 Ma). Fields: `age` and one vector per name in
 [`TIME_FORCING_NAMES`](@ref).
 
 Construct by name:
@@ -64,6 +65,27 @@ function _check_age_grid_shape(age::Vector{Float64})
             throw(ArgumentError("ages must be strictly decreasing (age[$(i-1)] = $(age[i-1]), age[$i] = $t)"))
         end
     end
+    return nothing
+end
+
+# The model and the samplers assume that the grid starts at 570 Ma (initial reservoir
+# values `*_570`; the O2 update is skipped at the first step) and ends at the present
+# (normalisation by the present-day value, present-day checks at t = 0). TimeForcings
+# itself accepts any decreasing grid inside [0, 570]; the places that make these
+# assumptions call this check (J-20).
+function _check_model_grid(age::AbstractVector{<:Real}, what::AbstractString="the age grid")
+    first(age) == AGE_MAX || throw(
+        ArgumentError(
+            "$what must start at $(AGE_MAX) Ma (got $(first(age))): the initial reservoir values are those at " *
+            "$(Int(AGE_MAX)) Ma",
+        ),
+    )
+    last(age) == 0 || throw(
+        ArgumentError(
+            "$what must end at the present, 0 Ma (got $(last(age))): forcings are normalised by their " *
+            "present-day values and the present-day checks run at t = 0",
+        ),
+    )
     return nothing
 end
 
@@ -137,7 +159,8 @@ end
     forcing_matrix(f::TimeForcings) -> Matrix
 
 `n_time × 12` matrix with the forcings as columns in [`TIME_FORCING_NAMES`](@ref)
-order (the layout of the Fortran `Matrix_12`).
+order (the layout of the Fortran `Matrix_12`). Internal: used to call the compiled
+Fortran in the legacy comparison (`test/legacy_comparison/fortran_ffi.jl`).
 """
 function forcing_matrix(f::TimeForcings{T}) where {T}
     m = Matrix{T}(undef, length(f.age), N_FORCINGS)

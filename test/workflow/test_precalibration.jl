@@ -10,6 +10,10 @@
     @test length(res.prcout_co2) == length(res.prcout_temp) == n
     @test all(0 .<= res.prcout_co2 .<= 1) && all(0 .<= res.prcout_temp .<= 1)
     @test all(1 .<= res.sample_keys[:, 1] .<= 3)
+    # dependency versions and the manifest are recorded (J-05)
+    @test occursin("Distributions=", res.provenance["dependency_versions"])
+    @test res.provenance["active_project"] == something(Base.active_project(), "none")
+    @test occursin(r"^([0-9a-f]{64}|none)$", res.provenance["manifest_sha256"])
 
     # stored samples reproduce their stored model output
     k = 1
@@ -23,6 +27,13 @@
     # stopping rule: exactly n_accept_min samples are kept
     few = run_precalibration(with_overrides(cfg; n_accept_min=5); max_parallel=1, verbose=false)
     @test n_accepted(few) == 5 && few.n_simulated == 20
+    # acceptance rates use the simulations up to the last kept sample (J-17)
+    @test few.n_evaluated == few.sample_keys[end, 2] <= 20
+    @test acceptance_rate(few) == 5 / few.n_evaluated
+    @test res.n_evaluated == res.n_simulated                     # target not reached
+    late = run_precalibration(with_overrides(cfg; n_accept_min=n - 1); max_parallel=2, verbose=false)
+    k = late.sample_keys[end, :]
+    @test late.n_evaluated == 20 * (k[1] - 1) + k[2]
     @test few.constants == res.constants[1:5, :]
 
     # a single chunk works (a stub in the R code, finding F-12)
@@ -98,6 +109,19 @@
     back = load_result(path)
     @test back.constants == res.constants && isequal(back.co2, res.co2) && back.time_series == res.time_series
     @test back.tag == res.tag && back.n_simulated == res.n_simulated && back.provenance == res.provenance
+    @test back.n_evaluated == res.n_evaluated
+    # the stored configuration rebuilds the experiment and re-running reproduces it (J-16)
+    @test config_summary(ExperimentConfig(back.config)) == config_summary(cfg)
+    @test run_precalibration(ExperimentConfig(back.config); verbose=false).constants == res.constants
+    @test !haskey(res.provenance, "config_overrides")
+    @test few.provenance["config_overrides"] == "n_accept_min"
+    bad = joinpath(dir, "bad.jld2")
+    cp(path, bad)
+    G.JLD2.jldopen(bad, "r+") do f
+        delete!(f, "config_toml")
+        f["config_toml"] = "this is = = not toml"
+    end
+    @test_throws ArgumentError load_result(bad)
     files = write_summary_csvs(dir, res)
     @test all(isfile, files)
     @test size(read_csv_table(joinpath(dir, "constants.csv")).rows, 1) == n
@@ -108,13 +132,92 @@
     @test length(filter(endswith(".jld2"), readdir(ck))) == 3
     b = run_precalibration(cfg; checkpoint_dir=ck, verbose=false)
     @test a.constants == b.constants == res.constants
+    @testset "checkpoints are tied to their configuration (J-03)" begin
+        @test isfile(joinpath(ck, G.CHECKPOINT_MANIFEST))
+        @test !any(endswith(".tmp"), readdir(ck))
+        msg(f) =
+            try
+                f()
+                ""
+            catch e
+                e isa ArgumentError ? e.msg : rethrow()
+            end
+        m = msg(() -> run_precalibration(with_overrides(cfg; seed=8); checkpoint_dir=ck, verbose=false))
+        @test occursin("config.seed", m)
+        m = msg(() -> run_precalibration(with_overrides(cfg; n_per_chunk=30); checkpoint_dir=ck, verbose=false))
+        @test occursin("config.n_per_chunk", m)
+        # changing a label or the acceptance target does not invalidate chunks
+        c = run_precalibration(
+            with_overrides(cfg; output_dir="elsewhere", n_accept_min=5); checkpoint_dir=ck, verbose=false
+        )
+        @test c.constants == res.constants[1:5, :]
+        # an input file with different content is detected
+        alt = joinpath(mktempdir(), "temp.csv")
+        write(alt, read(TEMP_FILE, String) * "\n")
+        m = msg(() -> run_precalibration(with_overrides(cfg; temperature_file=alt); checkpoint_dir=ck, verbose=false))
+        @test occursin("inputs_sha256.temperature_file", m)
+        # the same content at another path (a moved or synced project) can resume
+        same = joinpath(mktempdir(), "temp.csv")
+        cp(TEMP_FILE, same)
+        e = run_precalibration(
+            with_overrides(cfg; temperature_file=same, tag="renamed"); checkpoint_dir=ck, verbose=false
+        )
+        @test e.constants == res.constants
+        # a truncated chunk (e.g. a crash of an older version) is detected and recomputed
+        f2 = G._chunk_file(ck, 2)
+        bytes = read(f2)
+        write(f2, bytes[1:(length(bytes) ÷ 2)])
+        d = @test_logs (:warn, r"cannot be read") match_mode = :any run_precalibration(
+            cfg; checkpoint_dir=ck, verbose=false
+        )
+        @test d.constants == res.constants
+        # a chunk carrying another fingerprint is refused
+        G._save_chunk(f2, G._load_chunk(f2), "0000")
+        @test occursin("different configuration", msg(() -> run_precalibration(cfg; checkpoint_dir=ck, verbose=false)))
+        # the same error, not a TaskFailedException, when chunks run on several threads
+        @test occursin(
+            "different configuration",
+            msg(() -> run_precalibration(cfg; checkpoint_dir=ck, max_parallel=3, verbose=false)),
+        )
+        # a failed chunk write leaves neither a temporary file nor a partial chunk
+        f9 = G._chunk_file(mktempdir(), 9)
+        @test_throws ErrorException G._atomic_write_path(tmp -> (write(tmp, "partial"); error("disk full")), f9)
+        @test !isfile(f9 * ".tmp") && !isfile(f9)
+        # waiting on a batch holds back task failures only; other exceptions propagate
+        ok = Threads.@spawn 1
+        bad = Threads.@spawn error("chunk failed")
+        @test_throws ErrorException G._fetch_all([ok, bad])           # rethrown as itself
+        @test_throws InterruptException G._fetch_all([Threads.@spawn throw(InterruptException())])
+        # chunk files without a manifest (older versions) are refused
+        old = mktempdir()
+        cp(G._chunk_file(ck, 1), G._chunk_file(old, 1))
+        @test occursin("no checkpoint_manifest", msg(() -> run_precalibration(cfg; checkpoint_dir=old, verbose=false)))
+    end
 
     # time_center_from: centres from a previous result
     c2 = with_overrides(cfg; time_center_from=path, n_sample=10, n_per_chunk=10)
     setup = G.prepare_precalibration(c2)
     @test setup.center.Sr ≈ vec(Statistics.mean(res.time_series[:, :, 1]; dims=2))
 
+    # time_center_from pointing at a run_on_time_centers result is refused unless
+    # explicitly allowed: its saved series did not influence acceptance (J-11)
+    roc = run_precalibration(with_overrides(cfg; run_on_time_centers=true, n_sample=20, n_per_chunk=20); verbose=false)
+    @test n_accepted(roc) >= 1
+    roc_path = save_result(joinpath(dir, "roc.jld2"), roc)
+    c_roc = with_overrides(cfg; time_center_from=roc_path, n_sample=10, n_per_chunk=10)
+    err = try
+        G.prepare_precalibration(c_roc)
+        nothing
+    catch e
+        e
+    end
+    @test err isa ArgumentError && occursin("allow_uninformative_centers", err.msg)
+    allowed = run_precalibration(with_overrides(c_roc; allow_uninformative_centers=true); verbose=false)
+    @test allowed.provenance["uninformative_time_centers"] == "true"
+    @test allowed.config["allow_uninformative_centers"] == true
+    @test !haskey(run_precalibration(c2; verbose=false).provenance, "uninformative_time_centers")
+
     # merging results
     m = merge_results([res, few])
-    @test n_accepted(m) == n + 5 && m.n_simulated == 80
+    @test n_accepted(m) == n + 5 && m.n_simulated == 80 && m.n_evaluated == res.n_evaluated + few.n_evaluated
 end

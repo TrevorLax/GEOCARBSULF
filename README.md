@@ -67,7 +67,7 @@ using GeocarbPrecalibration
 table  = read_prior_table(datapath("GEOCARB_input_summaries_calib_all.csv"))
 arrays = read_time_arrays(datapath("GEOCARB_input_arrays_NewDegassing.csv"))
 r = run_geocarb(mean_constants(table), arrays.center)   # 570 Ma → present
-r.co2, temperature(r)
+r.co2, surface_temperature(r)
 
 res = run_precalibration(only(load_experiments("experiments/example_small.toml")))
 climate_sensitivity_summary(res)

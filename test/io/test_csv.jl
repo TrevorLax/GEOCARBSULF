@@ -29,4 +29,24 @@
     back = read_csv_table(path)
     @test isequal(G.numeric_column(back, "v"; allow_missing=true), vals)
     @test G.column(back, "s")[2] == "b,c"
+
+    # error messages give the file line, also after blank lines and multi-line quoted
+    # fields; CRLF inside quotes counts once (J-27)
+    msg(f) =
+        try
+            f()
+            ""
+        catch e
+            e.msg
+        end
+    content = "x,note\n1,ok\n\n2,\"two\nlines\"\nbad,z\n"
+    tl = read_csv_table(tmpfile(content))
+    @test tl.lines == [2, 4, 6]
+    @test occursin(":6: column 'x'", msg(() -> G.numeric_column(tl, "x")))
+    tc = read_csv_table(tmpfile(replace(content, "\n" => "\r\n")))
+    @test tc.lines == [2, 4, 6]
+    # Float32 values round-trip (repr would write 1.1f0)
+    v32 = Float32[1.1, -2.5f-20, 3]
+    b32 = read_csv_table(G.write_csv(tmpfile(""), ["v"], [v32]))
+    @test Float32.(G.numeric_column(b32, "v")) == v32
 end

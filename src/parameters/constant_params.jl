@@ -11,7 +11,7 @@ Construct by name, never by position:
 ```julia
 p = ConstantParams(Dict(:ACT => 0.09, :ACTcarb => 0.087, ...))   # all 56 names
 p = ConstantParams(names, values)                                 # any order
-p2 = update(p; deltaT2X = 4.0)
+p2 = update_params(p; deltaT2X = 4.0)
 ```
 
 Missing or unknown names raise an `ArgumentError`.
@@ -24,7 +24,7 @@ julia> p = mean_constants(read_prior_table(datapath("GEOCARB_input_summaries_cal
 julia> p.deltaT2X
 3.0
 
-julia> update(p; deltaT2X = 4.0).deltaT2X
+julia> update_params(p; deltaT2X = 4.0).deltaT2X
 4.0
 ```
 """
@@ -150,13 +150,13 @@ The parameter values in the canonical order of [`CONSTANT_PARAMETER_NAMES`](@ref
 parameter_vector(p::ConstantParams{T}) where {T} = T[getfield(p, n) for n in CONSTANT_PARAMETER_NAMES]
 
 """
-    update(p::ConstantParams; kwargs...) -> ConstantParams
+    update_params(p::ConstantParams; kwargs...) -> ConstantParams
 
-Copy of `p` with some parameters replaced, e.g. `update(p; deltaT2X = 4.0)`. The
+Copy of `p` with some parameters replaced, e.g. `update_params(p; deltaT2X = 4.0)`. The
 element type is promoted if needed, so automatic-differentiation numbers can be
 passed in.
 """
-function update(p::ConstantParams; kwargs...)
+function update_params(p::ConstantParams; kwargs...)
     d = Dict{Symbol,Any}(n => getfield(p, n) for n in CONSTANT_PARAMETER_NAMES)
     for (k, v) in kwargs
         k in CONSTANT_PARAMETER_NAMES || throw(ArgumentError("unknown constant parameter :$k"))

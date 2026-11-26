@@ -24,7 +24,7 @@ paper."
 | tool / model | version or date range | used for |
 |:--|:--|:--|
 | TODO | TODO | TODO |
-| Claude Code (Claude Opus 5.5, Anthropic) | November 2026 | CI/CD workflows, git hooks and check scripts, doctests, JOSS scaffolding (see below) |
+| Claude Code (Claude Opus 5.5, Anthropic) | November 2026 | CI/CD workflows, git hooks and check scripts, doctests, JOSS scaffolding (see below); fixes for the code-review findings J-01 to J-32 (see `CHANGELOG.md`) |
 
 ## Scope by area
 

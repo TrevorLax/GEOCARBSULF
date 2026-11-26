@@ -131,7 +131,7 @@ Pull requests opened by Dependabot are exempt from the CHANGELOG and disclosure 
 ## Adding a model variant
 
 Add a `ModelOptions` field whose default keeps today's behaviour, implement it,
-validate it in `validate(::ModelOptions)`, and test both the default (the legacy
+validate it in `validate_options(::ModelOptions)`, and test both the default (the legacy
 comparison must still pass) and the new behaviour.
 
 ## Regenerating fixtures

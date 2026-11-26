@@ -7,8 +7,9 @@ This is a line-by-line port of `fortran/src/run_geocarb.f90` (and, through
 [`ModelOptions`](@ref), of `run_geocarb_supp.f90`). The model never throws because of
 the parameter values: numerical failures are reported per step in `result.status`
 (see [`StepStatus`](@ref)) with the Fortran output conventions (`co2 = o2 = Inf` on
-failed steps). Invalid *inputs* (for example an age grid whose spacing is not
-`options.dt`) raise an `ArgumentError` before the run starts.
+failed steps). Invalid *inputs* (for example an age grid that does not run from 570 Ma
+to the present, or whose spacing is not `options.dt`) raise an `ArgumentError` before
+the run starts.
 
 # Examples
 
@@ -57,6 +58,8 @@ function run_geocarb!(
     age = f.age
     n = length(age)
     length(out.co2) == n || throw(ArgumentError("output has $(length(out.co2)) steps but the forcings have $n"))
+    out.age == age || throw(ArgumentError("the output's age grid differs from the forcings' age grid"))
+    _check_model_grid(age)
     _check_dt(age, o.dt)
     k = resolve_constants(o)
     T = promote_type(_numtype(p), _numtype(f))
@@ -119,9 +122,11 @@ function run_geocarb!(
     return out
 end
 
+# Spacing compared with a relative tolerance, so that grids built by arithmetic (for
+# example `range(570, 0; length = 58)`) are accepted (J-06).
 function _check_dt(age::Vector{Float64}, dt::Float64)
     for i in 2:length(age)
-        if age[i - 1] - age[i] != dt
+        if !isapprox(age[i - 1] - age[i], dt; rtol=1e-9)
             throw(
                 ArgumentError(
                     "the age grid must have a uniform spacing of dt = $dt Myr " * "(found $(age[i-1]) → $(age[i]))"

@@ -22,6 +22,14 @@
     @test w2.high[i100] ≈ 4000
     @test co2_windows(d, age; bounds=(0.0, 1500.0)).high[i100] == 1500
     # the real data: every window is non-empty
+    # one binning rule for windows and proxy_step_index, dt explicit (J-32)
+    bins = G.proxy_step_index(d, age)
+    @test bins == [i100, i100, i200]
+    @test G.proxy_step_index(d, age; dt=10.0) == bins
+    @test co2_windows(d, age; dt=10.0).low == w.low
+    @test_throws ArgumentError co2_windows(d, [100.0])                     # one step: no spacing to guess
+    @test co2_windows(d, [100.0]; dt=10.0).high[1] ≈ 2000
+    @test G.proxy_step_index(d, [100.0]; dt=20.0) == [1, 1, nothing]
     real = co2_windows(read_proxy_data(PROXY_FILE), age)
     @test all(real.low .< real.high)
 end
@@ -38,4 +46,19 @@ end
     @test all(w.low .<= w.high)
     @test_throws ArgumentError temperature_windows(td, [1000.5])
     @test G.shift(w, fill(1.0, 58)).low == w.low .+ 1
+end
+
+@testset "windows and proxy rows must not be inverted (J-24)" begin
+    @test_throws ArgumentError Windows([10.0, 0.0], [1.0, 5.0], [2.0, 4.0])
+    @test_throws ArgumentError Windows([10.0, 0.0], [1.0, NaN], [2.0, 4.0])
+    @test Windows([10.0, 0.0], [1.0, 4.0], [2.0, 4.0]) isa Windows          # low == high is allowed
+    hdr = "age,co2,co2_low,co2_high,proxy_type,reference\n"
+    @test_throws ArgumentError read_proxy_data(tmpfile(hdr * "100,1000,500,800,boron,x\n"); proxies=(:boron,))
+    @test_throws ArgumentError read_proxy_data(tmpfile(hdr * "100,1000,1200,2000,boron,x\n"); proxies=(:boron,))
+    ok = read_proxy_data(tmpfile(hdr * "100,1000,,2000,boron,x\n"); proxies=(:boron,))   # co2_low may be missing
+    @test length(ok) == 1 && isnan(ok.co2_low[1])
+    # an inverted row of a proxy type that is not used does not matter
+    @test length(
+        read_proxy_data(tmpfile(hdr * "100,1000,500,800,stomata,x\n200,300,150,600,boron,y\n"); proxies=(:boron,))
+    ) == 1
 end

@@ -2,7 +2,7 @@
     vegetation_fE(t, p, o) -> fE
 
 Effect of plants on the weathering rate at age `t` relative to the present
-(f90:319-359; supplemental variant `run_geocarb_supp.f90:374-395`):
+(and its variant in the supplemental Fortran model):
 
 | age (Myr ago) | fE |
 |:--|:--|
@@ -14,8 +14,11 @@ Effect of plants on the weathering rate at age `t` relative to the present
 
 `(start, end) = o.gym_angio_transition`, default `(130, 80)`. The Fortran checks the
 intervals one after another, with later checks overriding earlier ones; that order is
-kept. Unlike the Fortran supplemental code, `GYM` is never modified in place, so
-`gym_factor = 0` is well defined (finding F-09).
+kept. Unlike the Fortran supplemental code, `GYM` is never modified in place (finding
+F-09). `fE` divides the mass-balance silicate weathering
+(`silicate_weathering_no_climate`),
+so `fE = 0` would make the step fail; [`ModelOptions`](@ref) therefore requires
+`gym_factor > 0`.
 """
 @inline function vegetation_fE(t::Real, p::ConstantParams, o::ModelOptions)
     beg, en = o.gym_angio_transition
@@ -43,7 +46,7 @@ end
     carbonate_fBB(t, rco2_prev, gcm, GEOG, p) -> fBB
 
 Effect of climate and CO2 on carbonate weathering (Berner 2004 eqs. 2.6-2.7, 2.29),
-using RCO2 from the *previous* time step (f90:325, 336-343). Between 380 and 350 Ma the
+using RCO2 from the *previous* time step, as in the Fortran. Between 380 and 350 Ma the
 non-vascular and vascular expressions are blended linearly.
 """
 @inline function carbonate_fBB(t::Real, rco2, gcm, GEOG, p::ConstantParams)

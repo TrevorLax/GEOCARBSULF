@@ -177,6 +177,7 @@ function julia_analysis!(
             r50.prcout_temp[h.idx],
             r50.sample_keys[h.idx, :],
             r50.n_simulated,
+            r50.n_evaluated,
             nothing,
             r50.provenance,
         )

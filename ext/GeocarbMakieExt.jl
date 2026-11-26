@@ -25,7 +25,7 @@ using GeocarbPrecalibration:
     mean_constants,
     read_prior_table,
     datapath,
-    update,
+    update_params,
     parameter_units
 import GeocarbPrecalibration:
     plot_model_vs_proxy,
@@ -51,8 +51,12 @@ function _bands!(ax, x, q, color; positive=false)
     return ax
 end
 
+# The temperature panel shows `temp + T0`, the quantity that acceptance compared with
+# the windows (J-13). Adding GEOG, as the R figure did, would draw a different quantity
+# against the same windows.
 function plot_model_vs_proxy(res::PrecalibrationResult, proxy::ProxyData, temp_windows::Windows; xlims=(-425, 0))
-    hc = hindcast(res)
+    temp_windows.age == res.age || throw(ArgumentError("temp_windows: age grid differs from the result's"))
+    hc = hindcast(res; include_geog=false)
     qc = row_quantiles(hc.co2; probs=BAND_PROBS)
     qt = row_quantiles(hc.temp; probs=BAND_PROBS)
     x = -res.age
@@ -61,7 +65,12 @@ function plot_model_vs_proxy(res::PrecalibrationResult, proxy::ProxyData, temp_w
     scatter!(ax1, -proxy.age, proxy.co2; markersize=3, color=(:black, 0.4))
     _bands!(ax1, x, qc, :royalblue; positive=true)
     xlims!(ax1, xlims...)
-    ax2 = Axis(fig[2, 1]; xlabel="Time [Myr ago]", ylabel="Global mean temperature [°C]")
+    ax2 = Axis(
+        fig[2, 1];
+        xlabel="Time [Myr ago]",
+        ylabel="Global mean temperature [°C]",
+        subtitle="model temp + T0 (as tested against the windows; no GEOG term)",
+    )
     band!(ax2, x, temp_windows.low, temp_windows.high; color=(:gray, 0.3))
     _bands!(ax2, x, qt, :firebrick)
     xlims!(ax2, xlims...)
@@ -150,7 +159,9 @@ function plot_gym_modification(;
     LIFE::Real=0.25,
     options::ModelOptions=ModelOptions(; gym_angio_transition=(110, 60), gym_factor=0.25),
 )
-    p = update(mean_constants(read_prior_table(datapath("GEOCARB_input_summaries_calib_all.csv"))); GYM=GYM, LIFE=LIFE)
+    p = update_params(
+        mean_constants(read_prior_table(datapath("GEOCARB_input_summaries_calib_all.csv"))); GYM=GYM, LIFE=LIFE
+    )
     t = collect(570.0:-1.0:0.0)
     f0 = [vegetation_fE(ti, p, ModelOptions()) for ti in t]
     f1 = [vegetation_fE(ti, p, options) for ti in t]

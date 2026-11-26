@@ -29,6 +29,14 @@ end
     @test f.GEOG[end] == 0.0
     @test f.Sr != TIME_PRIOR.center.Sr
     @test_throws ArgumentError sample_time_forcings!(rng, f, mt; covariances=Dict{Symbol,Matrix{Float64}}())
+    # a given workspace gives the same draw as the call's own; only inverse-Wishart needs one
+    p = length(f.age)
+    g = copy(f)
+    sample_time_forcings!(StableRNG(3), f, iw)
+    sample_time_forcings!(StableRNG(3), g, iw; workspace=G.SamplerWorkspace(p))
+    @test f.Sr == g.Sr
+    @test G._default_workspace(mt, p) === nothing
+    @test_throws ArgumentError sample_time_forcings!(rng, f, iw; workspace=G.SamplerWorkspace(p + 1))
 
     # covariance draws have mean diag(σ²); series have mean μ (Sr is not normalised)
     N = 400
@@ -64,4 +72,16 @@ end
     s2 = TIME_PRIOR.sigma.d13C .^ 2
     @test all(isapprox(Statistics.var(b[i, :]), s2[i]; rtol=0.2) for i in 1:58)
     @test all(isapprox(Statistics.var(a[i, :]), s2[i]; rtol=0.2) for i in 1:58)
+end
+
+@testset "samplers and forcing files need a grid ending at the present (J-20)" begin
+    short(f) = TimeForcings(f.age[1:(end - 1)], Dict(n => getfield(f, n)[1:(end - 1)] for n in TIME_FORCING_NAMES))
+    @test_throws ArgumentError InverseWishartSampler(
+        short(TIME_PRIOR.center), short(TIME_PRIOR.sigma), read_variance_reduction()
+    )
+    @test_throws ArgumentError MultivariateTSampler(
+        short(TIME_PRIOR.center), short(TIME_PRIOR.sigma), read_variance_reduction()
+    )
+    lines = readlines(ARRAY_FILE)
+    @test_throws ArgumentError read_time_arrays(tmpfile(join(lines[1:(end - 1)], "\n")))   # drops the 0 Ma row
 end

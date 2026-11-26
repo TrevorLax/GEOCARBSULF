@@ -22,8 +22,14 @@
     @test fE(85.0, m) ≈ (0.25 * p.GYM + 1) / 2
     @test fE(60.0, m) == 1
     @test fE(365.0, m) == fE(365.0)
-    z = ModelOptions(; gym_factor=0.0)                   # NaN in the Fortran (F-09), defined here
-    @test fE(100.0, z) ≈ 30 / 50
+    # gym_factor = 0 would give fE = 0 at the start of the ramp, which divides the
+    # mass-balance silicate weathering: every run would fail at 130 Ma (J-12)
+    @test_throws ArgumentError ModelOptions(; gym_factor=0.0)
+    @test_throws ArgumentError ModelOptions(; gym_factor=-0.5)
+    small = ModelOptions(; gym_factor=1e-3)
+    @test fE(130.0, small) ≈ 1e-3 * p.GYM
+    r = run_geocarb(p, default_inputs()[2]; options=small)
+    @test r.status[findfirst(==(130.0), r.age)] != NaNEncountered     # a value, not a division by zero
 end
 
 @testset "carbonate_fBB" begin
