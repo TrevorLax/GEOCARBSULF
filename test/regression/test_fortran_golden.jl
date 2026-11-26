@@ -25,12 +25,20 @@
     for label in labels
         t = read_csv_table(joinpath(dir, "$(label)_inputs.csv"))
         single = label != "real8"           # real8 fixtures: Fortran built with -fdefault-real-8
-        cases = Tuple{ConstantParams{Float64},TimeForcings{Float64},Int}[]
+        # `nothing` marks a case whose iteration_threshold ModelOptions no longer accepts
+        # (fixtures from older generators had a threshold-1 case); it is skipped.
+        cases = Union{Nothing,Tuple{ConstantParams{Float64},TimeForcings{Float64},Int}}[]
         for row in t.rows
             num(name) = G.parse_number(row[findfirst(==(name), t.header)])
+            thr = Int(num("iteration_threshold"))
+            if thr < 2
+                @info "golden $label: skipping case $(row[1]) (iteration_threshold = $thr is no longer valid)"
+                push!(cases, nothing)
+                continue
+            end
             p = ConstantParams(collect(CONSTANT_PARAMETER_NAMES), [num(String(n)) for n in CONSTANT_PARAMETER_NAMES])
             d = Dict{Symbol,Vector{Float64}}(n => [num("$(n)_$k") for k in 1:nt] for n in TIME_FORCING_NAMES)
-            push!(cases, (p, TimeForcings(age, d; check_finite=false), Int(num("iteration_threshold"))))
+            push!(cases, (p, TimeForcings(age, d; check_finite=false), thr))
         end
         variants = Tuple{String,Any}[("main", (; kw...) -> ModelOptions(; kw...))]
         for (nm, b, e, g, dd) in [
@@ -56,15 +64,18 @@
                 tq = read_csv_table(joinpath(dir, "$(label)_$(name)_$(q).csv"))
                 ref[q] = reduce(hcat, [G.numeric_column(tq, s; allow_missing=true) for s in steps])   # cases × steps
             end
-            n = size(ref["co2"], 1)
-            n <= length(cases) || error("$label $name: more output rows than input cases")
-            jl = Dict(q => Matrix{Float64}(undef, n, nt) for q in ("co2", "o2", "temp15"))
-            for i in 1:n
+            size(ref["co2"], 1) <= length(cases) || error("$label $name: more output rows than input cases")
+            rows = [i for i in 1:size(ref["co2"], 1) if cases[i] !== nothing]
+            for q in keys(ref)
+                ref[q] = ref[q][rows, :]
+            end
+            jl = Dict(q => Matrix{Float64}(undef, length(rows), nt) for q in ("co2", "o2", "temp15"))
+            for (j, i) in enumerate(rows)
                 p, f, thr = cases[i]
                 r = run_geocarb(p, f; options=mk(; fortran_single_literals=single, iteration_threshold=thr))
-                jl["co2"][i, :] .= r.co2
-                jl["o2"][i, :] .= r.o2
-                jl["temp15"][i, :] .= r.temp .+ 15
+                jl["co2"][j, :] .= r.co2
+                jl["o2"][j, :] .= r.o2
+                jl["temp15"][j, :] .= r.temp .+ 15
             end
             post = cumsum(isinf.(ref["co2"]); dims=2) .> 0
             same(x, y) = (isnan(x) == isnan(y)) && (isinf(x) == isinf(y)) && (!isinf(x) || x == y)

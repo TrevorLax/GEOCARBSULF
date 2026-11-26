@@ -41,6 +41,11 @@ its age are pooled (the bins of [`proxy_step_index`](@ref)). Each proxy spans
 `log10(co2) ± nsig·log10(co2_high/co2)`, and the window is the envelope of those spans,
 intersected with `bounds`. Steps without data get the full `bounds`. `dt` defaults to
 the spacing of `age`; a single-step grid needs it explicitly.
+
+`bounds` must overlap the envelope at every step: `bounds[2]` must be at least the
+lowest proxy span bound (`10^min(log10(co2) − nsig·σ)`) of each step, and `bounds[1]` at
+most its highest. Otherwise the intersection is empty and the [`Windows`](@ref)
+constructor throws an `ArgumentError` naming the step.
 """
 function co2_windows(
     proxy::ProxyData, age::AbstractVector; nsig::Real=1.0, bounds=(0.0, 50_000.0), dt::Real=_grid_spacing(age)

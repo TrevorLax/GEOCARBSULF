@@ -43,17 +43,21 @@ engine outputs with the previous code. Results with the default options are unch
 
 - Checkpoints are tied to the configuration and input files that wrote them (inputs
   compared by content, so a moved project can resume) and are written atomically
-  (J-03). In threaded runs, an error inside a chunk is rethrown as itself instead of
-  as a `TaskFailedException`.
+  (J-03); a failed chunk write leaves no temporary file. In threaded runs, an error
+  inside a chunk is rethrown as itself instead of as a `TaskFailedException`, and
+  Ctrl-C still stops the run.
 - `plot_model_vs_proxy` plots `temp + T0`, the quantity acceptance tested, instead of
   `temp + T0 + GEOG`; new `accepted_temperature` (J-13). `hindcast` no longer mixes
-  centre-run outputs with sampled GEOG for `run_on_time_centers` results (J-02).
+  centre-run outputs with sampled GEOG for `run_on_time_centers` results (J-02), and
+  rejects `center` for other results, where it would be ignored.
 - New `n_evaluated` and `acceptance_rate`: `n_simulated` counted the rest of the last
   chunk and biased acceptance rates low (J-17).
 - `correlation_screen` lists undefined (NaN) correlations last (J-18).
 - The Cretaceous analysis merges all three 30 % control seeds and adds a 50 % control
   (J-01); the analysis scripts read inputs, `nsig` and `T0` from each result's stored
-  configuration through the new `result_inputs` (J-14).
+  configuration through the new `result_inputs` (J-14). For a result copied from
+  another machine, `result_inputs` looks up missing input files by name in the
+  package data directory, with a warning.
 
 **Configuration and provenance:**
 

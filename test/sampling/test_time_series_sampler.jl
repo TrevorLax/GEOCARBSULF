@@ -29,6 +29,14 @@ end
     @test f.GEOG[end] == 0.0
     @test f.Sr != TIME_PRIOR.center.Sr
     @test_throws ArgumentError sample_time_forcings!(rng, f, mt; covariances=Dict{Symbol,Matrix{Float64}}())
+    # a given workspace gives the same draw as the call's own; only inverse-Wishart needs one
+    p = length(f.age)
+    g = copy(f)
+    sample_time_forcings!(StableRNG(3), f, iw)
+    sample_time_forcings!(StableRNG(3), g, iw; workspace=G.SamplerWorkspace(p))
+    @test f.Sr == g.Sr
+    @test G._default_workspace(mt, p) === nothing
+    @test_throws ArgumentError sample_time_forcings!(rng, f, iw; workspace=G.SamplerWorkspace(p + 1))
 
     # covariance draws have mean diag(σ²); series have mean μ (Sr is not normalised)
     N = 400

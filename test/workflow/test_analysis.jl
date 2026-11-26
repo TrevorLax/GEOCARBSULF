@@ -40,30 +40,41 @@
     inp2 = result_inputs(r2)
     @test inp2.T0 == 14.0 && inp2.temp_windows.high != inp.temp_windows.high
     @test inp2.temp_windows.high == G.prepare_precalibration(small_config(; nsig=2.0)).ctx.temp_windows.high
+    with_config(r, c) = G.PrecalibrationResult(
+        r.tag,
+        r.config_text,
+        c,
+        r.age,
+        r.constant_names,
+        r.constants,
+        r.forcing_names,
+        r.time_series,
+        r.co2,
+        r.o2,
+        r.temp,
+        r.status,
+        r.prcout_co2,
+        r.prcout_temp,
+        r.sample_keys,
+        r.n_simulated,
+        r.n_evaluated,
+        r.covariances,
+        r.provenance,
+    )
     cfg_gone = copy(res.config)
     cfg_gone["proxy_file"] = "/nonexistent/proxies.csv"
-    res_gone = G.PrecalibrationResult(
-        res.tag,
-        res.config_text,
-        cfg_gone,
-        res.age,
-        res.constant_names,
-        res.constants,
-        res.forcing_names,
-        res.time_series,
-        res.co2,
-        res.o2,
-        res.temp,
-        res.status,
-        res.prcout_co2,
-        res.prcout_temp,
-        res.sample_keys,
-        res.n_simulated,
-        res.n_evaluated,
-        res.covariances,
-        res.provenance,
-    )
-    @test_throws ArgumentError result_inputs(res_gone)
+    @test_throws ArgumentError result_inputs(with_config(res, cfg_gone))
+    # a result moved from another machine: missing inputs are found by name in datapath()
+    cfg_moved = copy(res.config)
+    pname = basename(res.config["proxy_file"])
+    cfg_moved["proxy_file"] = "/scratch/elsewhere/data/" * pname
+    cfg_moved["prior_file"] = raw"D:\elsewhere\data\\" * basename(res.config["prior_file"])
+    inp_moved = @test_logs (:warn,) (:warn,) result_inputs(with_config(res, cfg_moved))
+    @test inp_moved.config.proxy_file == datapath(pname)
+    @test inp_moved.config.prior_file == datapath(basename(res.config["prior_file"]))
+    @test inp_moved.co2_windows.high == inp.co2_windows.high
+    # `center` only applies to run_on_time_centers results; elsewhere it would be ignored
+    @test_throws ArgumentError hindcast(res; center=setup.center)
     rq = row_quantiles(hc.co2)
     @test size(rq) == (58, 9)
 

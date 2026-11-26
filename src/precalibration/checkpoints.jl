@@ -133,10 +133,16 @@ function prepare_checkpoint_dir(dir::AbstractString, cfg::ExperimentConfig)
 end
 
 # Write through a temporary file in the same directory, then rename it into place.
-function _atomic_write(f::Function, path::AbstractString)
+# `f` receives an IO open on the temporary file.
+_atomic_write(f::Function, path::AbstractString) = _atomic_write_path(tmp -> open(f, tmp, "w"), path)
+
+# As `_atomic_write`, but `f` receives the temporary file's path (for writers that open
+# the file themselves, such as JLD2). The temporary file is removed if `f` or the rename
+# fails.
+function _atomic_write_path(f::Function, path::AbstractString)
     tmp = path * ".tmp"
     try
-        open(f, tmp, "w")
+        f(tmp)
         mv(tmp, path; force=true)
     catch
         rm(tmp; force=true)

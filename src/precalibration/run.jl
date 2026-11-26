@@ -197,10 +197,16 @@ end
 _chunk_file(dir::AbstractString, c::Integer) = joinpath(dir, @sprintf("chunk_%06d.jld2", c))
 
 # Written to a temporary name and renamed, so a crash cannot leave a truncated chunk
-# under its final name. `fingerprint` ties the chunk to its configuration (J-03).
+# under its final name; a failed write removes the temporary file. `fingerprint` ties
+# the chunk to its configuration (J-03).
 function _save_chunk(path::AbstractString, o::ChunkOutput, fingerprint::AbstractString="")
-    tmp = path * ".tmp"
-    JLD2.jldsave(
+    return _atomic_write_path(path) do tmp
+        return _jldsave_chunk(tmp, o, fingerprint)
+    end
+end
+
+function _jldsave_chunk(tmp::AbstractString, o::ChunkOutput, fingerprint::AbstractString)
+    return JLD2.jldsave(
         tmp;
         fingerprint=String(fingerprint),
         chunk=o.chunk,
@@ -217,8 +223,6 @@ function _save_chunk(path::AbstractString, o::ChunkOutput, fingerprint::Abstract
         has_cov=o.covariances !== nothing,
         covariances=o.covariances === nothing ? zeros(0, 0, 0, 0) : o.covariances,
     )
-    mv(tmp, path; force=true)
-    return path
 end
 
 # Returns `nothing` if the file cannot be read (for example truncated by a crash of an
@@ -346,12 +350,14 @@ end
 # Wait for every task of a batch, so none is still writing checkpoints when an error is
 # reported, then return their results. An exception inside a task is rethrown as
 # itself rather than wrapped in a TaskFailedException, so that, for example, a
-# checkpoint mismatch reads the same with one thread as with several.
+# checkpoint mismatch reads the same with one thread as with several. Only task
+# failures are held back; anything else (an InterruptException from Ctrl-C) propagates.
 function _fetch_all(tasks::Vector{Task})
     for t in tasks
         try
             wait(t)
-        catch
+        catch err
+            err isa TaskFailedException || rethrow()
         end
     end
     return map(tasks) do t

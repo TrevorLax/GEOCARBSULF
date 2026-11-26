@@ -99,22 +99,31 @@ struct SamplerWorkspace
 end
 SamplerWorkspace(p::Integer) = SamplerWorkspace(Matrix{Float64}(undef, p, p), Vector{Float64}(undef, p))
 
+# Workspace for a call that was not given one: only the inverse-Wishart draw uses it.
+_default_workspace(::InverseWishartSampler, p::Integer) = SamplerWorkspace(p)
+_default_workspace(::TimeSeriesSampler, ::Integer) = nothing
+
 """
     sample_time_forcings!(rng, out::TimeForcings, sampler; covariances = nothing) -> out
 
 Overwrite `out` with one draw of all 12 forcings. With an `InverseWishartSampler`,
 `covariances` may be a `Dict{Symbol,Matrix{Float64}}` that receives the covariance draw
-of each forcing.
+of each forcing. `workspace` (a `SamplerWorkspace` sized to the age grid) is reused
+scratch space for the inverse-Wishart draw; without one, a call allocates its own.
 """
 function sample_time_forcings!(
     rng::AbstractRNG,
     out::TimeForcings,
     s::TimeSeriesSampler;
     covariances=nothing,
-    workspace::SamplerWorkspace=SamplerWorkspace(length(out.age)),
+    workspace::Union{Nothing,SamplerWorkspace}=nothing,
 )
     out.age == s.center.age || throw(ArgumentError("output and sampler age grids differ"))
-    length(workspace.z) == length(out.age) || throw(ArgumentError("workspace size differs from the age grid"))
+    if workspace === nothing
+        workspace = _default_workspace(s, length(out.age))
+    else
+        length(workspace.z) == length(out.age) || throw(ArgumentError("workspace size differs from the age grid"))
+    end
     for name in TIME_FORCING_NAMES
         x = getfield(out, name)
         μ = getfield(s.center, name)

@@ -179,6 +179,15 @@
             "different configuration",
             msg(() -> run_precalibration(cfg; checkpoint_dir=ck, max_parallel=3, verbose=false)),
         )
+        # a failed chunk write leaves neither a temporary file nor a partial chunk
+        f9 = G._chunk_file(mktempdir(), 9)
+        @test_throws ErrorException G._atomic_write_path(tmp -> (write(tmp, "partial"); error("disk full")), f9)
+        @test !isfile(f9 * ".tmp") && !isfile(f9)
+        # waiting on a batch holds back task failures only; other exceptions propagate
+        ok = Threads.@spawn 1
+        bad = Threads.@spawn error("chunk failed")
+        @test_throws ErrorException G._fetch_all([ok, bad])           # rethrown as itself
+        @test_throws InterruptException G._fetch_all([Threads.@spawn throw(InterruptException())])
         # chunk files without a manifest (older versions) are refused
         old = mktempdir()
         cp(G._chunk_file(ck, 1), G._chunk_file(old, 1))

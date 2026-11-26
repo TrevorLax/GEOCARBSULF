@@ -26,6 +26,8 @@ never drove the model. For those results:
   not store. Pass them as `center` (for example `prepare_precalibration(cfg).center`);
   otherwise an `ArgumentError` is thrown rather than silently mixing the sampled series
   with outputs computed on the centres.
+
+Passing `center` for any other result is an `ArgumentError`, since it would be ignored.
 """
 function hindcast(
     res::PrecalibrationResult;
@@ -47,6 +49,12 @@ function hindcast(
         )
     end
     if center !== nothing
+        on_centers || throw(
+            ArgumentError(
+                "result \"$(res.tag)\" was not computed with run_on_time_centers = true, so `center` would be " *
+                "ignored: the model ran on the saved series. Omit `center`.",
+            ),
+        )
         center.age == res.age || throw(ArgumentError("center: age grid differs from the result's"))
     end
     idx = subsample_indices(n_accepted(res), n; rng=rng)
@@ -92,15 +100,31 @@ The inputs an experiment actually used, rebuilt from the configuration stored in
 result (`res.config`) rather than from the package defaults: `config` (an
 [`ExperimentConfig`](@ref)), `prior_table`, `proxy` (with the configured proxy types),
 `co2_windows` and `temp_windows` (with the configured `nsig`, on the result's age grid)
-and `T0`. Throws an `ArgumentError` naming the file if an input file recorded in the
-result no longer exists.
+and `T0`.
+
+A result copied from another machine records input paths that may not exist here. A
+missing input file is then looked up by its file name in the package data directory
+([`datapath`](@ref)), with a warning; `config` holds the paths actually used. If neither
+exists, an `ArgumentError` naming the file is thrown.
 """
 function result_inputs(res::PrecalibrationResult)
     isempty(res.config) && throw(ArgumentError("result \"$(res.tag)\" stores no configuration"))
-    cfg = ExperimentConfig(res.config)
+    d = Dict{String,Any}(String(k) => v for (k, v) in res.config)
+    for k in ("prior_file", "proxy_file", "temperature_file")
+        haskey(d, k) || continue
+        f = String(d[k])
+        isfile(f) && continue
+        # split on both separators: the result may come from another operating system
+        local_f = datapath(String(last(split(f, ('/', '\\')))))
+        isfile(local_f) ||
+            throw(ArgumentError("result \"$(res.tag)\": $k recorded in the result not found: $f (nor $local_f)"))
+        @warn "result \"$(res.tag)\": $k recorded in the result not found: $f; using $local_f"
+        d[k] = local_f
+    end
+    cfg = ExperimentConfig(d)
     for (k, f) in
         (("prior_file", cfg.prior_file), ("proxy_file", cfg.proxy_file), ("temperature_file", cfg.temperature_file))
-        isfile(f) || throw(ArgumentError("result \"$(res.tag)\": $k recorded in the result not found: $f"))
+        isfile(f) || throw(ArgumentError("result \"$(res.tag)\": $k not found: $f"))
     end
     proxy = read_proxy_data(cfg.proxy_file; proxies=cfg.proxies)
     tdata = read_temperature_data(cfg.temperature_file)
