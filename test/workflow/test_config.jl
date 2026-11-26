@@ -31,6 +31,42 @@
     cret2 = only(load_experiments(joinpath(root, "experiments", "cretaceous", "stage2.toml")))
     @test cret2.allow_uninformative_centers     # opt-in kept for R parity (J-11)
 
+    @testset "paired experiments share seed and sampling settings" begin
+        # the fields that determine which constants and forcing series each chunk draws
+        draws(c) = (
+            c.seed,
+            c.n_sample,
+            c.n_per_chunk,
+            c.constant_design,
+            c.time_sampler,
+            c.prior_file,
+            c.time_array_file,
+            c.variance_reduction_file,
+            c.use_godderis,
+        )
+        control = only(filter(c -> c.tag == "ct_out50", main))       # main ct_out50: 1234 × 15
+        @test control.seed == 18510
+        for f in readdir(joinpath(root, "experiments", "supplemental"); join=true)
+            sc = only(load_experiments(f))
+            @test draws(sc) == draws(control)                       # paired with the control
+            @test (sc.constraint, sc.threshold, sc.proxies, sc.nsig, sc.T0) ==
+                (control.constraint, control.threshold, control.proxies, control.nsig, control.T0)
+        end
+        @test draws(cret) == draws(cret2)                            # F-29: stages share a seed
+        # same seed and settings, different model options: the same draws, chunk by chunk
+        a = run_precalibration(small_config(; n_sample=20, n_per_chunk=10); verbose=false)
+        b = run_precalibration(
+            small_config(; n_sample=20, n_per_chunk=10, model=ModelOptions(; gym_factor=0.25)); verbose=false
+        )
+        common = intersect(eachrow(a.sample_keys), eachrow(b.sample_keys))
+        @test !isempty(common)
+        for k in common
+            ia = findfirst(==(k), collect(eachrow(a.sample_keys)))
+            ib = findfirst(==(k), collect(eachrow(b.sample_keys)))
+            @test a.constants[ia, :] == b.constants[ib, :] && a.time_series[:, ia, :] == b.time_series[:, ib, :]
+        end
+    end
+
     @testset "configuration round trip (J-16)" begin
         odd = with_overrides(
             small_config();

@@ -15,8 +15,13 @@ time_center_from    = "results/cretaceous/ct_out50_cret/result.jld2"
 # Stage 1 runs with run_on_time_centers = true, so its saved series did not influence
 # acceptance and their mean is the prior centre plus sampling noise. Using them as
 # centres is refused unless this is set; it is set here only to reproduce the R
-# experiment. Both stages also share seed 3702 (finding F-29), so stage 2 is close to
-# re-filtering stage 1 at a tighter threshold. See JULIA_PORT_FINDINGS.md, J-11.
+# experiment (review finding J-11).
+#
+# Both stages use the same seed and sampling settings on purpose (finding F-29, decided
+# by the authors): stage 2 evaluates the same constant-parameter draws as stage 1. With
+# run_on_time_centers = true in both stages and centres that differ from stage 1's only
+# by sampling noise, stage 2 is therefore close to re-filtering stage 1 at the tighter
+# 30 % threshold.
 allow_uninformative_centers = true
 n_sample     = 10_000_000
 n_per_chunk  = 10_000

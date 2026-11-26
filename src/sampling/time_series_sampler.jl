@@ -1,12 +1,16 @@
 """
     read_variance_reduction(path = datapath("variance_reduction.toml")) -> Dict{Symbol,Float64}
 
-Variance-reduction factors `f ∈ [0, 1)` per forcing, as in the R code. They enter
-the inverse-Wishart degrees of freedom through [`inverse_wishart_dof`](@ref), as in the
-R code. Larger `f` gives more degrees of freedom, so sampled covariances concentrate
-more tightly around `diag(σ²)`. The R code does not state what variance `f` is meant to
-reproduce, and the formula adds a count to σ² in each forcing's own units (finding
-F-32), so the factors should not be read as variance ratios.
+Variance-reduction factors `f ∈ [0, 1)` per forcing, as in the R code. They were meant
+to bring the sampled variances in line with the reduced-variance experiments of Royer
+et al. (2014). They enter only the inverse-Wishart degrees of freedom
+([`inverse_wishart_dof`](@ref)), and the inverse-Wishart scale is chosen so that the mean
+covariance is `diag(σ²)` for any degrees of freedom. **The variance of the sampled
+series is therefore `σ²` whatever `f` is**: `f` only changes how widely individual
+covariance draws scatter around `diag(σ²)`, i.e. the tail weight of the series. Because
+the formula adds a count to σ² in each forcing's own units, `f` does not change the
+degrees of freedom at all for forcings with small σ² (finding F-32; see
+`docs/src/porting_notes.md`). This reproduces the R code.
 """
 function read_variance_reduction(path::AbstractString=datapath("variance_reduction.toml"))
     d = TOML.parsefile(path)
@@ -31,6 +35,10 @@ Degrees of freedom of the inverse-Wishart prior of each forcing's covariance
 (as in the R code):
 
     ν = n_time + 3 + ceil(2·max(σ²) / (1 − f))
+
+The term `2·max(σ²)` is in the forcing's own (squared) units, so whether `f` changes
+`ν` depends on those units, and `ν` does not change the mean covariance `diag(σ²)` of
+the samplers (finding F-32; see [`read_variance_reduction`](@ref)).
 """
 function inverse_wishart_dof(sigma::TimeForcings, f_var_red::AbstractDict{Symbol,<:Real})
     n = length(sigma.age)

@@ -143,10 +143,33 @@ they reproduce; they are notes for maintainers and do not appear in the document
   column and `Sr` became `1, 2, …, 58` (**F-27**, found during the port). Please
   check whether the published stage-2 results were affected.
 - **Seeds.** `lhs_sampling_cret.R` overrode the driver seed with `set.seed(2021)`
-  (F-18); in Julia the seed comes only from the configuration.
+  (F-18); in Julia the seed comes only from the configuration. The supplemental
+  experiments use the seed of their control (see below), not R's `1234 * 3`.
 - **Analysis.** The duplicated `deltaT2Xglac` row and quantiles of placeholder zeros
   (F-17) are not reproduced. Hindcasts reuse saved outputs. Numbers are written to
   `numbers.toml` instead of being printed.
+
+## Decisions of the authors after the code review (2026-11-26)
+
+| finding | decision | implementation |
+|:--|:--|:--|
+| F-29 | the two Cretaceous stages share a seed | both stages use seed 3702 and the same sampling settings (`experiments/cretaceous/*.toml`), so stage 2 evaluates the same constant draws as stage 1 |
+| seed pairing | control and supplemental experiments share a seed | the supplemental experiments use 18510, the seed of the control (main `ct_out50`, `1234 × 15`), and the same sampling settings, so each chunk draws the same constants and forcing series and the comparison is paired; checked in `test/workflow/test_config.jl` |
+| F-32 | `f_var_red` was meant to bring the sampled variances in line with the reduced-variance experiments of Royer et al. (2014) | see the known issue below; the code still reproduces R |
+
+## Known issue: `f_var_red` does not change the sampled variances (F-32)
+
+The inverse-Wishart prior on each forcing's covariance uses the scale
+`(ν − n_time − 1)·diag(σ²)`, so its mean is `diag(σ²)` for every `ν`, and the variance
+of the sampled series is `σ²` whatever `f_var_red` is. `f_var_red` enters only `ν`,
+through `ceil(2·max(σ²)/(1 − f))`, which mixes a count with σ² in each forcing's units.
+With 20 000 draws per forcing (shipped factors against `f = 0`), the sampled variance is
+`σ²` within sampling error (ratio 0.99–1.01) for all 12 forcings. `f` changes only
+the tail weight: for example the kurtosis of `d13C` falls from 5.6 to 3.8. For 5 of
+the 10 forcings with `f > 0` (`fR`, `fA`, `fD`, `fSR`, `fC`), `ν` is identical with and
+without `f`, because `2·max(σ²)/(1 − f)` rounds up to 1 in their units. The R code
+behaves the same way, so the published results are reproduced; whether and how to
+implement the intended variance reduction is open.
 
 ## Not ported (yet)
 

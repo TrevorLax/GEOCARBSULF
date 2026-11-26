@@ -1,14 +1,20 @@
 # Supplemental experiment "dT2X" (lhs_driver_supp.R): R parameters
 # supp_experiment_parameters = c(beg, end, gym_fac, dT2X_fac) map to the [model] table.
-# Only the CO2 + temperature experiment at 50 % outbound was run (idx_experiment = 3,
-# seed 1234 * 3).
+# Only the CO2 + temperature experiment at 50 % outbound was run.
+#
+# Seed: the supplemental experiments share the seed and the sampling settings of their
+# control, the main ct_out50 experiment (grid index 15 in experiments/main/grid.toml,
+# seed 1234 * 15 = 18510). Every chunk then draws the same constant parameters and
+# forcing series as the control, so the comparison is paired and differences come from
+# the model options alone. The R code used 1234 * 3 = 3702; Julia's random streams
+# differ from R's in any case. test/workflow/test_config.jl checks the pairing.
 
 name        = "supplemental_dT2X"
 description = "Supplemental experiment: dT2X"
 tag_suffix  = "dT2X"
 constraint  = "both"
 threshold   = 0.5
-seed        = 3702
+seed        = 18510   # = the control (main ct_out50)
 n_sample     = 20_000_000
 n_per_chunk  = 10_000
 n_accept_min = 10_000

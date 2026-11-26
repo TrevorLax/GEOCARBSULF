@@ -65,6 +65,17 @@ engine outputs with the previous code. Results with the default options are unch
   (its `Manifest.toml` is still to be created on the paper machine) (J-05).
 - New dependency: the SHA standard library.
 
+**Decisions of the authors (2026-11-26):**
+
+- The supplemental experiments now use seed 18510, the seed of their control (main
+  `ct_out50`), with the same sampling settings, so each chunk draws the same constants
+  and forcing series and the comparison is paired (previously 3702, from R). A test
+  checks the pairing.
+- The two Cretaceous stages share a seed (F-29), as before; now documented and tested.
+- `f_var_red` (F-32): its intent (variances in line with Royer et al. 2014) is
+  documented, together with the finding that it does not change the sampled variances,
+  in R or here; see `docs/src/porting_notes.md`.
+
 **Model options (off by default, Fortran behaviour unchanged):** `report_nan_target`
 (J-21) and `unified_vascular_blend` (J-22).
 
